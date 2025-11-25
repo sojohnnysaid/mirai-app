@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: mirai-frontend
-        image: ghcr.io/sojohnnysaid/mirai-prototype/mirai-frontend:latest
+        image: ghcr.io/sojohnnysaid/mirai-app/mirai-frontend:latest
         imagePullPolicy: Always
         ports:
         - containerPort: 3000

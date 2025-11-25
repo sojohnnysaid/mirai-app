@@ -8,7 +8,6 @@ resources:
 
 images:
 - name: ghcr.io/sojohnnysaid/mirai-app/mirai-frontend
-  newName: ghcr.io/sojohnnysaid/mirai-app/mirai-frontend
   newTag: d9f16b5
 
 namespace: mirai
