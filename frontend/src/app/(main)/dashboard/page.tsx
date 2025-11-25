@@ -64,7 +64,7 @@ export default function Dashboard() {
     <>
       {/* Something New Section - Updates/News */}
       <div className="bg-gray-200 rounded-2xl p-6 mb-8">
-        <h2 className="text-xl font-semibold text-gray-900">Something New!</h2>
+        <h2 className="text-xl font-semibold text-gray-900">Something New Foo!</h2>
       </div>
 
       {/* Hero Section with Create Button */}
