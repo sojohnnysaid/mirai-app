@@ -7,8 +7,7 @@ kratos:
     enabled: true
 
   config:
-    # DSN is loaded from secret via extraEnv below
-    # dsn: set via DSN env var from secret
+    dsn: $DSN
 
     serve:
       public:
@@ -93,7 +92,7 @@ kratos:
 
     secrets:
       default:
-        - REPLACE_WITH_SECURE_SECRET_32_CHARS
+        - $SECRETS_DEFAULT
 
     hashers:
       argon2:
@@ -179,27 +178,9 @@ kratos:
                   }
                 },
                 "required": ["first", "last"]
-              },
-              "company": {
-                "type": "object",
-                "properties": {
-                  "name": {
-                    "type": "string",
-                    "title": "Company Name",
-                    "minLength": 1,
-                    "maxLength": 200
-                  },
-                  "role": {
-                    "type": "string",
-                    "title": "Role",
-                    "enum": ["owner", "admin", "member"],
-                    "default": "owner"
-                  }
-                },
-                "required": ["name"]
               }
             },
-            "required": ["email", "name", "company"],
+            "required": ["email", "name"],
             "additionalProperties": false
           }
         }
@@ -207,6 +188,10 @@ kratos:
 
 # Deployment configuration
 deployment:
+  tolerations:
+    - key: node-role.kubernetes.io/control-plane
+      operator: Exists
+      effect: NoSchedule
   extraEnv:
     - name: DSN
       valueFrom:
@@ -251,6 +236,10 @@ job:
         secretKeyRef:
           name: kratos-secret
           key: dsn
+  tolerations:
+    - key: node-role.kubernetes.io/control-plane
+      operator: Exists
+      effect: NoSchedule
 
 # Service configuration
 service:
@@ -272,8 +261,9 @@ ingress:
   admin:
     enabled: false
 
-# Pod tolerations for control-plane scheduling
-tolerations:
-  - key: node-role.kubernetes.io/control-plane
-    operator: Exists
-    effect: NoSchedule
+# StatefulSet (courier) configuration
+statefulSet:
+  tolerations:
+    - key: node-role.kubernetes.io/control-plane
+      operator: Exists
+      effect: NoSchedule

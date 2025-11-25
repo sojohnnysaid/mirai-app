@@ -1,0 +1,143 @@
+# PostgreSQL deployment for Mirai Application Database
+# Uses static PV pointing to pre-created NFS directory with no_root_squash enabled
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: postgres-mirai-pv
+  labels:
+    app: postgres-mirai
+spec:
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  nfs:
+    server: 192.168.1.226
+    path: /mnt/user/k8s-nfs/postgres-mirai
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-data-pvc
+  namespace: mirai
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  selector:
+    matchLabels:
+      app: postgres-mirai
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-config
+  namespace: mirai
+data:
+  POSTGRES_DB: mirai
+  POSTGRES_USER: mirai
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mirai-db
+  namespace: mirai
+  labels:
+    app: mirai-db
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: mirai-db
+  template:
+    metadata:
+      labels:
+        app: mirai-db
+    spec:
+      tolerations:
+      - key: node-role.kubernetes.io/control-plane
+        operator: Exists
+        effect: NoSchedule
+      securityContext:
+        fsGroup: 70
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: postgres
+        image: postgres:15-alpine
+        ports:
+        - containerPort: 5432
+          name: postgres
+        envFrom:
+        - configMapRef:
+            name: postgres-config
+        env:
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mirai-db-secret
+              key: password
+        - name: PGDATA
+          value: /var/lib/postgresql/data/pgdata
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/postgresql/data
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        securityContext:
+          runAsUser: 70
+          runAsNonRoot: true
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+        livenessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - mirai
+            - -d
+            - mirai
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - mirai
+            - -d
+            - mirai
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: postgres-data-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mirai-db
+  namespace: mirai
+  labels:
+    app: mirai-db
+spec:
+  type: ClusterIP
+  ports:
+  - port: 5432
+    targetPort: 5432
+    name: postgres
+  selector:
+    app: mirai-db
