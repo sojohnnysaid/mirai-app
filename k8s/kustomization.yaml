@@ -11,7 +11,4 @@ images:
   newTag: d9f16b5
 
 # namespace managed by platform repo, each resource has namespace set explicitly
-
-labels:
-  app.kubernetes.io/name: mirai-frontend
-  app.kubernetes.io/part-of: mirai
+# labels already defined in each resource, no need to add via kustomize
