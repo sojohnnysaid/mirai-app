@@ -415,6 +415,42 @@ kubectl wait --for=condition=ready pod -n nfs-provisioner -l app=nfs-client-prov
 # 5. ArgoCD will recreate grafana with fresh mount
 ```
 
+### Issue: Prometheus pod has stale NFS mount
+
+**Symptoms**:
+- Logs show `stale NFS file handle` errors
+- Metrics collection stops
+- Alert rules not evaluating
+
+**Root Cause**: NFS provisioner restarted, old mounts became stale
+
+**Solution**:
+
+```bash
+# 1. Scale Prometheus to 0 to release lock
+kubectl scale deployment prometheus -n monitoring --replicas=0
+
+# 2. Delete the PVC to force new volume
+kubectl delete pvc prometheus-storage -n monitoring
+
+# 3. Restart NFS provisioner
+kubectl delete pod -n nfs-provisioner -l app=nfs-client-provisioner
+
+# 4. Wait for provisioner to come up
+kubectl wait --for=condition=ready pod -n nfs-provisioner -l app=nfs-client-provisioner --timeout=60s
+
+# 5. Scale Prometheus back up (ArgoCD will sync config)
+kubectl scale deployment prometheus -n monitoring --replicas=1
+
+# 6. Wait for Prometheus to be ready
+kubectl wait --for=condition=ready pod -l app=prometheus -n monitoring --timeout=60s
+```
+
+**Additional troubleshooting**:
+- If pod still won't start with "lock DB directory" error, scale to 0 and back to 1
+- Verify alert rules loaded: `kubectl exec -n monitoring deployment/prometheus -- ls -la /etc/prometheus/`
+- Check ConfigMap has all files: `kubectl get configmap prometheus-config -n monitoring -o jsonpath='{.data}' | python3 -c "import sys, json; print(list(json.load(sys.stdin).keys()))"`
+
 ### Issue: Session not working across domains
 
 **Symptoms**: User logged in on `mirai.sogos.io` but appears logged out on `get-mirai.sogos.io`
