@@ -8,4 +8,4 @@ resources:
 images:
 - name: ghcr.io/sojohnnysaid/mirai-app/mirai-backend
   newName: ghcr.io/sojohnnysaid/mirai-app/mirai-backend
-  newTag: latest
+  newTag: "2994e02"
