@@ -16,6 +16,10 @@ COPY . .
 
 ENV NEXT_TELEMETRY_DISABLED=1
 
+# Set build timestamp for cache-busting indicator
+ARG BUILD_TIME
+ENV NEXT_PUBLIC_BUILD_TIME=${BUILD_TIME}
+
 RUN npm run build
 
 # Production image, copy all the files and run next

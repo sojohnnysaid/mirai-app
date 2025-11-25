@@ -74,7 +74,7 @@ jobs:
         sudo mv kustomize /usr/local/bin/
 
         cd k8s/backend
-        kustomize edit set image ghcr.io/sojohnnysaid/mirai-app/mirai-backend=${{ steps.version.outputs.full-tag }}
+        kustomize edit set image ghcr.io/sogos-llc/mirai-app/mirai-backend=${{ steps.version.outputs.full-tag }}
 
         echo "Updated backend kustomization.yaml:"
         cat kustomization.yaml | grep -A 2 "images:"

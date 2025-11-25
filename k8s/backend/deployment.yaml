@@ -21,7 +21,7 @@ spec:
         effect: NoSchedule
       containers:
       - name: backend
-        image: ghcr.io/sojohnnysaid/mirai-app/mirai-backend:latest
+        image: ghcr.io/sogos-llc/mirai-app/mirai-backend:latest
         imagePullPolicy: Always
         ports:
         - containerPort: 8080

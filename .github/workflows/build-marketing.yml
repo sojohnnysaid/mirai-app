@@ -58,6 +58,8 @@ jobs:
         context: ./frontend
         file: ./frontend/Dockerfile.marketing
         push: true
+        build-args: |
+          BUILD_TIME=${{ github.event.head_commit.timestamp }}
         tags: |
           ${{ steps.version.outputs.full-tag }}
           ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
@@ -74,7 +76,7 @@ jobs:
         sudo mv kustomize /usr/local/bin/
 
         cd k8s/frontend-marketing
-        kustomize edit set image ghcr.io/sojohnnysaid/mirai-app/mirai-marketing=${{ steps.version.outputs.full-tag }}
+        kustomize edit set image ghcr.io/sogos-llc/mirai-app/mirai-marketing=${{ steps.version.outputs.full-tag }}
 
         echo "Updated marketing kustomization.yaml:"
         cat kustomization.yaml | grep -A 2 "images:"
