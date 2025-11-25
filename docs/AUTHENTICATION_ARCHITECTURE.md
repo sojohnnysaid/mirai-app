@@ -7,58 +7,76 @@ The Mirai SaaS application uses **Ory Kratos** for headless authentication with 
 ## Domain Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                      Cloudflare Tunnel                          │
-├──────────────────┬──────────────────┬──────────────────────────┤
-│ get-mirai.sogos  │ mirai.sogos.io   │ mirai-auth.sogos.io     │
-│ Marketing/Pricing│ Authenticated App│ Kratos Auth API         │
-└──────────────────┴──────────────────┴──────────────────────────┘
-         │                  │                      │
-         ▼                  ▼                      ▼
-┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐
-│  Next.js        │ │  Next.js        │ │  Ory Kratos     │
-│  Landing Page   │ │  App Frontend   │ │  (Helm Chart)   │
-│  (Public)       │ │  (Authenticated)│ │                 │
-└─────────────────┘ └─────────────────┘ └─────────────────┘
-                            │                      │
-                            │                      ▼
-                            │            ┌─────────────────┐
-                            │            │  PostgreSQL     │
-                            │            │  (Kratos DB)    │
-                            │            └─────────────────┘
-                            ▼
-                    ┌─────────────────┐
-                    │  Go Backend     │
-                    │  (Gin + Kratos) │
-                    └─────────────────┘
-                            │
-                            ▼
-                    ┌─────────────────┐
-                    │  PostgreSQL     │
-                    │  (App DB)       │
-                    └─────────────────┘
+┌──────────────────────────────────────────────────────────────────────────┐
+│                          Cloudflare Tunnel                                │
+├───────────────────┬───────────────────┬──────────────────────────────────┤
+│ get-mirai.sogos.io│ mirai.sogos.io    │ mirai-auth.sogos.io              │
+│ Marketing Site    │ Authenticated App │ Kratos Auth API                  │
+└───────────────────┴───────────────────┴──────────────────────────────────┘
+         │                   │                        │
+         ▼                   ▼                        ▼
+┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐
+│  mirai-marketing│  │  mirai-frontend │  │  Ory Kratos     │
+│  (Next.js)      │  │  (Next.js)      │  │  (Helm Chart)   │
+│  Separate Pod   │  │  Full App       │  │                 │
+└─────────────────┘  └─────────────────┘  └─────────────────┘
+         │                   │                        │
+         │                   │                        ▼
+         │                   │              ┌─────────────────┐
+         │                   │              │  PostgreSQL     │
+         │                   │              │  (Kratos DB)    │
+         │                   │              └─────────────────┘
+         │                   ▼
+         │           ┌─────────────────┐
+         │           │  Go Backend     │
+         │           │  (Gin + Kratos) │
+         │           └─────────────────┘
+         │                   │
+         │                   ▼
+         │           ┌─────────────────┐
+         │           │  PostgreSQL     │
+         │           │  (App DB)       │
+         │           └─────────────────┘
+         │
+         └──────────── Auth links redirect to mirai.sogos.io ──────────────┘
 ```
+
+**Key Change**: The marketing site (`get-mirai.sogos.io`) runs as a **separate deployment** (`mirai-marketing`) from the main app. This allows independent scaling and keeps authentication flows on the app domain only.
 
 ## Domain Responsibilities
 
-### 1. `get-mirai.sogos.io` - Marketing Landing Page
+### 1. `get-mirai.sogos.io` - Marketing Site (Separate Deployment)
 **Purpose**: Public-facing marketing site with pricing information
 
 **Features**:
 - Hero section with product overview
 - Features showcase
 - Pricing tiers (Starter, Pro, Enterprise)
-- "Get Started" buttons that initiate registration flow
-- Sign In link for existing users
+- "Get Started" / "Sign In" buttons link to `mirai.sogos.io`
+- Future: Blog, Docs, Help Center
 
-**Tech Stack**: Next.js 14 (App Router)
+**Routing Behavior**:
+- `/` → Landing page (always, even if authenticated)
+- `/pricing` → Pricing page
+- `/auth/*` → **Redirects to `mirai.sogos.io/auth/*`**
+- `/dashboard`, etc. → **Redirects to `mirai.sogos.io`**
+
+**Tech Stack**: Next.js 14 (App Router) - Stripped build without `(main)` routes
+
+**Deployment**:
+- **Pod**: `mirai-marketing` (separate from `mirai-frontend`)
+- **Image**: `ghcr.io/.../mirai-marketing`
+- **Dockerfile**: `frontend/Dockerfile.marketing`
+- **Resources**: 128Mi memory, 50m CPU (lighter than full app)
 
 **Key Files**:
-- `frontend/src/app/(landing)/page.tsx` - Landing page
-- `frontend/src/components/landing/` - Landing components
+- `frontend/src/app/(public)/page.tsx` - Landing page
+- `frontend/src/components/landing/` - Landing components (Navbar, Hero, PricingCards)
+- `frontend/src/middleware.marketing.ts` - Redirects auth/app routes to main app
+- `k8s/frontend-marketing/` - Kubernetes manifests
 
 ### 2. `mirai.sogos.io` - Authenticated Application
-**Purpose**: Main application for authenticated users
+**Purpose**: Main application for authenticated users AND all authentication flows
 
 **Features**:
 - Dashboard
@@ -66,19 +84,34 @@ The Mirai SaaS application uses **Ory Kratos** for headless authentication with 
 - User profile settings
 - Onboarding flow for new users
 - Protected routes requiring authentication
+- **All auth pages** (`/auth/login`, `/auth/registration`, etc.)
+
+**Routing Behavior**:
+- `/` → Authenticated? → `/dashboard` | Not authenticated? → **Redirect to `get-mirai.sogos.io`**
+- `/auth/*` → Authentication flows (login, registration, recovery, etc.)
+- `/dashboard`, `/settings`, etc. → Protected routes (require auth)
 
 **Auth Flow**:
-1. Unauthenticated users redirected to `/auth/login`
-2. Login handled via Kratos at `mirai-auth.sogos.io`
-3. Session cookie set on `.sogos.io` domain (shared across subdomains)
-4. Successful auth redirects back to dashboard
+1. Unauthenticated users on `/` are redirected to marketing site
+2. Users click "Sign In" on marketing → sent to `mirai.sogos.io/auth/login`
+3. Login handled via Kratos at `mirai-auth.sogos.io`
+4. Session cookie set on `.sogos.io` domain (shared across subdomains)
+5. Successful auth redirects to `/dashboard`
 
 **Tech Stack**: Next.js 14 (App Router) + Redux Toolkit
 
+**Deployment**:
+- **Pod**: `mirai-frontend`
+- **Image**: `ghcr.io/.../mirai-frontend`
+- **Dockerfile**: `frontend/Dockerfile`
+- **Resources**: 256Mi memory, 100m CPU
+
 **Key Files**:
 - `frontend/src/app/(main)/` - Authenticated pages
-- `frontend/src/middleware.ts` - Route protection
+- `frontend/src/app/(public)/auth/` - Auth flow pages
+- `frontend/src/middleware.ts` - Route protection and redirects
 - `frontend/src/store/slices/authSlice.ts` - Auth state management
+- `k8s/frontend/` - Kubernetes manifests
 
 ### 3. `mirai-auth.sogos.io` - Kratos Authentication API
 **Purpose**: Headless authentication service (Ory Kratos)
@@ -125,10 +158,11 @@ The Mirai SaaS application uses **Ory Kratos** for headless authentication with 
 
 ### Step-by-Step Process
 
-1. **User visits landing page** (`get-mirai.sogos.io`)
+1. **User visits marketing site** (`get-mirai.sogos.io`)
    - Clicks "Get Started" on pricing tier (e.g., Pro plan)
+   - **Link goes directly to `mirai.sogos.io/auth/registration?tier=pro`**
 
-2. **Redirect to registration** (`mirai.sogos.io/auth/registration?tier=pro`)
+2. **Registration page on app domain** (`mirai.sogos.io/auth/registration?tier=pro`)
    - Frontend initializes Kratos registration flow
    - Calls `https://mirai-auth.sogos.io/self-service/registration/browser`
 
@@ -261,17 +295,21 @@ CREATE TABLE team_members (
 
 ### ArgoCD Applications
 
-- **`mirai-frontend`**: Path `k8s/frontend/`
-- **`mirai-backend`**: Path `k8s/backend/`
+- **`mirai-frontend`**: Path `k8s/frontend/` - Main authenticated app
+- **`mirai-marketing`**: Path `k8s/frontend-marketing/` - Marketing site
+- **`mirai-backend`**: Path `k8s/backend/` - Go API
 - **`platform-ingress`**: Cloudflare tunnel configuration
 
-Both applications have automated sync enabled.
+All applications have automated sync enabled.
 
 ### GitOps Workflow
 
 1. **Code change** pushed to `main` branch
-2. **GitHub Actions** builds Docker image
-3. **Workflow updates** `k8s/{frontend|backend}/kustomization.yaml` with new image tag
+2. **GitHub Actions** builds Docker images:
+   - `build-frontend.yml` → `mirai-frontend` image
+   - `build-marketing.yml` → `mirai-marketing` image
+   - `build-backend.yml` → `mirai-backend` image
+3. **Workflow updates** `k8s/{frontend|frontend-marketing|backend}/kustomization.yaml` with new image tag
 4. **ArgoCD detects** change in Git
 5. **Automated sync** deploys new version to cluster
 
