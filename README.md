@@ -5,21 +5,21 @@ A SaaS learning platform for creating and managing team training courses. Built 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                         Cloudflare Tunnel                               │
-├──────────────────┬──────────────────┬─────────────────┬─────────────────┤
-│ get-mirai.sogos.io│ mirai.sogos.io   │ mirai-api.sogos.io│ mirai-auth.sogos.io│
-│ Marketing Site   │ App (Auth'd)     │ Backend API     │ Kratos API      │
-└──────────────────┴──────────────────┴─────────────────┴─────────────────┘
-         │                  │                  │                 │
-         ▼                  ▼                  ▼                 ▼
-   mirai-marketing    mirai-frontend    mirai-backend        kratos
-    (Next.js)          (Next.js)          (Go/Gin)        (Ory Kratos)
-         │                  │                  │                 │
-         └──────────────────┴─────────┬────────┴─────────────────┘
-                                      ▼
-                               PostgreSQL (x2)
-                            (App DB + Kratos DB)
+┌───────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                           Cloudflare Tunnel                                           │
+├─────────────────────────┬─────────────────────────┬─────────────────────────┬─────────────────────────┤
+│   get-mirai.sogos.io    │     mirai.sogos.io      │   mirai-api.sogos.io    │   mirai-auth.sogos.io   │
+│     Marketing Site      │      App (Auth'd)       │       Backend API       │       Kratos API        │
+└────────────┬────────────┴────────────┬────────────┴────────────┬────────────┴────────────┬────────────┘
+             │                         │                         │                         │
+             ▼                         ▼                         ▼                         ▼
+      mirai-marketing           mirai-frontend             mirai-backend                 kratos
+         (Next.js)                 (Next.js)                 (Go/Gin)                 (Ory Kratos)
+             │                         │                         │                         │
+             └─────────────────────────┴────────────┬────────────┴─────────────────────────┘
+                                                    ▼
+                                             PostgreSQL (x2)
+                                          (App DB + Kratos DB)
 ```
 
 ## Domains
