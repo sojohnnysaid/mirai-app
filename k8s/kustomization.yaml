@@ -2,14 +2,7 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 resources:
-- deployment.yaml
-- service.yaml
+- frontend
+- backend
 - redis/redis-deployment.yaml
-
-images:
-- name: ghcr.io/sojohnnysaid/mirai-app/mirai-backend
-  newName: ghcr.io/sojohnnysaid/mirai-app/mirai-backend
-  newTag: 30db27f
-- name: ghcr.io/sojohnnysaid/mirai-app/mirai-frontend
-  newName: ghcr.io/sojohnnysaid/mirai-app/mirai-frontend
-  newTag: 12efde5
+- mirai-db

@@ -73,10 +73,10 @@ jobs:
         curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
         sudo mv kustomize /usr/local/bin/
 
-        cd k8s
+        cd k8s/frontend
         kustomize edit set image ghcr.io/sojohnnysaid/mirai-app/mirai-frontend=${{ steps.version.outputs.full-tag }}
 
-        echo "Updated kustomization.yaml:"
+        echo "Updated frontend kustomization.yaml:"
         cat kustomization.yaml | grep -A 2 "images:"
 
     - name: Commit and push changes
@@ -88,7 +88,7 @@ jobs:
         git pull origin main --rebase
         git stash pop || true
 
-        git add k8s/kustomization.yaml
+        git add k8s/frontend/kustomization.yaml
 
         if git diff --staged --quiet; then
           echo "No changes to commit"
