@@ -1,0 +1,10 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: mirai-backend-pdb
+  namespace: mirai
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: mirai-backend

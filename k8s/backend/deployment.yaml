@@ -6,19 +6,33 @@ metadata:
   labels:
     app: mirai-backend
 spec:
-  replicas: 1
+  replicas: 3
   selector:
     matchLabels:
       app: mirai-backend
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  minReadySeconds: 15
   template:
     metadata:
       labels:
         app: mirai-backend
     spec:
+      terminationGracePeriodSeconds: 45
       tolerations:
       - key: node-role.kubernetes.io/control-plane
         operator: Exists
         effect: NoSchedule
+      topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app: mirai-backend
       containers:
       - name: backend
         image: ghcr.io/sogos-llc/mirai-app/mirai-backend:latest
@@ -57,6 +71,13 @@ spec:
           readOnlyRootFilesystem: true
           seccompProfile:
             type: RuntimeDefault
+        startupProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          failureThreshold: 12
         livenessProbe:
           httpGet:
             path: /health
@@ -69,3 +90,7 @@ spec:
             port: 8080
           initialDelaySeconds: 5
           periodSeconds: 5
+        lifecycle:
+          preStop:
+            exec:
+              command: ["/bin/sh", "-c", "sleep 10"]

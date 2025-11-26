@@ -10,15 +10,29 @@ spec:
   selector:
     matchLabels:
       app: mirai-frontend
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  minReadySeconds: 15
   template:
     metadata:
       labels:
         app: mirai-frontend
     spec:
+      terminationGracePeriodSeconds: 45
       tolerations:
       - key: node-role.kubernetes.io/control-plane
         operator: Exists
         effect: NoSchedule
+      topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app: mirai-frontend
       containers:
       - name: mirai-frontend
         image: ghcr.io/sogos-llc/mirai-app/mirai-frontend:latest
@@ -71,6 +85,13 @@ spec:
           limits:
             memory: "512Mi"
             cpu: "500m"
+        startupProbe:
+          httpGet:
+            path: /
+            port: 3000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          failureThreshold: 12
         livenessProbe:
           httpGet:
             path: /
@@ -83,6 +104,10 @@ spec:
             port: 3000
           initialDelaySeconds: 10
           periodSeconds: 5
+        lifecycle:
+          preStop:
+            exec:
+              command: ["/bin/sh", "-c", "sleep 10"]
         securityContext:
           runAsNonRoot: true
           runAsUser: 1001
