@@ -43,3 +43,8 @@ coverage/
 
 # TypeScript
 *.tsbuildinfo
+
+# Local development
+local-dev/.env
+local-dev/.dev-pids
+backend/.env.local

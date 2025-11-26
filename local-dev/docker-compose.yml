@@ -1,0 +1,147 @@
+services:
+  # PostgreSQL - shared between Kratos and Mirai backend
+  postgres:
+    image: postgres:15-alpine
+    container_name: mirai-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-localdev}
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - mirai-local
+
+  # Ory Kratos - Authentication (migration)
+  kratos-migrate:
+    image: oryd/kratos:v1.1.0
+    container_name: mirai-kratos-migrate
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DSN: postgres://kratos:${KRATOS_DB_PASSWORD:-kratoslocal}@postgres:5432/kratos?sslmode=disable
+    command: migrate sql -e --yes
+    restart: on-failure
+    networks:
+      - mirai-local
+
+  # Ory Kratos - Authentication
+  kratos:
+    image: oryd/kratos:v1.1.0
+    container_name: mirai-kratos
+    depends_on:
+      kratos-migrate:
+        condition: service_completed_successfully
+    environment:
+      DSN: postgres://kratos:${KRATOS_DB_PASSWORD:-kratoslocal}@postgres:5432/kratos?sslmode=disable
+      SECRETS_DEFAULT: ${KRATOS_SECRET:-localdevsecret32characterlong!!}
+      LOG_LEVEL: debug
+    ports:
+      - "4433:4433"  # Public API
+      - "4434:4434"  # Admin API
+    volumes:
+      - ./kratos:/etc/config/kratos:ro
+    command: serve -c /etc/config/kratos/kratos.yml --dev --watch-courier
+    networks:
+      - mirai-local
+
+  # Redis - Caching
+  redis:
+    image: redis:7-alpine
+    container_name: mirai-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - mirai-local
+
+  # MinIO - S3-compatible storage
+  minio:
+    image: minio/minio:latest
+    container_name: mirai-minio
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minioadmin}
+    ports:
+      - "9000:9000"   # API
+      - "9001:9001"   # Console
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - mirai-local
+
+  # MinIO bucket setup
+  minio-setup:
+    image: minio/mc:latest
+    container_name: mirai-minio-setup
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 ${MINIO_ACCESS_KEY:-minioadmin} ${MINIO_SECRET_KEY:-minioadmin};
+      mc mb local/mirai --ignore-existing;
+      mc anonymous set download local/mirai;
+      echo 'MinIO bucket created successfully';
+      "
+    networks:
+      - mirai-local
+
+  # Mailpit - Local email testing
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: mirai-mailpit
+    ports:
+      - "1025:1025"  # SMTP
+      - "8025:8025"  # Web UI
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+    networks:
+      - mirai-local
+
+  # Marketing site - mirrors production get-mirai.sogos.io
+  marketing:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile.marketing
+      args:
+        BUILD_TIME: local-dev
+    container_name: mirai-marketing
+    ports:
+      - "3001:3000"
+    environment:
+      - NEXT_PUBLIC_APP_URL=http://localhost:3000
+      - NEXT_PUBLIC_KRATOS_BROWSER_URL=http://localhost:4433
+    networks:
+      - mirai-local
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
+
+networks:
+  mirai-local:
+    driver: bridge
