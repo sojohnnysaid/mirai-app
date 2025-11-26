@@ -143,6 +143,22 @@ Push to main
 - `mirai-marketing` - Marketing site
 - `mirai-backend` - Go API
 
+### High Availability Configuration
+
+All mirai services are configured for high availability:
+
+| Service | Replicas | Topology Spread | PDB |
+|---------|----------|-----------------|-----|
+| mirai-frontend | 3 | Across all nodes | maxUnavailable: 1 |
+| mirai-backend | 3 | Across all nodes | maxUnavailable: 1 |
+| mirai-marketing | 3 | Across all nodes | maxUnavailable: 1 |
+
+Each deployment includes:
+- **Startup probes**: Allow slow container initialization (Next.js cold start)
+- **Readiness probes**: Ensure traffic only routes to healthy pods
+- **Pre-stop hooks**: 10s sleep for graceful connection draining
+- **Rolling updates**: maxSurge=1, maxUnavailable=0 for zero-downtime deploys
+
 ### Manual Deploy
 
 ```bash
