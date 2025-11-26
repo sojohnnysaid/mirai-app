@@ -4,6 +4,7 @@ kind: Kustomization
 resources:
 - deployment.yaml
 - service.yaml
+- pdb.yaml
 
 images:
 - name: ghcr.io/sogos-llc/mirai-app/mirai-marketing
