@@ -46,7 +46,7 @@ export class RedisCache {
       });
 
       this.client.on('connect', () => {
-        console.log('Redis: Connected successfully');
+        // console.log('Redis: Connected successfully');
       });
 
       await this.client.connect();
@@ -264,7 +264,7 @@ export function getCache(): RedisCache {
   // Don't create cache instance if Redis is disabled
   if (process.env.ENABLE_REDIS_CACHE === 'false') {
     // Return a no-op cache that doesn't connect to Redis
-    console.log('Redis caching disabled - using no-op cache');
+    // console.log('Redis caching disabled - using no-op cache');
     return new NoOpCache() as any;
   }
 

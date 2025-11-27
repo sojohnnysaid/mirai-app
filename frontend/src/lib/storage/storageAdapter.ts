@@ -101,17 +101,17 @@ export function getStorageAdapter(): IStorageAdapter {
   let baseAdapter: IStorageAdapter;
 
   if (useS3) {
-    console.log('Using S3/MinIO storage adapter');
+    // console.log('Using S3/MinIO storage adapter');
     baseAdapter = new S3StorageAdapter();
   } else {
-    console.log('Using local filesystem storage adapter');
+    // console.log('Using local filesystem storage adapter');
     const dataDir = path.join(process.cwd(), 'data');
     baseAdapter = new LocalStorageAdapter(dataDir);
   }
 
   // Wrap with caching layer if enabled
   if (useCache) {
-    console.log('Redis caching enabled');
+    // console.log('Redis caching enabled');
     return createCachedStorageAdapter(baseAdapter);
   }
 

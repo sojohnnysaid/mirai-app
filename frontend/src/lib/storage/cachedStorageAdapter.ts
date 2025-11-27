@@ -31,11 +31,11 @@ export class CachedStorageAdapter implements IStorageAdapter {
     // Try to get from cache first
     const cached = await this.cache.get(cacheKey);
     if (cached) {
-      console.log(`Cache HIT: ${filePath}`);
+      // console.log(`Cache HIT: ${filePath}`);
       return cached.data;
     }
 
-    console.log(`Cache MISS: ${filePath}`);
+    // console.log(`Cache MISS: ${filePath}`);
 
     // Read from storage
     const data = await this.baseAdapter.readJSON(filePath);
@@ -85,7 +85,7 @@ export class CachedStorageAdapter implements IStorageAdapter {
 
             if (!success && currentEtag) {
               // Concurrent modification detected
-              console.warn(`Concurrent modification detected for ${filePath}, retrying...`);
+              // console.warn(`Concurrent modification detected for ${filePath}, retrying...`);
               retries++;
               continue;
             }
@@ -103,7 +103,7 @@ export class CachedStorageAdapter implements IStorageAdapter {
           }
         } else {
           // Could not acquire lock, wait and retry
-          console.log(`Waiting for lock on ${filePath}...`);
+          // console.log(`Waiting for lock on ${filePath}...`);
           await new Promise(resolve => setTimeout(resolve, 100 * Math.pow(2, retries)));
           retries++;
         }

@@ -55,13 +55,13 @@ export async function GET(request: NextRequest) {
 
     const cached = await cache.get(cacheKey);
     if (cached) {
-      console.log(`Cache HIT: folders hierarchy ${includeCourseCount ? 'with counts' : ''}`);
+      // console.log(`Cache HIT: folders hierarchy ${includeCourseCount ? 'with counts' : ''}`);
       return NextResponse.json({
         success: true,
         data: cached.data,
       });
     }
-    console.log(`Cache MISS: folders hierarchy ${includeCourseCount ? 'with counts' : ''}`);
+    // console.log(`Cache MISS: folders hierarchy ${includeCourseCount ? 'with counts' : ''}`);
 
     if (format === 'flat') {
       // Return flat array as stored

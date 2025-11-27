@@ -126,7 +126,7 @@ export async function DELETE(
     // Invalidate the specific course cache
     await cache.delete(CacheKeys.course(params.id));
 
-    console.log(`Cache invalidated for deleted course ${params.id}`);
+    // console.log(`Cache invalidated for deleted course ${params.id}`);
 
     return NextResponse.json({
       success: true,
