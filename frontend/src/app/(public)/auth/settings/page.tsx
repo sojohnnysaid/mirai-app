@@ -19,6 +19,17 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<SettingsTab>('profile');
 
+  // Auto-select password tab when coming from recovery flow
+  // Kratos message ID 1060001 = "You successfully recovered your account..."
+  useEffect(() => {
+    if (flow?.ui?.messages) {
+      const isRecoveryFlow = flow.ui.messages.some((msg) => msg.id === 1060001);
+      if (isRecoveryFlow) {
+        setActiveTab('password');
+      }
+    }
+  }, [flow]);
+
   useEffect(() => {
     const flowId = searchParams.get('flow');
 
