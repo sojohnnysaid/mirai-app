@@ -1,15 +1,74 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Plus, Clock, FileText, CheckCircle, Edit2, Trash2 } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Plus, Clock, FileText, CheckCircle, Edit2, Trash2, X, PartyPopper } from 'lucide-react';
 import CourseCreationModal from '@/components/dashboard/CourseCreationModal';
 import { useGetCoursesQuery, useDeleteCourseMutation, LibraryEntry } from '@/store/api/apiSlice';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
+import confetti from 'canvas-confetti';
 
 export default function Dashboard() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'recent' | 'draft' | 'published'>('recent');
+  const [showSuccessBanner, setShowSuccessBanner] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Confetti celebration function
+  const fireConfetti = useCallback(() => {
+    // Multicolored confetti burst - less particles, shorter duration
+    const colors = ['#6366f1', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#3b82f6'];
+
+    // Single burst from center-top
+    confetti({
+      particleCount: 80,
+      spread: 100,
+      origin: { x: 0.5, y: 0.3 },
+      colors: colors,
+      ticks: 200,
+      gravity: 1.2,
+      scalar: 1.2,
+    });
+
+    // Delayed side bursts
+    setTimeout(() => {
+      confetti({
+        particleCount: 30,
+        angle: 60,
+        spread: 60,
+        origin: { x: 0, y: 0.6 },
+        colors: colors,
+      });
+      confetti({
+        particleCount: 30,
+        angle: 120,
+        spread: 60,
+        origin: { x: 1, y: 0.6 },
+        colors: colors,
+      });
+    }, 200);
+  }, []);
+
+  // Check for checkout success
+  useEffect(() => {
+    if (searchParams.get('checkout') === 'success') {
+      setShowSuccessBanner(true);
+      // Fire confetti celebration
+      fireConfetti();
+      // Clean up URL
+      router.replace('/dashboard', { scroll: false });
+    }
+  }, [searchParams, router, fireConfetti]);
+
+  // Auto-hide success banner after 30 seconds
+  useEffect(() => {
+    if (showSuccessBanner) {
+      const timer = setTimeout(() => {
+        setShowSuccessBanner(false);
+      }, 30000);
+      return () => clearTimeout(timer);
+    }
+  }, [showSuccessBanner]);
 
   // RTK Query - automatically fetches and caches
   const { data: courses = [], isLoading } = useGetCoursesQuery();
@@ -62,6 +121,27 @@ export default function Dashboard() {
 
   return (
     <>
+      {/* Checkout Success Banner */}
+      {showSuccessBanner && (
+        <div className="bg-gradient-to-r from-green-500 to-emerald-500 rounded-2xl p-6 mb-8 relative overflow-hidden">
+          <button
+            onClick={() => setShowSuccessBanner(false)}
+            className="absolute top-4 right-4 text-white/80 hover:text-white transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+          <div className="flex items-center gap-4">
+            <div className="bg-white/20 rounded-full p-3">
+              <PartyPopper className="w-8 h-8 text-white" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-white">Payment Successful!</h2>
+              <p className="text-white/90">Your subscription is now active. Start creating amazing courses!</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Something New Section - Updates/News */}
       <div className="bg-gray-200 rounded-2xl p-6 mb-8">
         <h2 className="text-xl font-semibold text-gray-900">Something New Foo!</h2>

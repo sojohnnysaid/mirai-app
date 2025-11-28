@@ -32,10 +32,12 @@ func main() {
 
 	// Initialize handlers
 	healthHandler := handlers.NewHealthHandler()
-	userHandler := handlers.NewUserHandler(userRepo, companyRepo)
+	authHandler := handlers.NewAuthHandler(userRepo, companyRepo, cfg)
+	userHandler := handlers.NewUserHandler(userRepo, companyRepo, cfg)
 	companyHandler := handlers.NewCompanyHandler(userRepo, companyRepo)
 	teamHandler := handlers.NewTeamHandler(userRepo, teamRepo)
 	billingHandler := handlers.NewBillingHandler(userRepo, companyRepo, cfg)
+	contactHandler := handlers.NewContactHandler()
 
 	// Set up Gin router
 	r := gin.Default()
@@ -88,8 +90,18 @@ func main() {
 		api.POST("/billing/portal", billingHandler.CreatePortalSession)
 	}
 
-	// Stripe webhook route (no auth - uses signature verification)
+	// Stripe webhook routes (no auth - uses signature verification)
+	// Support both paths for flexibility
 	r.POST("/api/v1/webhooks/stripe", billingHandler.HandleWebhook)
+	r.POST("/api/v1/billing/webhook", billingHandler.HandleWebhook)
+
+	// Public auth routes (no auth needed)
+	r.GET("/api/v1/auth/check-email", authHandler.CheckEmail)
+	r.POST("/api/v1/auth/register", authHandler.Register)
+	r.GET("/api/v1/auth/complete-checkout", authHandler.CompleteCheckout)
+
+	// Public contact route (no auth needed)
+	r.POST("/api/v1/contact/enterprise", contactHandler.EnterpriseContact)
 
 	// Start server
 	log.Printf("Starting server on port %s", cfg.Port)

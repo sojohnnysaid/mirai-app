@@ -9,35 +9,33 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://mirai.sogos.io';
 const tiers = [
   {
     name: 'Starter',
-    price: '$29',
-    period: '/month',
-    description: 'Perfect for small teams getting started with course creation.',
+    price: '$8',
+    period: '/seat/month',
+    description: 'For small teams getting started with course creation.',
     features: [
-      'Up to 5 team members',
-      '10 published courses',
-      'Basic analytics',
+      'Up to 10 team members',
+      'Basic course builder',
       'Email support',
-      'Community access',
+      '5GB storage',
     ],
-    cta: 'Start Free Trial',
+    cta: 'Get Started',
     ctaLink: `${APP_URL}/auth/registration?tier=starter`,
     highlighted: false,
   },
   {
     name: 'Pro',
-    price: '$99',
-    period: '/month',
-    description: 'For growing teams that need more power and flexibility.',
+    price: '$12',
+    period: '/seat/month',
+    description: 'For growing organizations that need more power.',
     features: [
-      'Up to 25 team members',
-      'Unlimited courses',
-      'Advanced analytics',
+      'Unlimited team members',
+      'Advanced course builder',
       'Priority support',
-      'AI content generation',
+      '50GB storage',
       'Custom branding',
-      'SSO integration',
+      'Analytics dashboard',
     ],
-    cta: 'Start Free Trial',
+    cta: 'Get Started',
     ctaLink: `${APP_URL}/auth/registration?tier=pro`,
     highlighted: true,
   },
@@ -47,17 +45,15 @@ const tiers = [
     period: '',
     description: 'For large organizations with custom requirements.',
     features: [
-      'Unlimited team members',
-      'Unlimited courses',
-      'Custom analytics',
+      'Everything in Pro',
       'Dedicated support',
-      'Advanced AI features',
-      'White-label solution',
+      'Unlimited storage',
+      'SSO/SAML',
       'Custom integrations',
       'SLA guarantee',
     ],
     cta: 'Contact Sales',
-    ctaLink: '/contact',
+    ctaLink: `${APP_URL}/auth/registration?tier=enterprise`,
     highlighted: false,
   },
 ];
@@ -72,7 +68,7 @@ export default function PricingCards() {
             Simple, transparent pricing
           </h2>
           <p className="text-lg text-slate-600 max-w-2xl mx-auto">
-            Choose the plan that fits your team. All plans include a 14-day free trial.
+            Choose the plan that fits your team. Pay per seat, cancel anytime.
           </p>
         </div>
 

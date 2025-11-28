@@ -10,6 +10,8 @@ import (
 type Company struct {
 	ID                   uuid.UUID `json:"id" db:"id"`
 	Name                 string    `json:"name" db:"name"`
+	Industry             *string   `json:"industry,omitempty" db:"industry"`
+	TeamSize             *string   `json:"team_size,omitempty" db:"team_size"`
 	Plan                 string    `json:"plan" db:"plan"` // starter, pro, enterprise
 	StripeCustomerID     *string   `json:"stripe_customer_id,omitempty" db:"stripe_customer_id"`
 	StripeSubscriptionID *string   `json:"stripe_subscription_id,omitempty" db:"stripe_subscription_id"`
@@ -56,7 +58,28 @@ type UserWithCompany struct {
 // OnboardRequest represents the onboarding payload
 type OnboardRequest struct {
 	CompanyName string `json:"company_name" binding:"required,min=1,max=200"`
+	Industry    string `json:"industry,omitempty"`
+	TeamSize    string `json:"team_size,omitempty"`
 	Plan        string `json:"plan" binding:"required,oneof=starter pro enterprise"`
+	SeatCount   int    `json:"seat_count,omitempty"`
+}
+
+// OnboardResponse contains the onboarding result with optional checkout URL
+type OnboardResponse struct {
+	User        User     `json:"user"`
+	Company     *Company `json:"company,omitempty"`
+	CheckoutURL string   `json:"checkout_url,omitempty"`
+}
+
+// EnterpriseContactRequest represents an enterprise sales inquiry
+type EnterpriseContactRequest struct {
+	CompanyName string `json:"company_name" binding:"required,min=1,max=200"`
+	Industry    string `json:"industry,omitempty"`
+	TeamSize    string `json:"team_size,omitempty"`
+	Name        string `json:"name" binding:"required"`
+	Email       string `json:"email" binding:"required,email"`
+	Phone       string `json:"phone,omitempty"`
+	Message     string `json:"message,omitempty"`
 }
 
 // CreateTeamRequest represents the team creation payload
@@ -97,4 +120,29 @@ type BillingInfo struct {
 	PricePerSeat      int    `json:"price_per_seat"`       // cents ($12 = 1200)
 	CurrentPeriodEnd  *int64 `json:"current_period_end"`   // unix timestamp
 	CancelAtPeriodEnd bool   `json:"cancel_at_period_end"`
+}
+
+// RegisterRequest contains all data needed to register a new user and company
+type RegisterRequest struct {
+	// User credentials
+	Email     string `json:"email" binding:"required,email"`
+	Password  string `json:"password" binding:"required,min=8"`
+	FirstName string `json:"first_name" binding:"required,min=1"`
+	LastName  string `json:"last_name" binding:"required,min=1"`
+
+	// Company info
+	CompanyName string `json:"company_name" binding:"required,min=1,max=200"`
+	Industry    string `json:"industry,omitempty"`
+	TeamSize    string `json:"team_size,omitempty"`
+
+	// Plan selection
+	Plan      string `json:"plan" binding:"required,oneof=starter pro enterprise"`
+	SeatCount int    `json:"seat_count,omitempty"`
+}
+
+// RegisterResponse contains the result of registration
+type RegisterResponse struct {
+	User        User     `json:"user"`
+	Company     *Company `json:"company,omitempty"`
+	CheckoutURL string   `json:"checkout_url,omitempty"`
 }

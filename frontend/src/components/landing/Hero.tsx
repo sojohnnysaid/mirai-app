@@ -33,7 +33,7 @@ export default function Hero() {
             href="/auth/registration"
             className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-4 rounded-xl font-semibold text-lg transition-all hover:shadow-lg hover:shadow-indigo-500/25 flex items-center justify-center gap-2"
           >
-            Start Free Trial
+            Get Started
             <ArrowRight className="h-5 w-5" />
           </Link>
           <Link

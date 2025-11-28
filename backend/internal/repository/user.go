@@ -122,3 +122,29 @@ func (r *UserRepository) ListByCompanyID(companyID uuid.UUID) ([]*models.User, e
 	}
 	return users, nil
 }
+
+// GetOwnerByCompanyID retrieves the owner user of a company
+func (r *UserRepository) GetOwnerByCompanyID(companyID uuid.UUID) (*models.User, error) {
+	query := `
+		SELECT id, kratos_id, company_id, role, created_at, updated_at
+		FROM users
+		WHERE company_id = $1 AND role = 'owner'
+		LIMIT 1
+	`
+	user := &models.User{}
+	err := r.db.QueryRow(query, companyID).Scan(
+		&user.ID,
+		&user.KratosID,
+		&user.CompanyID,
+		&user.Role,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+	)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get owner: %w", err)
+	}
+	return user, nil
+}

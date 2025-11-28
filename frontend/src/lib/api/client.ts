@@ -49,11 +49,27 @@ export async function fetchAPI<T>(
  * API methods
  */
 export const api = {
+  // Auth endpoints (public - no auth needed)
+  checkEmail: (email: string) =>
+    fetchAPI<{ exists: boolean }>(`/api/v1/auth/check-email?email=${encodeURIComponent(email)}`),
+
+  register: (data: RegisterRequest) =>
+    fetchAPI<RegisterResponse>('/api/v1/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
   // User endpoints
   me: () => fetchAPI<UserWithCompany>('/api/v1/me'),
 
   onboard: (data: OnboardRequest) =>
-    fetchAPI<UserWithCompany>('/api/v1/onboard', {
+    fetchAPI<OnboardResponse>('/api/v1/onboard', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  enterpriseContact: (data: EnterpriseContactRequest) =>
+    fetchAPI<{ success: boolean; message: string }>('/api/v1/contact/enterprise', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
@@ -147,7 +163,26 @@ export interface TeamMember {
 
 export interface OnboardRequest {
   company_name: string;
+  industry?: string;
+  team_size?: string;
   plan: 'starter' | 'pro' | 'enterprise';
+  seat_count?: number;
+}
+
+export interface OnboardResponse {
+  user: User;
+  company?: Company;
+  checkout_url?: string;
+}
+
+export interface EnterpriseContactRequest {
+  company_name: string;
+  industry?: string;
+  team_size?: string;
+  name: string;
+  email: string;
+  phone?: string;
+  message?: string;
 }
 
 export interface CreateTeamRequest {
@@ -163,4 +198,22 @@ export interface UpdateTeamRequest {
 export interface AddTeamMemberRequest {
   user_id: string;
   role: 'lead' | 'member';
+}
+
+export interface RegisterRequest {
+  email: string;
+  password: string;
+  first_name: string;
+  last_name: string;
+  company_name: string;
+  industry?: string;
+  team_size?: string;
+  plan: 'starter' | 'pro' | 'enterprise';
+  seat_count?: number;
+}
+
+export interface RegisterResponse {
+  user: User;
+  company?: Company;
+  checkout_url?: string;
 }

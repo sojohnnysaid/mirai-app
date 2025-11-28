@@ -10,6 +10,7 @@ type Config struct {
 	Port                   string
 	DatabaseURL            string
 	KratosURL              string
+	KratosAdminURL         string
 	AllowedOrigin          string
 	StripeSecretKey        string
 	StripeWebhookSecret    string
@@ -23,6 +24,7 @@ func Load() (*Config, error) {
 	port := getEnv("PORT", "8080")
 	databaseURL := getEnv("DATABASE_URL", "")
 	kratosURL := getEnv("KRATOS_URL", "http://kratos-public.kratos.svc.cluster.local")
+	kratosAdminURL := getEnv("KRATOS_ADMIN_URL", "http://kratos-admin.kratos.svc.cluster.local")
 	allowedOrigin := getEnv("ALLOWED_ORIGIN", "https://mirai.sogos.io")
 
 	// Stripe configuration
@@ -40,6 +42,7 @@ func Load() (*Config, error) {
 		Port:                   port,
 		DatabaseURL:            databaseURL,
 		KratosURL:              kratosURL,
+		KratosAdminURL:         kratosAdminURL,
 		AllowedOrigin:          allowedOrigin,
 		StripeSecretKey:        stripeSecretKey,
 		StripeWebhookSecret:    stripeWebhookSecret,

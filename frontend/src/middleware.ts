@@ -81,6 +81,18 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Check for post-checkout redirect on reset-password page
+  // This redirects to dashboard instantly (server-side) to avoid page flash
+  if (pathname === '/auth/reset-password') {
+    const pendingCheckout = request.cookies.get('pending_checkout_login');
+    if (pendingCheckout?.value === 'true') {
+      const response = NextResponse.redirect(new URL('/dashboard?checkout=success', request.url));
+      // Clear the cookie
+      response.cookies.delete('pending_checkout_login');
+      return response;
+    }
+  }
+
   // Check if it's a protected route
   const isProtectedRoute = pathMatches(pathname, PROTECTED_ROUTES);
   const isPublicRoute = pathMatches(pathname, PUBLIC_ROUTES);

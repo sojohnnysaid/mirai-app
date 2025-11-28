@@ -59,6 +59,9 @@ export interface PortalResponse {
   url: string;
 }
 
+// Backend API base URL - billing endpoints go to the Go backend
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+
 /**
  * RTK Query API slice for all server communication
  *
@@ -71,7 +74,10 @@ export interface PortalResponse {
  */
 export const api = createApi({
   reducerPath: 'api',
-  baseQuery: fetchBaseQuery({ baseUrl: '/api' }),
+  baseQuery: fetchBaseQuery({
+    baseUrl: '/api',
+    // For billing endpoints that need the backend, we override in each endpoint
+  }),
   tagTypes: ['Course', 'Folder', 'Billing'],
   endpoints: (builder) => ({
     // ============ QUERIES ============
@@ -157,14 +163,24 @@ export const api = createApi({
     }),
 
     // ============ BILLING ============
+    // Billing endpoints go to the Go backend (different from course endpoints)
 
     /**
      * Get current billing info
      * Provides: ['Billing'] tag
      */
     getBilling: builder.query<BillingInfo, void>({
-      query: () => '/v1/billing',
-      transformResponse: (response: { success: boolean; data: BillingInfo }) => response.data,
+      queryFn: async (_, _queryApi, _extraOptions, baseQuery) => {
+        const result = await fetch(`${API_BASE_URL}/api/v1/billing`, {
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        if (!result.ok) {
+          return { error: { status: result.status, data: 'Failed to fetch billing' } };
+        }
+        const json = await result.json();
+        return { data: json.data };
+      },
       providesTags: ['Billing']
     }),
 
@@ -173,12 +189,19 @@ export const api = createApi({
      * Returns URL to redirect user to Stripe Checkout
      */
     createCheckoutSession: builder.mutation<CheckoutResponse, { plan: 'starter' | 'pro' }>({
-      query: (body) => ({
-        url: '/v1/billing/checkout',
-        method: 'POST',
-        body
-      }),
-      transformResponse: (response: { success: boolean; data: CheckoutResponse }) => response.data,
+      queryFn: async (body) => {
+        const result = await fetch(`${API_BASE_URL}/api/v1/billing/checkout`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        if (!result.ok) {
+          return { error: { status: result.status, data: 'Failed to create checkout session' } };
+        }
+        const json = await result.json();
+        return { data: json.data };
+      }
     }),
 
     /**
@@ -186,11 +209,18 @@ export const api = createApi({
      * Returns URL to redirect user to Stripe Customer Portal
      */
     createPortalSession: builder.mutation<PortalResponse, void>({
-      query: () => ({
-        url: '/v1/billing/portal',
-        method: 'POST'
-      }),
-      transformResponse: (response: { success: boolean; data: PortalResponse }) => response.data,
+      queryFn: async () => {
+        const result = await fetch(`${API_BASE_URL}/api/v1/billing/portal`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        if (!result.ok) {
+          return { error: { status: result.status, data: 'Failed to create portal session' } };
+        }
+        const json = await result.json();
+        return { data: json.data };
+      }
     })
   })
 });

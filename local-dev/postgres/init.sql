@@ -15,11 +15,19 @@ GRANT ALL PRIVILEGES ON DATABASE mirai TO mirai;
 CREATE TABLE IF NOT EXISTS companies (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(200) NOT NULL,
+    industry VARCHAR(100),
+    team_size VARCHAR(50),
     plan VARCHAR(20) NOT NULL DEFAULT 'starter',
+    stripe_customer_id VARCHAR(255) UNIQUE,
+    stripe_subscription_id VARCHAR(255),
+    subscription_status VARCHAR(50) DEFAULT 'none',
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW(),
     CONSTRAINT plan_check CHECK (plan IN ('starter', 'pro', 'enterprise'))
 );
+
+-- Index for Stripe customer lookup (used by webhooks)
+CREATE INDEX IF NOT EXISTS idx_companies_stripe_customer_id ON companies(stripe_customer_id);
 
 -- Users (linked to Kratos identities)
 CREATE TABLE IF NOT EXISTS users (

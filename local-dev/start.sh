@@ -174,7 +174,13 @@ cd "$PROJECT_ROOT/backend"
 PORT=8080 \
 DATABASE_URL="postgres://mirai:mirailocal@localhost:5432/mirai?sslmode=disable" \
 KRATOS_URL="http://localhost:4433" \
+KRATOS_ADMIN_URL="http://localhost:4434" \
 ALLOWED_ORIGIN="http://localhost:3000" \
+FRONTEND_URL="http://localhost:3000" \
+STRIPE_SECRET_KEY="${STRIPE_SECRET_KEY:-}" \
+STRIPE_WEBHOOK_SECRET="${STRIPE_WEBHOOK_SECRET:-}" \
+STRIPE_STARTER_PRICE_ID="${STRIPE_STARTER_PRICE_ID:-}" \
+STRIPE_PRO_PRICE_ID="${STRIPE_PRO_PRICE_ID:-}" \
 go run ./cmd/server/main.go &
 BACKEND_PID=$!
 echo $BACKEND_PID >> "$PID_FILE"

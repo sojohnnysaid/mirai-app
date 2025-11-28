@@ -21,18 +21,18 @@ func NewCompanyRepository(db *sql.DB) *CompanyRepository {
 // Create creates a new company
 func (r *CompanyRepository) Create(company *models.Company) error {
 	query := `
-		INSERT INTO companies (name, plan, subscription_status)
-		VALUES ($1, $2, 'none')
+		INSERT INTO companies (name, industry, team_size, plan, subscription_status)
+		VALUES ($1, $2, $3, $4, 'none')
 		RETURNING id, subscription_status, created_at, updated_at
 	`
-	return r.db.QueryRow(query, company.Name, company.Plan).
+	return r.db.QueryRow(query, company.Name, company.Industry, company.TeamSize, company.Plan).
 		Scan(&company.ID, &company.SubscriptionStatus, &company.CreatedAt, &company.UpdatedAt)
 }
 
 // GetByID retrieves a company by ID
 func (r *CompanyRepository) GetByID(id uuid.UUID) (*models.Company, error) {
 	query := `
-		SELECT id, name, plan, stripe_customer_id, stripe_subscription_id, subscription_status, created_at, updated_at
+		SELECT id, name, industry, team_size, plan, stripe_customer_id, stripe_subscription_id, subscription_status, created_at, updated_at
 		FROM companies
 		WHERE id = $1
 	`
@@ -40,6 +40,8 @@ func (r *CompanyRepository) GetByID(id uuid.UUID) (*models.Company, error) {
 	err := r.db.QueryRow(query, id).Scan(
 		&company.ID,
 		&company.Name,
+		&company.Industry,
+		&company.TeamSize,
 		&company.Plan,
 		&company.StripeCustomerID,
 		&company.StripeSubscriptionID,
@@ -88,7 +90,7 @@ func (r *CompanyRepository) Delete(id uuid.UUID) error {
 // GetByStripeCustomerID retrieves a company by Stripe customer ID
 func (r *CompanyRepository) GetByStripeCustomerID(stripeCustomerID string) (*models.Company, error) {
 	query := `
-		SELECT id, name, plan, stripe_customer_id, stripe_subscription_id, subscription_status, created_at, updated_at
+		SELECT id, name, industry, team_size, plan, stripe_customer_id, stripe_subscription_id, subscription_status, created_at, updated_at
 		FROM companies
 		WHERE stripe_customer_id = $1
 	`
@@ -96,6 +98,8 @@ func (r *CompanyRepository) GetByStripeCustomerID(stripeCustomerID string) (*mod
 	err := r.db.QueryRow(query, stripeCustomerID).Scan(
 		&company.ID,
 		&company.Name,
+		&company.Industry,
+		&company.TeamSize,
 		&company.Plan,
 		&company.StripeCustomerID,
 		&company.StripeSubscriptionID,

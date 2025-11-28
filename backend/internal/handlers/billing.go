@@ -314,9 +314,11 @@ func (h *BillingHandler) HandleWebhook(c *gin.Context) {
 		return
 	}
 
-	// Verify webhook signature
+	// Verify webhook signature (ignore API version mismatch for Stripe CLI compatibility)
 	sigHeader := c.GetHeader("Stripe-Signature")
-	event, err := webhook.ConstructEvent(payload, sigHeader, h.config.StripeWebhookSecret)
+	event, err := webhook.ConstructEventWithOptions(payload, sigHeader, h.config.StripeWebhookSecret, webhook.ConstructEventOptions{
+		IgnoreAPIVersionMismatch: true,
+	})
 	if err != nil {
 		log.Printf("Webhook signature verification failed: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid signature"})
