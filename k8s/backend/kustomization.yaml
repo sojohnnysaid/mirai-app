@@ -5,7 +5,7 @@ resources:
 - deployment.yaml
 - service.yaml
 - pdb.yaml
-- stripe-secret.yaml
+# stripe-secret.yaml is gitignored - manage manually with kubectl apply
 
 images:
 - name: ghcr.io/sogos-llc/mirai-app/mirai-backend
