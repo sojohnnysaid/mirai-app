@@ -50,6 +50,8 @@ spec:
               key: dsn
         - name: KRATOS_URL
           value: "http://kratos-public.kratos.svc.cluster.local"
+        - name: KRATOS_ADMIN_URL
+          value: "http://kratos-admin.kratos.svc.cluster.local"
         - name: ALLOWED_ORIGIN
           value: "https://mirai.sogos.io"
         - name: FRONTEND_URL
