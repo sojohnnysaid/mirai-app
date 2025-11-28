@@ -114,3 +114,12 @@ func GetKratosID(c *gin.Context) (uuid.UUID, error) {
 	}
 	return kratosID.(uuid.UUID), nil
 }
+
+// GetEmail retrieves the email from the context
+func GetEmail(c *gin.Context) string {
+	email, exists := c.Get("email")
+	if !exists {
+		return ""
+	}
+	return email.(string)
+}

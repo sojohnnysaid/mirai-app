@@ -41,6 +41,24 @@ export interface CourseData {
   [key: string]: any; // Allow additional properties
 }
 
+// Billing types
+export interface BillingInfo {
+  plan: 'starter' | 'pro' | 'enterprise';
+  status: 'active' | 'past_due' | 'canceled' | 'none';
+  seat_count: number;
+  price_per_seat: number; // cents
+  current_period_end?: number; // unix timestamp
+  cancel_at_period_end: boolean;
+}
+
+export interface CheckoutResponse {
+  url: string;
+}
+
+export interface PortalResponse {
+  url: string;
+}
+
 /**
  * RTK Query API slice for all server communication
  *
@@ -54,7 +72,7 @@ export interface CourseData {
 export const api = createApi({
   reducerPath: 'api',
   baseQuery: fetchBaseQuery({ baseUrl: '/api' }),
-  tagTypes: ['Course', 'Folder'],
+  tagTypes: ['Course', 'Folder', 'Billing'],
   endpoints: (builder) => ({
     // ============ QUERIES ============
 
@@ -136,6 +154,43 @@ export const api = createApi({
         method: 'DELETE'
       }),
       invalidatesTags: ['Course', 'Folder']
+    }),
+
+    // ============ BILLING ============
+
+    /**
+     * Get current billing info
+     * Provides: ['Billing'] tag
+     */
+    getBilling: builder.query<BillingInfo, void>({
+      query: () => '/v1/billing',
+      transformResponse: (response: { success: boolean; data: BillingInfo }) => response.data,
+      providesTags: ['Billing']
+    }),
+
+    /**
+     * Create Stripe checkout session
+     * Returns URL to redirect user to Stripe Checkout
+     */
+    createCheckoutSession: builder.mutation<CheckoutResponse, { plan: 'starter' | 'pro' }>({
+      query: (body) => ({
+        url: '/v1/billing/checkout',
+        method: 'POST',
+        body
+      }),
+      transformResponse: (response: { success: boolean; data: CheckoutResponse }) => response.data,
+    }),
+
+    /**
+     * Create Stripe customer portal session
+     * Returns URL to redirect user to Stripe Customer Portal
+     */
+    createPortalSession: builder.mutation<PortalResponse, void>({
+      query: () => ({
+        url: '/v1/billing/portal',
+        method: 'POST'
+      }),
+      transformResponse: (response: { success: boolean; data: PortalResponse }) => response.data,
     })
   })
 });
@@ -147,5 +202,9 @@ export const {
   useGetCourseQuery,
   useCreateCourseMutation,
   useUpdateCourseMutation,
-  useDeleteCourseMutation
+  useDeleteCourseMutation,
+  // Billing hooks
+  useGetBillingQuery,
+  useCreateCheckoutSessionMutation,
+  useCreatePortalSessionMutation,
 } = api;

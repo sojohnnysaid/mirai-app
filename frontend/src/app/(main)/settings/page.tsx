@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { User, Bell, Lock, Palette, Globe, CreditCard, ChevronRight } from 'lucide-react';
+import BillingSettings from '@/components/settings/BillingSettings';
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState('profile');
@@ -303,47 +304,7 @@ export default function SettingsPage() {
         );
 
       case 'billing':
-        return (
-          <div>
-            <h2 className="text-xl lg:text-2xl font-bold text-gray-900 mb-4 lg:mb-6">
-              Billing & Subscription
-            </h2>
-            <div className="space-y-4">
-              <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
-                <div className="flex items-start justify-between gap-3 mb-3">
-                  <div>
-                    <h3 className="font-semibold text-gray-900">Pro Plan</h3>
-                    <p className="text-gray-600">$49/month</p>
-                  </div>
-                  <span className="bg-primary-600 text-white px-3 py-1 rounded-full text-sm font-medium">
-                    Active
-                  </span>
-                </div>
-                <p className="text-sm text-gray-600 mb-3">
-                  Next billing: November 17, 2025
-                </p>
-                <button className="text-primary-600 font-medium text-sm">
-                  Manage Subscription
-                </button>
-              </div>
-              <div>
-                <h3 className="font-semibold text-gray-900 mb-3">Payment Method</h3>
-                <div className="border border-gray-300 rounded-lg p-4 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-8 bg-gray-200 rounded"></div>
-                    <div>
-                      <p className="font-medium">•••• 4242</p>
-                      <p className="text-sm text-gray-600">Expires 12/26</p>
-                    </div>
-                  </div>
-                  <button className="text-primary-600 text-sm font-medium px-3 py-2">
-                    Edit
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
+        return <BillingSettings />;
 
       default:
         return null;

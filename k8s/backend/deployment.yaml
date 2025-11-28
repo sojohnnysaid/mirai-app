@@ -52,6 +52,28 @@ spec:
           value: "http://kratos-public.kratos.svc.cluster.local"
         - name: ALLOWED_ORIGIN
           value: "https://mirai.sogos.io"
+        - name: FRONTEND_URL
+          value: "https://mirai.sogos.io"
+        - name: STRIPE_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: mirai-stripe-secret
+              key: secret-key
+        - name: STRIPE_WEBHOOK_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: mirai-stripe-secret
+              key: webhook-secret
+        - name: STRIPE_STARTER_PRICE_ID
+          valueFrom:
+            secretKeyRef:
+              name: mirai-stripe-secret
+              key: starter-price-id
+        - name: STRIPE_PRO_PRICE_ID
+          valueFrom:
+            secretKeyRef:
+              name: mirai-stripe-secret
+              key: pro-price-id
         - name: GIN_MODE
           value: "release"
         resources:

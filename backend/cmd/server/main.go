@@ -35,6 +35,7 @@ func main() {
 	userHandler := handlers.NewUserHandler(userRepo, companyRepo)
 	companyHandler := handlers.NewCompanyHandler(userRepo, companyRepo)
 	teamHandler := handlers.NewTeamHandler(userRepo, teamRepo)
+	billingHandler := handlers.NewBillingHandler(userRepo, companyRepo, cfg)
 
 	// Set up Gin router
 	r := gin.Default()
@@ -80,7 +81,15 @@ func main() {
 		api.GET("/teams/:id/members", teamHandler.ListTeamMembers)
 		api.POST("/teams/:id/members", teamHandler.AddTeamMember)
 		api.DELETE("/teams/:id/members/:uid", teamHandler.RemoveTeamMember)
+
+		// Billing routes
+		api.GET("/billing", billingHandler.GetBilling)
+		api.POST("/billing/checkout", billingHandler.CreateCheckoutSession)
+		api.POST("/billing/portal", billingHandler.CreatePortalSession)
 	}
+
+	// Stripe webhook route (no auth - uses signature verification)
+	r.POST("/api/v1/webhooks/stripe", billingHandler.HandleWebhook)
 
 	// Start server
 	log.Printf("Starting server on port %s", cfg.Port)

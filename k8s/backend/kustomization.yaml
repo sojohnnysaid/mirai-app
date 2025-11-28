@@ -5,6 +5,7 @@ resources:
 - deployment.yaml
 - service.yaml
 - pdb.yaml
+- stripe-secret.yaml
 
 images:
 - name: ghcr.io/sogos-llc/mirai-app/mirai-backend
