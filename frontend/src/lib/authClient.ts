@@ -20,6 +20,8 @@ export async function checkEmail(email: string): Promise<{ exists: boolean }> {
 }
 
 // Register a new user
+// For paid plans, this returns a checkout_url to redirect to Stripe.
+// The account is created after payment confirmation via webhook.
 export async function register(data: {
   email: string;
   password: string;
@@ -31,10 +33,10 @@ export async function register(data: {
   plan: Plan;
   seatCount: number;
 }): Promise<{
-  user: { id: string };
+  user?: { id: string };
   company?: { id: string };
   checkout_url?: string;
-  session_token?: string;
+  email?: string;
 }> {
   const request = create(RegisterRequestSchema, {
     email: data.email,
@@ -51,10 +53,10 @@ export async function register(data: {
   const response = await authClient.register(request);
 
   return {
-    user: { id: response.user?.id || '' },
+    user: response.user ? { id: response.user.id } : undefined,
     company: response.company ? { id: response.company.id } : undefined,
     checkout_url: response.checkoutUrl || undefined,
-    session_token: response.sessionToken || undefined,
+    email: response.email || undefined,
   };
 }
 

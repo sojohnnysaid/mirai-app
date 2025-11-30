@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { Suspense, useEffect } from 'react';
 import Navbar from '@/components/landing/Navbar';
 import Hero from '@/components/landing/Hero';
 import Features from '@/components/landing/Features';
 import PricingCards from '@/components/landing/PricingCards';
 import Footer from '@/components/landing/Footer';
+import CheckoutSuccessModal from '@/components/landing/CheckoutSuccessModal';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://mirai.sogos.io';
 
@@ -34,6 +35,10 @@ export default function LandingPage() {
         <PricingCards />
       </main>
       <Footer />
+      {/* Checkout success modal - shows when ?checkout=success */}
+      <Suspense fallback={null}>
+        <CheckoutSuccessModal />
+      </Suspense>
     </>
   );
 }

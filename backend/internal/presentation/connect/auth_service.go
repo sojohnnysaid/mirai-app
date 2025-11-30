@@ -67,10 +67,10 @@ func (s *AuthServiceServer) Register(
 	}
 
 	return connect.NewResponse(&v1.RegisterResponse{
-		User:         userToProto(result.User),
-		Company:      companyToProto(result.Company),
-		CheckoutUrl:  strPtr(result.CheckoutURL),
-		SessionToken: strPtr(result.SessionToken),
+		User:        userToProto(result.User),
+		Company:     companyToProto(result.Company),
+		CheckoutUrl: strPtr(result.CheckoutURL),
+		Email:       strPtr(result.Email),
 	}), nil
 }
 

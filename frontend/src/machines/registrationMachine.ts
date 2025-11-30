@@ -1,7 +1,6 @@
 import { createMachine, assign, fromPromise } from 'xstate';
 import { checkEmail, register, submitEnterpriseContact } from '@/lib/authClient';
 import { Plan } from '@/gen/mirai/v1/common_pb';
-import { setSessionTokenCookie } from '@/lib/auth.config';
 import {
   type AuthError,
   createAuthError,
@@ -29,7 +28,6 @@ export interface RegistrationContext {
   // State tracking
   error: AuthError | null;
   checkoutUrl: string | null;
-  sessionToken: string | null;
   emailExists: boolean;
 
   // Retry and telemetry
@@ -56,11 +54,12 @@ interface CheckEmailResponse {
   exists: boolean;
 }
 
+// For deferred account creation: user/company are created AFTER payment
 interface RegisterResponse {
-  user: { id: string };
+  user?: { id: string };
   company?: { id: string };
   checkout_url?: string;
-  session_token?: string;
+  email?: string; // Used for confirmation messaging
 }
 
 // ============================================================
@@ -79,7 +78,6 @@ const initialContext: RegistrationContext = {
   seatCount: 1,
   error: null,
   checkoutUrl: null,
-  sessionToken: null,
   emailExists: false,
   retryCount: 0,
   flowStartedAt: null,
@@ -348,11 +346,11 @@ export const registrationMachine = createMachine({
         onDone: [
           {
             // If checkout URL returned, redirect to Stripe
+            // With deferred account creation, no session token is returned
             target: 'redirectingToCheckout',
             guard: ({ event }) => !!event.output.checkout_url,
             actions: assign({
               checkoutUrl: ({ event }) => event.output.checkout_url || null,
-              sessionToken: ({ event }) => event.output.session_token || null,
               error: null,
             }),
           },
@@ -386,14 +384,10 @@ export const registrationMachine = createMachine({
     // --------------------------------------------------------
     redirectingToCheckout: {
       // This is a transient state - the redirect happens via effect
+      // With deferred account creation, the account is created AFTER payment.
+      // No session cookie is set here - user will log in after account is provisioned.
       entry: [
         ({ context }) => {
-          // Set session cookie BEFORE redirecting to Stripe
-          // This ensures user has a valid session when they return from checkout
-          if (context.sessionToken) {
-            console.log('[Registration] Setting session token cookie before checkout redirect');
-            setSessionTokenCookie(context.sessionToken);
-          }
           if (context.checkoutUrl) {
             // Redirect will be handled by the React component
             console.log('[Registration] Redirecting to checkout:', context.checkoutUrl);

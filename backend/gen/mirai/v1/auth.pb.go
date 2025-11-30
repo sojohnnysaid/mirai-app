@@ -224,15 +224,16 @@ func (x *RegisterRequest) GetSeatCount() int32 {
 }
 
 // RegisterResponse contains the result of registration.
+// For paid plans, only checkout_url is returned (account created after payment).
+// For other flows, user and company may be returned immediately.
 type RegisterResponse struct {
 	state   protoimpl.MessageState `protogen:"open.v1"`
-	User    *User                  `protobuf:"bytes,1,opt,name=user,proto3" json:"user,omitempty"`
+	User    *User                  `protobuf:"bytes,1,opt,name=user,proto3,oneof" json:"user,omitempty"`
 	Company *Company               `protobuf:"bytes,2,opt,name=company,proto3,oneof" json:"company,omitempty"`
-	// Stripe Checkout URL if payment is required
+	// Stripe Checkout URL for payment - user should complete checkout
 	CheckoutUrl *string `protobuf:"bytes,3,opt,name=checkout_url,json=checkoutUrl,proto3,oneof" json:"checkout_url,omitempty"`
-	// Session token to set as cookie before redirecting to checkout.
-	// This allows the user to maintain their session through the Stripe redirect.
-	SessionToken  *string `protobuf:"bytes,4,opt,name=session_token,json=sessionToken,proto3,oneof" json:"session_token,omitempty"`
+	// Email address for confirmation messages
+	Email         *string `protobuf:"bytes,4,opt,name=email,proto3,oneof" json:"email,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -288,9 +289,9 @@ func (x *RegisterResponse) GetCheckoutUrl() string {
 	return ""
 }
 
-func (x *RegisterResponse) GetSessionToken() string {
-	if x != nil && x.SessionToken != nil {
-		return *x.SessionToken
+func (x *RegisterResponse) GetEmail() string {
+	if x != nil && x.Email != nil {
+		return *x.Email
 	}
 	return ""
 }
@@ -730,16 +731,17 @@ const file_mirai_v1_auth_proto_rawDesc = "" +
 	"\t_industryB\f\n" +
 	"\n" +
 	"_team_sizeB\r\n" +
-	"\v_seat_count\"\xe9\x01\n" +
-	"\x10RegisterResponse\x12\"\n" +
-	"\x04user\x18\x01 \x01(\v2\x0e.mirai.v1.UserR\x04user\x120\n" +
-	"\acompany\x18\x02 \x01(\v2\x11.mirai.v1.CompanyH\x00R\acompany\x88\x01\x01\x12&\n" +
-	"\fcheckout_url\x18\x03 \x01(\tH\x01R\vcheckoutUrl\x88\x01\x01\x12(\n" +
-	"\rsession_token\x18\x04 \x01(\tH\x02R\fsessionToken\x88\x01\x01B\n" +
+	"\v_seat_count\"\xe0\x01\n" +
+	"\x10RegisterResponse\x12'\n" +
+	"\x04user\x18\x01 \x01(\v2\x0e.mirai.v1.UserH\x00R\x04user\x88\x01\x01\x120\n" +
+	"\acompany\x18\x02 \x01(\v2\x11.mirai.v1.CompanyH\x01R\acompany\x88\x01\x01\x12&\n" +
+	"\fcheckout_url\x18\x03 \x01(\tH\x02R\vcheckoutUrl\x88\x01\x01\x12\x19\n" +
+	"\x05email\x18\x04 \x01(\tH\x03R\x05email\x88\x01\x01B\a\n" +
+	"\x05_userB\n" +
 	"\n" +
 	"\b_companyB\x0f\n" +
-	"\r_checkout_urlB\x10\n" +
-	"\x0e_session_token\"\xe8\x01\n" +
+	"\r_checkout_urlB\b\n" +
+	"\x06_email\"\xe8\x01\n" +
 	"\x0eOnboardRequest\x12!\n" +
 	"\fcompany_name\x18\x01 \x01(\tR\vcompanyName\x12\x1f\n" +
 	"\bindustry\x18\x02 \x01(\tH\x00R\bindustry\x88\x01\x01\x12 \n" +

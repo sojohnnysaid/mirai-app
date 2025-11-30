@@ -136,6 +136,84 @@ func (c *Client) CreateIdentity(ctx context.Context, req service.CreateIdentityR
 	}, nil
 }
 
+// CreateIdentityWithHash creates a new identity with a pre-hashed password.
+// This is used when provisioning accounts from pending registrations.
+func (c *Client) CreateIdentityWithHash(ctx context.Context, req service.CreateIdentityWithHashRequest) (*service.Identity, error) {
+	payload := map[string]interface{}{
+		"schema_id": "user",
+		"traits": map[string]interface{}{
+			"email": req.Email,
+			"name": map[string]string{
+				"first": req.FirstName,
+				"last":  req.LastName,
+			},
+		},
+		"credentials": map[string]interface{}{
+			"password": map[string]interface{}{
+				"config": map[string]string{
+					"hashed_password": req.PasswordHash,
+				},
+			},
+		},
+		"state": "active",
+	}
+
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal payload: %w", err)
+	}
+
+	url := fmt.Sprintf("%s/admin/identities", c.adminURL)
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(payloadBytes))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to call Kratos: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+
+	if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusOK {
+		var errorResp struct {
+			Error struct {
+				Message string `json:"message"`
+				Code    int    `json:"code"`
+			} `json:"error"`
+			Message string `json:"message"`
+		}
+		if err := json.Unmarshal(body, &errorResp); err == nil {
+			errMsg := errorResp.Error.Message
+			if errMsg == "" {
+				errMsg = errorResp.Message
+			}
+			if resp.StatusCode == http.StatusConflict || errorResp.Error.Code == 409 {
+				return nil, fmt.Errorf("an account with this email already exists")
+			}
+			if errMsg != "" {
+				return nil, fmt.Errorf("%s", errMsg)
+			}
+		}
+		return nil, fmt.Errorf("Kratos returned status %d: %s", resp.StatusCode, string(body))
+	}
+
+	var identity kratosIdentityResponse
+	if err := json.Unmarshal(body, &identity); err != nil {
+		return nil, fmt.Errorf("failed to parse Kratos response: %w", err)
+	}
+
+	return &service.Identity{
+		ID:        identity.ID,
+		Email:     identity.Traits.Email,
+		FirstName: identity.Traits.Name.First,
+		LastName:  identity.Traits.Name.Last,
+	}, nil
+}
+
 // CheckEmailExists checks if an email is already registered.
 func (c *Client) CheckEmailExists(ctx context.Context, email string) (bool, error) {
 	url := fmt.Sprintf("%s/admin/identities?credentials_identifier=%s", c.adminURL, email)

@@ -123,11 +123,12 @@ type UserWithCompanyResponse struct {
 }
 
 // RegisterResponse contains the result of registration.
+// For paid plans, only CheckoutURL and Email are returned (account created after payment).
 type RegisterResponse struct {
-	User         *UserResponse    `json:"user"`
-	Company      *CompanyResponse `json:"company,omitempty"`
-	CheckoutURL  string           `json:"checkout_url,omitempty"`
-	SessionToken string           `json:"session_token,omitempty"` // Session token to set as cookie before checkout
+	User        *UserResponse    `json:"user,omitempty"`
+	Company     *CompanyResponse `json:"company,omitempty"`
+	CheckoutURL string           `json:"checkout_url,omitempty"`
+	Email       string           `json:"email,omitempty"` // Email for confirmation messages
 }
 
 // OnboardResponse contains the onboarding result with optional checkout URL.

@@ -14,6 +14,10 @@ type IdentityProvider interface {
 	// CreateIdentity creates a new identity with the given credentials.
 	CreateIdentity(ctx context.Context, req CreateIdentityRequest) (*Identity, error)
 
+	// CreateIdentityWithHash creates a new identity with a pre-hashed password.
+	// This is used when provisioning accounts from pending registrations.
+	CreateIdentityWithHash(ctx context.Context, req CreateIdentityWithHashRequest) (*Identity, error)
+
 	// CheckEmailExists checks if an email is already registered.
 	CheckEmailExists(ctx context.Context, email string) (bool, error)
 
@@ -35,6 +39,14 @@ type CreateIdentityRequest struct {
 	Password  string
 	FirstName string
 	LastName  string
+}
+
+// CreateIdentityWithHashRequest contains data for creating an identity with a pre-hashed password.
+type CreateIdentityWithHashRequest struct {
+	Email        string
+	PasswordHash string // bcrypt hash
+	FirstName    string
+	LastName     string
 }
 
 // Identity represents a Kratos identity.
@@ -189,6 +201,9 @@ type CompanyWithOwner struct {
 type EmailProvider interface {
 	// SendInvitation sends an invitation email.
 	SendInvitation(ctx context.Context, req SendInvitationRequest) error
+
+	// SendWelcome sends a welcome email after account provisioning.
+	SendWelcome(ctx context.Context, req SendWelcomeRequest) error
 }
 
 // SendInvitationRequest contains data for sending an invitation email.
@@ -198,4 +213,12 @@ type SendInvitationRequest struct {
 	CompanyName string
 	InviteURL   string
 	ExpiresAt   string
+}
+
+// SendWelcomeRequest contains data for sending a welcome email.
+type SendWelcomeRequest struct {
+	To          string
+	FirstName   string
+	CompanyName string
+	LoginURL    string
 }

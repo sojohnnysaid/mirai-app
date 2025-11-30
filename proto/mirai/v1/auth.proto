@@ -53,14 +53,15 @@ message RegisterRequest {
 }
 
 // RegisterResponse contains the result of registration.
+// For paid plans, only checkout_url is returned (account created after payment).
+// For other flows, user and company may be returned immediately.
 message RegisterResponse {
-  User user = 1;
+  optional User user = 1;
   optional Company company = 2;
-  // Stripe Checkout URL if payment is required
+  // Stripe Checkout URL for payment - user should complete checkout
   optional string checkout_url = 3;
-  // Session token to set as cookie before redirecting to checkout.
-  // This allows the user to maintain their session through the Stripe redirect.
-  optional string session_token = 4;
+  // Email address for confirmation messages
+  optional string email = 4;
 }
 
 // OnboardRequest represents the onboarding payload for existing users.

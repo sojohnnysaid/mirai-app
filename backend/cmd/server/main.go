@@ -55,6 +55,7 @@ func main() {
 	companyRepo := postgres.NewCompanyRepository(db.DB)
 	teamRepo := postgres.NewTeamRepository(db.DB)
 	invitationRepo := postgres.NewInvitationRepository(db.DB)
+	pendingRegRepo := postgres.NewPendingRegistrationRepository(db.DB)
 
 	// Initialize shared HTTP client
 	httpClient := httputil.NewClient()
@@ -106,13 +107,17 @@ func main() {
 	courseCache := cache.NewNoOpCache() // Use NoOpCache for local dev (Redis in production)
 
 	// Initialize application services
-	authService := service.NewAuthService(userRepo, companyRepo, invitationRepo, kratosClient, stripeClient, logger, cfg.FrontendURL, cfg.BackendURL)
+	authService := service.NewAuthService(userRepo, companyRepo, invitationRepo, pendingRegRepo, kratosClient, stripeClient, logger, cfg.FrontendURL, cfg.BackendURL)
 	billingService := service.NewBillingService(userRepo, companyRepo, stripeClient, logger, cfg.FrontendURL)
 	userService := service.NewUserService(userRepo, companyRepo, stripeClient, logger, cfg.FrontendURL)
 	companyService := service.NewCompanyService(userRepo, companyRepo, logger)
 	teamService := service.NewTeamService(userRepo, companyRepo, teamRepo, logger)
 	invitationService := service.NewInvitationService(userRepo, companyRepo, invitationRepo, stripeClient, emailClient, logger, cfg.FrontendURL)
 	courseService := service.NewCourseService(courseStorage, courseCache)
+
+	// Background services for deferred account provisioning
+	provisioningService := service.NewProvisioningService(pendingRegRepo, userRepo, companyRepo, kratosClient, emailClient, logger, cfg.FrontendURL)
+	cleanupService := service.NewCleanupService(pendingRegRepo, logger)
 
 	// Create Connect server mux
 	mux := connectserver.NewServeMux(connectserver.ServerConfig{
@@ -123,6 +128,7 @@ func main() {
 		BillingService:    billingService,
 		InvitationService: invitationService,
 		CourseService:     courseService,
+		PendingRegRepo:    pendingRegRepo,
 		Identity:          kratosClient,
 		Payments:          stripeClient,
 		Logger:            logger,
@@ -142,6 +148,15 @@ func main() {
 		IdleTimeout:  60 * time.Second,
 	}
 
+	// Create context for background jobs (cancelled on shutdown)
+	bgCtx, bgCancel := context.WithCancel(context.Background())
+
+	// Start background job: provision paid registrations every 10 seconds
+	go provisioningService.RunBackground(bgCtx, 10*time.Second)
+
+	// Start background job: cleanup expired registrations every hour
+	go cleanupService.RunBackground(bgCtx, 1*time.Hour)
+
 	// Start server in goroutine
 	go func() {
 		logger.Info("server listening", "port", cfg.Port)
@@ -157,6 +172,9 @@ func main() {
 	<-quit
 
 	logger.Info("shutting down server")
+
+	// Cancel background jobs
+	bgCancel()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()

@@ -1,11 +1,13 @@
 package connect
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
 
 	"github.com/sogos/mirai-backend/internal/application/service"
+	"github.com/sogos/mirai-backend/internal/domain/repository"
 	domainservice "github.com/sogos/mirai-backend/internal/domain/service"
 	"github.com/stripe/stripe-go/v76"
 )
@@ -13,6 +15,7 @@ import (
 // WebhookHandler handles Stripe webhook callbacks.
 type WebhookHandler struct {
 	billingService *service.BillingService
+	pendingRegRepo repository.PendingRegistrationRepository
 	payments       domainservice.PaymentProvider
 	logger         domainservice.Logger
 }
@@ -20,11 +23,13 @@ type WebhookHandler struct {
 // NewWebhookHandler creates a new webhook handler.
 func NewWebhookHandler(
 	billingService *service.BillingService,
+	pendingRegRepo repository.PendingRegistrationRepository,
 	payments domainservice.PaymentProvider,
 	logger domainservice.Logger,
 ) *WebhookHandler {
 	return &WebhookHandler{
 		billingService: billingService,
+		pendingRegRepo: pendingRegRepo,
 		payments:       payments,
 		logger:         logger,
 	}
@@ -72,7 +77,14 @@ func (h *WebhookHandler) HandleStripeWebhook(w http.ResponseWriter, r *http.Requ
 		if checkoutSession.Subscription != nil {
 			subscriptionID = checkoutSession.Subscription.ID
 		}
-		h.billingService.HandleCheckoutCompleted(ctx, companyID, plan, customerID, subscriptionID)
+
+		// Check if this is a new registration (no company_id means pending registration flow)
+		if companyID == "" {
+			h.handlePendingRegistrationPayment(ctx, checkoutSession.ID, customerID, subscriptionID)
+		} else {
+			// Existing company flow (e.g., onboarding or plan upgrade)
+			h.billingService.HandleCheckoutCompleted(ctx, companyID, plan, customerID, subscriptionID)
+		}
 
 	case "customer.subscription.updated":
 		var sub stripe.Subscription
@@ -102,4 +114,41 @@ func (h *WebhookHandler) HandleStripeWebhook(w http.ResponseWriter, r *http.Requ
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]bool{"received": true})
+}
+
+// handlePendingRegistrationPayment marks a pending registration as paid after successful checkout.
+func (h *WebhookHandler) handlePendingRegistrationPayment(ctx context.Context, checkoutSessionID, customerID, subscriptionID string) {
+	log := h.logger.With("checkoutSessionID", checkoutSessionID)
+
+	// Look up pending registration by checkout session ID
+	pending, err := h.pendingRegRepo.GetByCheckoutSessionID(ctx, checkoutSessionID)
+	if err != nil {
+		log.Error("failed to get pending registration", "error", err)
+		return
+	}
+	if pending == nil {
+		log.Warn("no pending registration found for checkout session")
+		return
+	}
+
+	log = log.With("email", pending.Email, "company", pending.CompanyName)
+
+	// Get seat count from subscription (if available)
+	seatCount := 0
+	if subscriptionID != "" && h.payments != nil {
+		sub, err := h.payments.GetSubscription(ctx, subscriptionID)
+		if err == nil && sub != nil && sub.SeatCount > 0 {
+			seatCount = sub.SeatCount
+			log.Info("captured seat count from subscription", "seatCount", seatCount)
+		}
+	}
+
+	// Mark as paid with Stripe details
+	pending.MarkAsPaid(customerID, subscriptionID, seatCount)
+	if err := h.pendingRegRepo.Update(ctx, pending); err != nil {
+		log.Error("failed to mark pending registration as paid", "error", err)
+		return
+	}
+
+	log.Info("pending registration marked as paid, will be provisioned shortly", "seatCount", pending.SeatCount)
 }

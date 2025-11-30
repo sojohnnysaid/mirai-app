@@ -106,3 +106,33 @@ type InvitationRepository interface {
 	// CountPendingByCompanyID counts pending invitations for a company.
 	CountPendingByCompanyID(ctx context.Context, companyID uuid.UUID) (int, error)
 }
+
+// PendingRegistrationRepository defines the interface for pending registration data access.
+type PendingRegistrationRepository interface {
+	// Create creates a new pending registration.
+	Create(ctx context.Context, pr *entity.PendingRegistration) error
+
+	// GetByID retrieves a pending registration by its ID.
+	GetByID(ctx context.Context, id uuid.UUID) (*entity.PendingRegistration, error)
+
+	// GetByCheckoutSessionID retrieves a pending registration by Stripe checkout session ID.
+	GetByCheckoutSessionID(ctx context.Context, sessionID string) (*entity.PendingRegistration, error)
+
+	// GetByEmail retrieves a pending registration by email.
+	GetByEmail(ctx context.Context, email string) (*entity.PendingRegistration, error)
+
+	// ListByStatus retrieves all pending registrations with a given status.
+	ListByStatus(ctx context.Context, status valueobject.PendingRegistrationStatus) ([]*entity.PendingRegistration, error)
+
+	// Update updates a pending registration.
+	Update(ctx context.Context, pr *entity.PendingRegistration) error
+
+	// Delete deletes a pending registration.
+	Delete(ctx context.Context, id uuid.UUID) error
+
+	// DeleteExpired deletes all expired pending registrations and returns the count.
+	DeleteExpired(ctx context.Context) (int64, error)
+
+	// ExistsByEmail checks if a pending registration exists for the given email.
+	ExistsByEmail(ctx context.Context, email string) (bool, error)
+}

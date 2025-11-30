@@ -11,7 +11,7 @@ import {
   type StepName,
 } from '@/machines/registrationMachine';
 import { Plan } from '@/gen/mirai/v1/common_pb';
-import { setSessionTokenCookie, REDIRECT_URLS } from '@/lib/auth.config';
+import { REDIRECT_URLS } from '@/lib/auth.config';
 import type { AuthError } from '@/machines/shared/types';
 
 /**
@@ -76,29 +76,20 @@ export function useRegistration(): UseRegistrationReturn {
   // --------------------------------------------------------
   useEffect(() => {
     // Redirect to Stripe checkout
+    // With deferred account creation, no session token is set here.
+    // The account is created AFTER payment confirmation via webhook.
+    // After payment, user is redirected to marketing page with ?checkout=success
     if (state.matches('redirectingToCheckout') && context.checkoutUrl) {
-      console.log('[useRegistration] Preparing to redirect to Stripe checkout');
-
-      // Set the session token cookie BEFORE redirecting to Stripe
-      // Uses auth.config.ts central configuration for cookie name and attributes
-      // The middleware will read this cookie and send it as Authorization: Bearer to Kratos
-      if (context.sessionToken) {
-        console.log('[useRegistration] Setting session token cookie before redirect');
-        setSessionTokenCookie(context.sessionToken);
-      } else {
-        console.warn('[useRegistration] No session token available for cookie');
-      }
-
       console.log('[useRegistration] Redirecting to Stripe checkout');
       window.location.href = context.checkoutUrl;
     }
 
-    // Redirect to dashboard on success (non-payment flow)
+    // Redirect to dashboard on success (non-payment flow, e.g., enterprise)
     if (state.matches('success')) {
       console.log('[useRegistration] Registration success, redirecting to dashboard');
       router.push(REDIRECT_URLS.DASHBOARD);
     }
-  }, [state, context.checkoutUrl, context.sessionToken, router]);
+  }, [state, context.checkoutUrl, router]);
 
   // --------------------------------------------------------
   // Actions

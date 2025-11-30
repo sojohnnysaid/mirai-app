@@ -6,6 +6,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/sogos/mirai-backend/gen/mirai/v1/miraiv1connect"
 	"github.com/sogos/mirai-backend/internal/application/service"
+	"github.com/sogos/mirai-backend/internal/domain/repository"
 	domainservice "github.com/sogos/mirai-backend/internal/domain/service"
 )
 
@@ -19,11 +20,12 @@ type ServerConfig struct {
 	InvitationService *service.InvitationService
 	CourseService     *service.CourseService
 
-	Identity      domainservice.IdentityProvider
-	Payments      domainservice.PaymentProvider
-	Logger        domainservice.Logger
-	AllowedOrigin string
-	FrontendURL   string
+	PendingRegRepo repository.PendingRegistrationRepository
+	Identity       domainservice.IdentityProvider
+	Payments       domainservice.PaymentProvider
+	Logger         domainservice.Logger
+	AllowedOrigin  string
+	FrontendURL    string
 }
 
 // NewServeMux creates a new HTTP mux with all Connect service handlers.
@@ -92,7 +94,7 @@ func NewServeMux(cfg ServerConfig) *http.ServeMux {
 	}
 
 	// Add webhook handler (no interceptors - Stripe handles its own auth)
-	webhookHandler := NewWebhookHandler(cfg.BillingService, cfg.Payments, cfg.Logger)
+	webhookHandler := NewWebhookHandler(cfg.BillingService, cfg.PendingRegRepo, cfg.Payments, cfg.Logger)
 	mux.HandleFunc("/api/v1/billing/webhook", webhookHandler.HandleStripeWebhook)
 
 	// Checkout completion redirect handler
