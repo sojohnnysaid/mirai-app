@@ -118,7 +118,7 @@ kratos:
       lifespan: 24h
       cookie:
         domain: sogos.io
-        same_site: Lax
+        same_site: None
 
   # Identity schema file
   identitySchemas:
