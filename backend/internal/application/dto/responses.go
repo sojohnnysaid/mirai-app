@@ -43,6 +43,7 @@ type CompanyResponse struct {
 	SubscriptionStatus   valueobject.SubscriptionStatus `json:"subscription_status"`
 	StripeCustomerID     *string                        `json:"stripe_customer_id,omitempty"`
 	StripeSubscriptionID *string                        `json:"stripe_subscription_id,omitempty"`
+	SeatCount            int                            `json:"seat_count"`
 	CreatedAt            time.Time                      `json:"created_at"`
 	UpdatedAt            time.Time                      `json:"updated_at"`
 }
@@ -61,6 +62,7 @@ func FromCompany(c *entity.Company) *CompanyResponse {
 		SubscriptionStatus:   c.SubscriptionStatus,
 		StripeCustomerID:     c.StripeCustomerID,
 		StripeSubscriptionID: c.StripeSubscriptionID,
+		SeatCount:            c.SeatCount,
 		CreatedAt:            c.CreatedAt,
 		UpdatedAt:            c.UpdatedAt,
 	}

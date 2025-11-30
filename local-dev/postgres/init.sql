@@ -11,3 +11,4 @@ GRANT ALL PRIVILEGES ON DATABASE mirai TO mirai;
 -- Grant schema privileges to mirai user (for migrations)
 \c mirai
 GRANT ALL ON SCHEMA public TO mirai;
+ALTER SCHEMA public OWNER TO mirai;

@@ -177,18 +177,31 @@ func (s *BillingService) HandleCheckoutCompleted(ctx context.Context, companyIDS
 		parsedPlan = valueobject.PlanStarter
 	}
 
+	// Fetch seat count from newly created subscription
+	seatCount := 0
+	if subscriptionID != "" && s.payments != nil {
+		sub, err := s.payments.GetSubscription(ctx, subscriptionID)
+		if err == nil && sub.SeatCount > 0 {
+			seatCount = sub.SeatCount
+			log.Info("captured seat count from checkout", "seatCount", sub.SeatCount)
+		} else if err != nil {
+			log.Warn("failed to get seat count from new subscription", "error", err)
+		}
+	}
+
 	err = s.companyRepo.UpdateStripeFields(ctx, companyID, entity.StripeFields{
 		CustomerID:     &customerID,
 		SubscriptionID: &subscriptionID,
 		Status:         valueobject.SubscriptionStatusActive,
 		Plan:           parsedPlan,
+		SeatCount:      seatCount,
 	})
 	if err != nil {
 		log.Error("failed to update company stripe fields", "error", err)
 		return domainerrors.ErrInternal.WithCause(err)
 	}
 
-	log.Info("checkout completed")
+	log.Info("checkout completed", "seatCount", seatCount)
 	return nil
 }
 
@@ -213,13 +226,14 @@ func (s *BillingService) HandleSubscriptionUpdated(ctx context.Context, customer
 		SubscriptionID: &subID,
 		Status:         sub.Status,
 		Plan:           plan,
+		SeatCount:      sub.SeatCount,
 	})
 	if err != nil {
 		log.Error("failed to update subscription", "error", err)
 		return domainerrors.ErrInternal.WithCause(err)
 	}
 
-	log.Info("subscription updated", "companyID", company.ID, "status", sub.Status, "plan", plan)
+	log.Info("subscription updated", "companyID", company.ID, "status", sub.Status, "plan", plan, "seatCount", sub.SeatCount)
 	return nil
 }
 
@@ -233,11 +247,12 @@ func (s *BillingService) HandleSubscriptionDeleted(ctx context.Context, customer
 		return domainerrors.ErrCompanyNotFound
 	}
 
-	// Reset to starter plan
+	// Reset to starter plan and clear seat count
 	err = s.companyRepo.UpdateStripeFields(ctx, company.ID, entity.StripeFields{
 		CustomerID: &customerID,
 		Status:     valueobject.SubscriptionStatusCanceled,
 		Plan:       valueobject.PlanStarter,
+		SeatCount:  0,
 	})
 	if err != nil {
 		log.Error("failed to handle subscription deletion", "error", err)

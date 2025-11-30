@@ -41,7 +41,7 @@ func (r *CompanyRepository) Create(ctx context.Context, company *entity.Company)
 // GetByID retrieves a company by its ID.
 func (r *CompanyRepository) GetByID(ctx context.Context, id uuid.UUID) (*entity.Company, error) {
 	query := `
-		SELECT id, name, industry, team_size, plan, stripe_customer_id, stripe_subscription_id, subscription_status, created_at, updated_at
+		SELECT id, name, industry, team_size, plan, stripe_customer_id, stripe_subscription_id, subscription_status, seat_count, created_at, updated_at
 		FROM companies
 		WHERE id = $1
 	`
@@ -56,6 +56,7 @@ func (r *CompanyRepository) GetByID(ctx context.Context, id uuid.UUID) (*entity.
 		&company.StripeCustomerID,
 		&company.StripeSubscriptionID,
 		&statusStr,
+		&company.SeatCount,
 		&company.CreatedAt,
 		&company.UpdatedAt,
 	)
@@ -73,7 +74,7 @@ func (r *CompanyRepository) GetByID(ctx context.Context, id uuid.UUID) (*entity.
 // GetByStripeCustomerID retrieves a company by its Stripe customer ID.
 func (r *CompanyRepository) GetByStripeCustomerID(ctx context.Context, stripeCustomerID string) (*entity.Company, error) {
 	query := `
-		SELECT id, name, industry, team_size, plan, stripe_customer_id, stripe_subscription_id, subscription_status, created_at, updated_at
+		SELECT id, name, industry, team_size, plan, stripe_customer_id, stripe_subscription_id, subscription_status, seat_count, created_at, updated_at
 		FROM companies
 		WHERE stripe_customer_id = $1
 	`
@@ -88,6 +89,7 @@ func (r *CompanyRepository) GetByStripeCustomerID(ctx context.Context, stripeCus
 		&company.StripeCustomerID,
 		&company.StripeSubscriptionID,
 		&statusStr,
+		&company.SeatCount,
 		&company.CreatedAt,
 		&company.UpdatedAt,
 	)
@@ -118,10 +120,10 @@ func (r *CompanyRepository) Update(ctx context.Context, company *entity.Company)
 func (r *CompanyRepository) UpdateStripeFields(ctx context.Context, id uuid.UUID, fields entity.StripeFields) error {
 	query := `
 		UPDATE companies
-		SET stripe_customer_id = $1, stripe_subscription_id = $2, subscription_status = $3, plan = $4, updated_at = NOW()
-		WHERE id = $5
+		SET stripe_customer_id = $1, stripe_subscription_id = $2, subscription_status = $3, plan = $4, seat_count = $5, updated_at = NOW()
+		WHERE id = $6
 	`
-	result, err := r.db.ExecContext(ctx, query, fields.CustomerID, fields.SubscriptionID, fields.Status.String(), fields.Plan.String(), id)
+	result, err := r.db.ExecContext(ctx, query, fields.CustomerID, fields.SubscriptionID, fields.Status.String(), fields.Plan.String(), fields.SeatCount, id)
 	if err != nil {
 		return fmt.Errorf("failed to update stripe fields: %w", err)
 	}

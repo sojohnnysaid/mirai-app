@@ -478,15 +478,9 @@ func (s *InvitationService) getSeatInfo(
 		return nil, err
 	}
 
-	// Get total seats from Stripe subscription if available
-	totalSeats := company.Plan.DefaultSeatLimit()
-	if company.StripeSubscriptionID != nil && *company.StripeSubscriptionID != "" && s.payments != nil {
-		sub, err := s.payments.GetSubscription(ctx, *company.StripeSubscriptionID)
-		if err == nil && sub.SeatCount > 0 {
-			totalSeats = sub.SeatCount
-		}
-		// If Stripe lookup fails, fall back to plan default (already set)
-	}
+	// Use persisted seat count from database (single source of truth)
+	// Falls back to plan default if seat_count is 0
+	totalSeats := company.EffectiveSeatCount()
 
 	usedSeats := len(users)
 	availableSeats := totalSeats - usedSeats - pendingCount

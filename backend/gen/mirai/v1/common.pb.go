@@ -332,6 +332,7 @@ type Company struct {
 	StripeSubscriptionId *string                `protobuf:"bytes,8,opt,name=stripe_subscription_id,json=stripeSubscriptionId,proto3,oneof" json:"stripe_subscription_id,omitempty"`
 	CreatedAt            *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	UpdatedAt            *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	SeatCount            int32                  `protobuf:"varint,11,opt,name=seat_count,json=seatCount,proto3" json:"seat_count,omitempty"` // Purchased seats from Stripe subscription (0 = use plan default)
 	unknownFields        protoimpl.UnknownFields
 	sizeCache            protoimpl.SizeCache
 }
@@ -434,6 +435,13 @@ func (x *Company) GetUpdatedAt() *timestamppb.Timestamp {
 		return x.UpdatedAt
 	}
 	return nil
+}
+
+func (x *Company) GetSeatCount() int32 {
+	if x != nil {
+		return x.SeatCount
+	}
+	return 0
 }
 
 // Team represents a team within a company.
@@ -613,7 +621,7 @@ const file_mirai_v1_common_proto_rawDesc = "" +
 	"created_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
 	"updated_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAtB\r\n" +
-	"\v_company_id\"\x94\x04\n" +
+	"\v_company_id\"\xb3\x04\n" +
 	"\aCompany\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1f\n" +
@@ -627,7 +635,9 @@ const file_mirai_v1_common_proto_rawDesc = "" +
 	"created_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
 	"updated_at\x18\n" +
-	" \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAtB\v\n" +
+	" \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12\x1d\n" +
+	"\n" +
+	"seat_count\x18\v \x01(\x05R\tseatCountB\v\n" +
 	"\t_industryB\f\n" +
 	"\n" +
 	"_team_sizeB\x15\n" +

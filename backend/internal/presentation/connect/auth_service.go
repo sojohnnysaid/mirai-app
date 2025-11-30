@@ -203,6 +203,7 @@ func companyToProto(c *dto.CompanyResponse) *v1.Company {
 		StripeSubscriptionId: c.StripeSubscriptionID,
 		CreatedAt:            timestamppb.New(c.CreatedAt),
 		UpdatedAt:            timestamppb.New(c.UpdatedAt),
+		SeatCount:            int32(c.SeatCount),
 	}
 }
 

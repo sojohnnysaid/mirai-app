@@ -17,6 +17,7 @@ type Company struct {
 	StripeCustomerID     *string
 	StripeSubscriptionID *string
 	SubscriptionStatus   valueobject.SubscriptionStatus
+	SeatCount            int // Purchased seats from Stripe subscription (0 = use plan default)
 	CreatedAt            time.Time
 	UpdatedAt            time.Time
 }
@@ -42,10 +43,21 @@ func (c *Company) RequiresPayment() bool {
 	return c.Plan.RequiresPayment()
 }
 
+// EffectiveSeatCount returns the seat count to use.
+// If SeatCount > 0, returns the purchased seat count.
+// Otherwise, returns the plan's default seat limit.
+func (c *Company) EffectiveSeatCount() int {
+	if c.SeatCount > 0 {
+		return c.SeatCount
+	}
+	return c.Plan.DefaultSeatLimit()
+}
+
 // StripeFields contains updateable Stripe-related fields.
 type StripeFields struct {
 	CustomerID     *string
 	SubscriptionID *string
 	Status         valueobject.SubscriptionStatus
 	Plan           valueobject.Plan
+	SeatCount      int // Purchased seats from Stripe subscription
 }

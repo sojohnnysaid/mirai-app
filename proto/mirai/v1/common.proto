@@ -58,6 +58,7 @@ message Company {
   optional string stripe_subscription_id = 8;
   google.protobuf.Timestamp created_at = 9;
   google.protobuf.Timestamp updated_at = 10;
+  int32 seat_count = 11;  // Purchased seats from Stripe subscription (0 = use plan default)
 }
 
 // Team represents a team within a company.
