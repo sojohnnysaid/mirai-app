@@ -48,3 +48,4 @@ coverage/
 local-dev/.env
 local-dev/.dev-pids
 backend/.env.local
+backend/data/
