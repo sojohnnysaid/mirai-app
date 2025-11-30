@@ -21,6 +21,9 @@ RUN rm -rf src/app/\(main\)
 # Replace middleware with marketing-specific version
 RUN cp src/middleware.marketing.ts src/middleware.ts
 
+# Replace layout with marketing-specific version (no Redux/Connect providers)
+RUN cp src/app/layout.marketing.tsx src/app/layout.tsx
+
 ENV NEXT_TELEMETRY_DISABLED=1
 
 # Set build timestamp for cache-busting indicator
