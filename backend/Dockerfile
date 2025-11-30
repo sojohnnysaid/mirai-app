@@ -29,8 +29,9 @@ COPY --from=builder /src/migrate /app/migrate
 # Copy migrations directory
 COPY --from=builder /src/migrations /app/migrations
 
-# Ensure binaries are executable for all users
-RUN chmod 755 /app/server /app/migrate
+# Ensure binaries are executable and migrations are readable for all users
+RUN chmod 755 /app/server /app/migrate && \
+    chmod -R 755 /app/migrations
 
 # Create non-root user with UID 10000
 RUN adduser -D -u 10000 appuser
