@@ -146,6 +146,30 @@ echo ""
 wait_for_postgres 30
 sleep 2  # Extra time for init scripts
 
+# Wait for Mirai database migrations to complete
+echo -e "${BLUE}Waiting for Mirai database migrations...${NC}"
+timeout=60
+while [ $timeout -gt 0 ]; do
+    status=$(docker inspect -f '{{.State.Status}}' mirai-migrate 2>/dev/null || echo "not_found")
+    if [ "$status" = "exited" ]; then
+        exit_code=$(docker inspect -f '{{.State.ExitCode}}' mirai-migrate 2>/dev/null || echo "1")
+        if [ "$exit_code" = "0" ]; then
+            echo -e "${GREEN}Mirai migrations completed successfully!${NC}"
+            break
+        else
+            echo -e "${RED}Mirai migrations failed with exit code $exit_code${NC}"
+            docker logs mirai-migrate
+            exit 1
+        fi
+    fi
+    sleep 2
+    ((timeout-=2))
+done
+if [ $timeout -le 0 ]; then
+    echo -e "${RED}Timeout waiting for Mirai migrations${NC}"
+    exit 1
+fi
+
 wait_for_service "Kratos" "http://localhost:4433/health/ready" 60
 
 # Check Redis
