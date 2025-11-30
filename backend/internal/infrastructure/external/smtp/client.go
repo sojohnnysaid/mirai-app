@@ -110,7 +110,7 @@ func (c *Client) renderInvitationEmail(req service.SendInvitationRequest) (strin
                             </p>
                             <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
                                 <tr>
-                                    <td style="padding: 20px 0;">
+                                    <td style="padding: 20px 0; text-align: center;">
                                         <a href="{{.InviteURL}}" style="display: inline-block; padding: 14px 32px; background-color: #7c3aed; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600; border-radius: 8px;">Accept Invitation</a>
                                     </td>
                                 </tr>
@@ -177,7 +177,7 @@ func (c *Client) renderWelcomeEmail(req service.SendWelcomeRequest) (string, err
                             </p>
                             <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
                                 <tr>
-                                    <td style="padding: 20px 0;">
+                                    <td style="padding: 20px 0; text-align: center;">
                                         <a href="{{.LoginURL}}" style="display: inline-block; padding: 14px 32px; background-color: #7c3aed; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600; border-radius: 8px;">Log In to Mirai</a>
                                     </td>
                                 </tr>
