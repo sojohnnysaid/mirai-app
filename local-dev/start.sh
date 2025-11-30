@@ -211,6 +211,7 @@ KRATOS_URL="http://localhost:4433" \
 KRATOS_ADMIN_URL="http://localhost:4434" \
 ALLOWED_ORIGIN="http://localhost:3000" \
 FRONTEND_URL="http://localhost:3000" \
+MARKETING_URL="http://localhost:3001" \
 BACKEND_URL="http://localhost:8080" \
 COOKIE_SECURE="false" \
 STRIPE_SECRET_KEY="${STRIPE_SECRET_KEY:-}" \
