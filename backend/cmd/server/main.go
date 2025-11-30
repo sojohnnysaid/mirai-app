@@ -79,9 +79,30 @@ func main() {
 		logger.Warn("email provider not configured, invitations will not send emails")
 	}
 
-	// Initialize storage and cache for CourseService
-	// Use local filesystem storage for development (S3 in production)
-	courseStorage := storage.NewLocalStorage("./data")
+	// Initialize storage for CourseService
+	// Use S3/MinIO in production, local filesystem for development
+	var courseStorage storage.StorageAdapter
+	if cfg.S3AccessKey != "" && cfg.S3SecretKey != "" {
+		s3Storage, err := storage.NewS3Storage(context.Background(), storage.S3Config{
+			Endpoint:        cfg.S3Endpoint,
+			Region:          cfg.S3Region,
+			Bucket:          cfg.S3Bucket,
+			BasePath:        cfg.S3BasePath,
+			AccessKeyID:     cfg.S3AccessKey,
+			SecretAccessKey: cfg.S3SecretKey,
+		})
+		if err != nil {
+			logger.Error("failed to initialize S3 storage", "error", err)
+			os.Exit(1)
+		}
+		courseStorage = s3Storage
+		logger.Info("using S3/MinIO storage", "endpoint", cfg.S3Endpoint, "bucket", cfg.S3Bucket)
+	} else {
+		courseStorage = storage.NewLocalStorage("./data")
+		logger.Warn("S3 credentials not configured, using local storage (not recommended for production)")
+	}
+
+	// Initialize cache for CourseService
 	courseCache := cache.NewNoOpCache() // Use NoOpCache for local dev (Redis in production)
 
 	// Initialize application services

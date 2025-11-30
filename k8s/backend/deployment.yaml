@@ -84,6 +84,30 @@ spec:
           value: "1025"
         - name: SMTP_FROM
           value: "noreply@mirai.sogos.io"
+        - name: S3_ENDPOINT
+          valueFrom:
+            secretKeyRef:
+              name: minio-secret
+              key: endpoint
+        - name: S3_REGION
+          valueFrom:
+            secretKeyRef:
+              name: minio-secret
+              key: region
+        - name: S3_BUCKET
+          value: "mirai"
+        - name: S3_BASE_PATH
+          value: "data"
+        - name: S3_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: minio-secret
+              key: accesskey
+        - name: S3_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: minio-secret
+              key: secretkey
         - name: GIN_MODE
           value: "release"
         resources:
