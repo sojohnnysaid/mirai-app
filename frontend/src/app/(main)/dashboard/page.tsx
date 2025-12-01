@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Plus, Clock, FileText, CheckCircle, Edit2, Trash2, X, PartyPopper } from 'lucide-react';
+import { Plus, Clock, FileText, CheckCircle, Edit2, Trash2, X, PartyPopper, Sparkles } from 'lucide-react';
 import CourseCreationModal from '@/components/dashboard/CourseCreationModal';
+import { AIGenerationFlowModal } from '@/components/ai-generation';
 import { useGetCoursesQuery, useDeleteCourseMutation, type LibraryEntry } from '@/store/api/apiSlice';
 import { useRouter, useSearchParams } from 'next/navigation';
 import confetti from 'canvas-confetti';
@@ -10,6 +11,7 @@ import * as courseClient from '@/lib/courseClient';
 
 export default function Dashboard() {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isAIModalOpen, setIsAIModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'recent' | 'draft' | 'published'>('recent');
   const [showSuccessBanner, setShowSuccessBanner] = useState(false);
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
@@ -188,13 +190,22 @@ export default function Dashboard() {
             <h2 className="text-2xl font-bold text-gray-900 mb-2">Welcome to Your Dashboard</h2>
             <p className="text-gray-600">Create engaging courses with AI or import existing materials</p>
           </div>
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="flex items-center gap-2 px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium shadow-lg hover:shadow-xl"
-          >
-            <Plus className="w-5 h-5" />
-            Create Course
-          </button>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <button
+              onClick={() => setIsAIModalOpen(true)}
+              className="flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all font-medium shadow-lg hover:shadow-xl"
+            >
+              <Sparkles className="w-5 h-5" />
+              Generate with AI
+            </button>
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="flex items-center justify-center gap-2 px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium shadow-lg hover:shadow-xl"
+            >
+              <Plus className="w-5 h-5" />
+              Create Course
+            </button>
+          </div>
         </div>
       </div>
 
@@ -202,6 +213,12 @@ export default function Dashboard() {
       <CourseCreationModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
+      />
+
+      {/* AI Generation Flow Modal */}
+      <AIGenerationFlowModal
+        isOpen={isAIModalOpen}
+        onClose={() => setIsAIModalOpen(false)}
       />
 
       {/* Your Courses Section */}
