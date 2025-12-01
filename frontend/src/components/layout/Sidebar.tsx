@@ -26,11 +26,6 @@ export const menuItems = [
   { icon: Settings, label: 'Settings', path: '/settings' },
 ];
 
-export const recentItems = [
-  { label: 'Team Folder 1', path: '/folder/team-1' },
-  { label: 'Team Folder 2', path: '/folder/team-2' },
-];
-
 export const bottomItems = [
   { icon: HelpCircle, label: 'Help and Support', path: '/help' },
   { icon: Bell, label: 'Product Updates', path: '/updates' },
@@ -122,23 +117,6 @@ export default function Sidebar() {
               </Link>
             );
           })}
-
-          {showText && (
-            <div className={`sidebar-recents ${showText ? 'animate-fadeIn' : 'animate-fadeOut'}`}>
-              <h3 className="recents-title">Recents</h3>
-              {recentItems.map((item) => (
-                <Link
-                  key={item.path}
-                  href={item.path}
-                  prefetch={true}
-                  className="recent-item"
-                >
-                  <div className="recent-dot" />
-                  <span className="menu-label">{item.label}</span>
-                </Link>
-              ))}
-            </div>
-          )}
         </nav>
 
         <div className="sidebar-bottom">

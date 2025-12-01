@@ -181,11 +181,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Something New Section - Updates/News */}
-      <div className="bg-gray-200 rounded-2xl p-6 mb-8">
-        <h2 className="text-xl font-semibold text-gray-900">Something New Foo!</h2>
-      </div>
-
       {/* Hero Section with Create Button */}
       <div className="bg-gradient-to-r from-primary-100 to-primary-50 rounded-2xl p-8 mb-8">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">

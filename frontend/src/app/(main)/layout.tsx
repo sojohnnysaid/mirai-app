@@ -7,7 +7,7 @@ import { RootState, AppDispatch } from '@/store';
 import { checkSession, selectIsAuthInitialized } from '@/store/slices/authSlice';
 import { prefetchFolders, prefetchCourses } from '@/store/slices/courseSlice';
 import { setSessionTokenCookie } from '@/lib/auth.config';
-import Sidebar, { menuItems, recentItems, bottomItems } from '@/components/layout/Sidebar';
+import Sidebar, { menuItems, bottomItems } from '@/components/layout/Sidebar';
 import Header from '@/components/layout/Header';
 import BottomTabNav from '@/components/layout/BottomTabNav';
 import LoadingScreen from '@/components/ui/LoadingScreen';
@@ -57,7 +57,6 @@ export default function Layout({
     const allPaths = [
       '/dashboard',
       ...menuItems.map((item) => item.path),
-      ...recentItems.map((item) => item.path),
       ...bottomItems.map((item) => item.path),
     ];
 
