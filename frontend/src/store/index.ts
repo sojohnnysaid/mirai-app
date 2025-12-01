@@ -3,6 +3,10 @@ import courseReducer from './slices/courseSlice';
 import uiReducer from './slices/uiSlice';
 import aiGenerationReducer from './slices/aiGenerationSlice';
 import authReducer from './slices/authSlice';
+import smeReducer from './slices/smeSlice';
+import targetAudienceReducer from './slices/targetAudienceSlice';
+import notificationReducer from './slices/notificationSlice';
+import tenantSettingsReducer from './slices/tenantSettingsSlice';
 import { persistenceMiddleware, restoreFromLocalStorage } from './middleware/persistenceMiddleware';
 import { api } from './api/apiSlice';
 
@@ -68,6 +72,10 @@ export const store = configureStore({
     ui: uiReducer,
     aiGeneration: aiGenerationReducer,
     auth: authReducer,
+    sme: smeReducer,
+    targetAudience: targetAudienceReducer,
+    notification: notificationReducer,
+    tenantSettings: tenantSettingsReducer,
     [api.reducerPath]: api.reducer, // Add RTK Query reducer
   },
   middleware: (getDefaultMiddleware) =>
