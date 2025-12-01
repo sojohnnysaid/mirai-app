@@ -48,7 +48,36 @@ export const AUTH_TELEMETRY = {
   FLOW_EXPIRED: 'auth.flow.expired',
 } as const;
 
-export type TelemetryEventName = (typeof AUTH_TELEMETRY)[keyof typeof AUTH_TELEMETRY];
+/**
+ * LMS/AI generation telemetry events
+ */
+export const LMS_TELEMETRY = {
+  // SME events
+  SME_CREATED: 'lms.sme.created',
+  SME_SELECTED: 'lms.sme.selected',
+  SME_INGESTION_STARTED: 'lms.sme.ingestion_started',
+  SME_INGESTION_COMPLETED: 'lms.sme.ingestion_completed',
+  SME_INGESTION_FAILED: 'lms.sme.ingestion_failed',
+
+  // Course generation events
+  COURSE_GENERATION_STARTED: 'lms.course.generation_started',
+  COURSE_OUTLINE_GENERATED: 'lms.course.outline_generated',
+  COURSE_OUTLINE_APPROVED: 'lms.course.outline_approved',
+  COURSE_OUTLINE_REJECTED: 'lms.course.outline_rejected',
+  COURSE_LESSONS_GENERATING: 'lms.course.lessons_generating',
+  COURSE_GENERATION_COMPLETED: 'lms.course.generation_completed',
+  COURSE_GENERATION_FAILED: 'lms.course.generation_failed',
+
+  // Component editing events
+  COMPONENT_EDIT_STARTED: 'lms.component.edit_started',
+  COMPONENT_REGENERATING: 'lms.component.regenerating',
+  COMPONENT_SAVED: 'lms.component.saved',
+  COMPONENT_EDIT_FAILED: 'lms.component.edit_failed',
+} as const;
+
+export type TelemetryEventName =
+  | (typeof AUTH_TELEMETRY)[keyof typeof AUTH_TELEMETRY]
+  | (typeof LMS_TELEMETRY)[keyof typeof LMS_TELEMETRY];
 
 // =============================================================================
 // Telemetry Context
@@ -196,4 +225,42 @@ export const invitationTelemetry = {
   viewed: createTelemetryAction('invitation', AUTH_TELEMETRY.INVITATION_VIEWED),
   accepted: createSuccessTelemetry('invitation', AUTH_TELEMETRY.INVITATION_ACCEPTED),
   failed: createFailureTelemetry('invitation', AUTH_TELEMETRY.INVITATION_FAILED),
+};
+
+// =============================================================================
+// LMS Telemetry Actions
+// =============================================================================
+
+/**
+ * SME telemetry actions
+ */
+export const smeTelemetry = {
+  created: createTelemetryAction('sme', LMS_TELEMETRY.SME_CREATED),
+  selected: createTelemetryAction('sme', LMS_TELEMETRY.SME_SELECTED),
+  ingestionStarted: createTelemetryAction('sme', LMS_TELEMETRY.SME_INGESTION_STARTED),
+  ingestionCompleted: createSuccessTelemetry('sme', LMS_TELEMETRY.SME_INGESTION_COMPLETED),
+  ingestionFailed: createFailureTelemetry('sme', LMS_TELEMETRY.SME_INGESTION_FAILED),
+};
+
+/**
+ * Course generation telemetry actions
+ */
+export const courseGenerationTelemetry = {
+  started: createTelemetryAction('courseGeneration', LMS_TELEMETRY.COURSE_GENERATION_STARTED),
+  outlineGenerated: createTelemetryAction('courseGeneration', LMS_TELEMETRY.COURSE_OUTLINE_GENERATED),
+  outlineApproved: createTelemetryAction('courseGeneration', LMS_TELEMETRY.COURSE_OUTLINE_APPROVED),
+  outlineRejected: createTelemetryAction('courseGeneration', LMS_TELEMETRY.COURSE_OUTLINE_REJECTED),
+  lessonsGenerating: createTelemetryAction('courseGeneration', LMS_TELEMETRY.COURSE_LESSONS_GENERATING),
+  completed: createSuccessTelemetry('courseGeneration', LMS_TELEMETRY.COURSE_GENERATION_COMPLETED),
+  failed: createFailureTelemetry('courseGeneration', LMS_TELEMETRY.COURSE_GENERATION_FAILED),
+};
+
+/**
+ * Component editing telemetry actions
+ */
+export const componentEditingTelemetry = {
+  started: createTelemetryAction('componentEditing', LMS_TELEMETRY.COMPONENT_EDIT_STARTED),
+  regenerating: createTelemetryAction('componentEditing', LMS_TELEMETRY.COMPONENT_REGENERATING),
+  saved: createSuccessTelemetry('componentEditing', LMS_TELEMETRY.COMPONENT_SAVED),
+  failed: createFailureTelemetry('componentEditing', LMS_TELEMETRY.COMPONENT_EDIT_FAILED),
 };
