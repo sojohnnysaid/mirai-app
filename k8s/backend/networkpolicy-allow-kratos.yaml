@@ -1,0 +1,21 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-to-kratos
+  namespace: mirai
+spec:
+  podSelector: {}
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kratos
+    ports:
+    - protocol: TCP
+      port: 80
+    - protocol: TCP
+      port: 4433
+    - protocol: TCP
+      port: 4434
