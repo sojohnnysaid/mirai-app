@@ -6,6 +6,8 @@ import { useSelector } from 'react-redux';
 import { User, Settings, LogOut, ChevronDown, Loader2 } from 'lucide-react';
 import { selectUser, selectIsAuthenticated, selectIsAuthInitialized } from '@/store/slices/authSlice';
 import { useLogout } from '@/hooks/useLogout';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { roleToDisplayString, getRoleBadgeColor } from '@/lib/proto/display';
 
 interface ProfileDropdownProps {
   /** When true, never shows Sign In link - for protected pages */
@@ -19,6 +21,9 @@ export default function ProfileDropdown({ isProtectedPage = false }: ProfileDrop
   const { startLogout, isLoggingOut } = useLogout();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Get user role from backend
+  const { user: backendUser } = useCurrentUser();
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -95,9 +100,16 @@ export default function ProfileDropdown({ isProtectedPage = false }: ProfileDrop
         <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-slate-200 py-1 z-50">
           {/* User Info */}
           <div className="px-4 py-3 border-b border-slate-100">
-            <p className="text-sm font-medium text-slate-900 truncate">
-              {displayName}
-            </p>
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-sm font-medium text-slate-900 truncate">
+                {displayName}
+              </p>
+              {backendUser && (
+                <span className={`px-2 py-0.5 text-xs font-medium rounded-full whitespace-nowrap ${getRoleBadgeColor(backendUser.role)}`}>
+                  {roleToDisplayString(backendUser.role)}
+                </span>
+              )}
+            </div>
             <p className="text-xs text-slate-500 truncate">{user.traits?.email}</p>
             {user.traits?.company?.name && (
               <p className="text-xs text-slate-400 truncate mt-1">

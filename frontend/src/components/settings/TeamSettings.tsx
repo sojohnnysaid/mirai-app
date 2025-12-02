@@ -288,6 +288,7 @@ function InviteForm({ onClose, onSuccess }: InviteFormProps) {
             disabled={isPending}
           >
             <option value={Role.MEMBER}>Member - Can view and edit content</option>
+            <option value={Role.INSTRUCTOR}>Instructor - Can create and manage courses</option>
             <option value={Role.ADMIN}>Admin - Can manage team and settings</option>
           </select>
         </div>

@@ -1,9 +1,54 @@
 'use client';
 
 import React, { useState } from 'react';
-import { User, Bell, Lock, Palette, Globe, CreditCard, Users, ChevronRight } from 'lucide-react';
+import { User, Bell, Lock, Palette, Globe, CreditCard, Users, ChevronRight, Sparkles } from 'lucide-react';
 import BillingSettings from '@/components/settings/BillingSettings';
 import TeamSettings from '@/components/settings/TeamSettings';
+import { AISettingsPanel } from '@/components/settings/AISettingsPanel';
+import {
+  useGetAISettings,
+  useSetAPIKey,
+  useTestAPIKey,
+  useRemoveAPIKey,
+  useGetUsageStats,
+  AIProvider,
+} from '@/hooks/useTenantSettings';
+
+// Wrapper component that connects AISettingsPanel to hooks
+function AISettingsContainer() {
+  const { data: settings, isLoading: settingsLoading } = useGetAISettings();
+  const { data: usageStats, isLoading: usageLoading } = useGetUsageStats();
+  const setApiKey = useSetAPIKey();
+  const testApiKey = useTestAPIKey();
+  const removeApiKey = useRemoveAPIKey();
+
+  const handleSetApiKey = async (_provider: AIProvider, apiKey: string) => {
+    await setApiKey.mutate(apiKey);
+  };
+
+  const handleTestApiKey = async (_provider: AIProvider, apiKey: string) => {
+    const result = await testApiKey.mutate(apiKey);
+    return {
+      valid: result.valid,
+      errorMessage: result.errorMessage,
+    };
+  };
+
+  const handleRemoveApiKey = async () => {
+    await removeApiKey.mutate();
+  };
+
+  return (
+    <AISettingsPanel
+      settings={settings ?? null}
+      usageStats={usageStats}
+      isLoading={settingsLoading || usageLoading}
+      onSetApiKey={handleSetApiKey}
+      onTestApiKey={handleTestApiKey}
+      onRemoveApiKey={handleRemoveApiKey}
+    />
+  );
+}
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState('profile');
@@ -15,6 +60,7 @@ export default function SettingsPage() {
     { id: 'security', label: 'Security', icon: Lock, description: 'Password and 2FA' },
     { id: 'appearance', label: 'Appearance', icon: Palette, description: 'Theme settings' },
     { id: 'language', label: 'Language', icon: Globe, description: 'Language and timezone' },
+    { id: 'ai', label: 'AI Settings', icon: Sparkles, description: 'API keys and AI configuration' },
     { id: 'billing', label: 'Billing', icon: CreditCard, description: 'Plan and payment' },
   ];
 
@@ -307,6 +353,9 @@ export default function SettingsPage() {
             </div>
           </div>
         );
+
+      case 'ai':
+        return <AISettingsContainer />;
 
       case 'billing':
         return <BillingSettings />;

@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file mirai/v1/target_audience.proto.
  */
 export const file_mirai_v1_target_audience: GenFile = /*@__PURE__*/
-  fileDesc("Ch5taXJhaS92MS90YXJnZXRfYXVkaWVuY2UucHJvdG8SCG1pcmFpLnYxIvEDChZUYXJnZXRBdWRpZW5jZVRlbXBsYXRlEgoKAmlkGAEgASgJEhEKCXRlbmFudF9pZBgCIAEoCRISCgpjb21wYW55X2lkGAMgASgJEgwKBG5hbWUYBCABKAkSEwoLZGVzY3JpcHRpb24YBSABKAkSDAoEcm9sZRgGIAEoCRIzChBleHBlcmllbmNlX2xldmVsGAcgASgOMhkubWlyYWkudjEuRXhwZXJpZW5jZUxldmVsEhYKDmxlYXJuaW5nX2dvYWxzGAggAygJEhUKDXByZXJlcXVpc2l0ZXMYCSADKAkSEgoKY2hhbGxlbmdlcxgKIAMoCRITCgttb3RpdmF0aW9ucxgLIAMoCRIdChBpbmR1c3RyeV9jb250ZXh0GAwgASgJSACIAQESHwoSdHlwaWNhbF9iYWNrZ3JvdW5kGA0gASgJSAGIAQESGgoSY3JlYXRlZF9ieV91c2VyX2lkGA4gASgJEi4KCmNyZWF0ZWRfYXQYDyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYECABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wQhMKEV9pbmR1c3RyeV9jb250ZXh0QhUKE190eXBpY2FsX2JhY2tncm91bmQiwQIKFUNyZWF0ZVRlbXBsYXRlUmVxdWVzdBIMCgRuYW1lGAEgASgJEhMKC2Rlc2NyaXB0aW9uGAIgASgJEgwKBHJvbGUYAyABKAkSMwoQZXhwZXJpZW5jZV9sZXZlbBgEIAEoDjIZLm1pcmFpLnYxLkV4cGVyaWVuY2VMZXZlbBIWCg5sZWFybmluZ19nb2FscxgFIAMoCRIVCg1wcmVyZXF1aXNpdGVzGAYgAygJEhIKCmNoYWxsZW5nZXMYByADKAkSEwoLbW90aXZhdGlvbnMYCCADKAkSHQoQaW5kdXN0cnlfY29udGV4dBgJIAEoCUgAiAEBEh8KEnR5cGljYWxfYmFja2dyb3VuZBgKIAEoCUgBiAEBQhMKEV9pbmR1c3RyeV9jb250ZXh0QhUKE190eXBpY2FsX2JhY2tncm91bmQiTAoWQ3JlYXRlVGVtcGxhdGVSZXNwb25zZRIyCgh0ZW1wbGF0ZRgBIAEoCzIgLm1pcmFpLnYxLlRhcmdldEF1ZGllbmNlVGVtcGxhdGUiKQoSR2V0VGVtcGxhdGVSZXF1ZXN0EhMKC3RlbXBsYXRlX2lkGAEgASgJIkkKE0dldFRlbXBsYXRlUmVzcG9uc2USMgoIdGVtcGxhdGUYASABKAsyIC5taXJhaS52MS5UYXJnZXRBdWRpZW5jZVRlbXBsYXRlIhYKFExpc3RUZW1wbGF0ZXNSZXF1ZXN0IkwKFUxpc3RUZW1wbGF0ZXNSZXNwb25zZRIzCgl0ZW1wbGF0ZXMYASADKAsyIC5taXJhaS52MS5UYXJnZXRBdWRpZW5jZVRlbXBsYXRlIqEDChVVcGRhdGVUZW1wbGF0ZVJlcXVlc3QSEwoLdGVtcGxhdGVfaWQYASABKAkSEQoEbmFtZRgCIAEoCUgAiAEBEhgKC2Rlc2NyaXB0aW9uGAMgASgJSAGIAQESEQoEcm9sZRgEIAEoCUgCiAEBEjgKEGV4cGVyaWVuY2VfbGV2ZWwYBSABKA4yGS5taXJhaS52MS5FeHBlcmllbmNlTGV2ZWxIA4gBARIWCg5sZWFybmluZ19nb2FscxgGIAMoCRIVCg1wcmVyZXF1aXNpdGVzGAcgAygJEhIKCmNoYWxsZW5nZXMYCCADKAkSEwoLbW90aXZhdGlvbnMYCSADKAkSHQoQaW5kdXN0cnlfY29udGV4dBgKIAEoCUgEiAEBEh8KEnR5cGljYWxfYmFja2dyb3VuZBgLIAEoCUgFiAEBQgcKBV9uYW1lQg4KDF9kZXNjcmlwdGlvbkIHCgVfcm9sZUITChFfZXhwZXJpZW5jZV9sZXZlbEITChFfaW5kdXN0cnlfY29udGV4dEIVChNfdHlwaWNhbF9iYWNrZ3JvdW5kIkwKFlVwZGF0ZVRlbXBsYXRlUmVzcG9uc2USMgoIdGVtcGxhdGUYASABKAsyIC5taXJhaS52MS5UYXJnZXRBdWRpZW5jZVRlbXBsYXRlIiwKFURlbGV0ZVRlbXBsYXRlUmVxdWVzdBITCgt0ZW1wbGF0ZV9pZBgBIAEoCSIYChZEZWxldGVUZW1wbGF0ZVJlc3BvbnNlKrEBCg9FeHBlcmllbmNlTGV2ZWwSIAocRVhQRVJJRU5DRV9MRVZFTF9VTlNQRUNJRklFRBAAEh0KGUVYUEVSSUVOQ0VfTEVWRUxfQkVHSU5ORVIQARIhCh1FWFBFUklFTkNFX0xFVkVMX0lOVEVSTUVESUFURRACEh0KGUVYUEVSSUVOQ0VfTEVWRUxfQURWQU5DRUQQAxIbChdFWFBFUklFTkNFX0xFVkVMX0VYUEVSVBAEMrQDChVUYXJnZXRBdWRpZW5jZVNlcnZpY2USUwoOQ3JlYXRlVGVtcGxhdGUSHy5taXJhaS52MS5DcmVhdGVUZW1wbGF0ZVJlcXVlc3QaIC5taXJhaS52MS5DcmVhdGVUZW1wbGF0ZVJlc3BvbnNlEkoKC0dldFRlbXBsYXRlEhwubWlyYWkudjEuR2V0VGVtcGxhdGVSZXF1ZXN0Gh0ubWlyYWkudjEuR2V0VGVtcGxhdGVSZXNwb25zZRJQCg1MaXN0VGVtcGxhdGVzEh4ubWlyYWkudjEuTGlzdFRlbXBsYXRlc1JlcXVlc3QaHy5taXJhaS52MS5MaXN0VGVtcGxhdGVzUmVzcG9uc2USUwoOVXBkYXRlVGVtcGxhdGUSHy5taXJhaS52MS5VcGRhdGVUZW1wbGF0ZVJlcXVlc3QaIC5taXJhaS52MS5VcGRhdGVUZW1wbGF0ZVJlc3BvbnNlElMKDkRlbGV0ZVRlbXBsYXRlEh8ubWlyYWkudjEuRGVsZXRlVGVtcGxhdGVSZXF1ZXN0GiAubWlyYWkudjEuRGVsZXRlVGVtcGxhdGVSZXNwb25zZUKZAQoMY29tLm1pcmFpLnYxQhNUYXJnZXRBdWRpZW5jZVByb3RvUAFaM2dpdGh1Yi5jb20vc29nb3MvbWlyYWktYmFja2VuZC9nZW4vbWlyYWkvdjE7bWlyYWl2MaICA01YWKoCCE1pcmFpLlYxygIITWlyYWlcVjHiAhRNaXJhaVxWMVxHUEJNZXRhZGF0YeoCCU1pcmFpOjpWMWIGcHJvdG8z", [file_google_protobuf_timestamp]);
+  fileDesc("Ch5taXJhaS92MS90YXJnZXRfYXVkaWVuY2UucHJvdG8SCG1pcmFpLnYxIqEEChZUYXJnZXRBdWRpZW5jZVRlbXBsYXRlEgoKAmlkGAEgASgJEhEKCXRlbmFudF9pZBgCIAEoCRISCgpjb21wYW55X2lkGAMgASgJEgwKBG5hbWUYBCABKAkSEwoLZGVzY3JpcHRpb24YBSABKAkSDAoEcm9sZRgGIAEoCRIzChBleHBlcmllbmNlX2xldmVsGAcgASgOMhkubWlyYWkudjEuRXhwZXJpZW5jZUxldmVsEhYKDmxlYXJuaW5nX2dvYWxzGAggAygJEhUKDXByZXJlcXVpc2l0ZXMYCSADKAkSEgoKY2hhbGxlbmdlcxgKIAMoCRITCgttb3RpdmF0aW9ucxgLIAMoCRIdChBpbmR1c3RyeV9jb250ZXh0GAwgASgJSACIAQESHwoSdHlwaWNhbF9iYWNrZ3JvdW5kGA0gASgJSAGIAQESGgoSY3JlYXRlZF9ieV91c2VyX2lkGA4gASgJEi4KCmNyZWF0ZWRfYXQYDyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYECABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KBnN0YXR1cxgRIAEoDjIeLm1pcmFpLnYxLlRhcmdldEF1ZGllbmNlU3RhdHVzQhMKEV9pbmR1c3RyeV9jb250ZXh0QhUKE190eXBpY2FsX2JhY2tncm91bmQiwQIKFUNyZWF0ZVRlbXBsYXRlUmVxdWVzdBIMCgRuYW1lGAEgASgJEhMKC2Rlc2NyaXB0aW9uGAIgASgJEgwKBHJvbGUYAyABKAkSMwoQZXhwZXJpZW5jZV9sZXZlbBgEIAEoDjIZLm1pcmFpLnYxLkV4cGVyaWVuY2VMZXZlbBIWCg5sZWFybmluZ19nb2FscxgFIAMoCRIVCg1wcmVyZXF1aXNpdGVzGAYgAygJEhIKCmNoYWxsZW5nZXMYByADKAkSEwoLbW90aXZhdGlvbnMYCCADKAkSHQoQaW5kdXN0cnlfY29udGV4dBgJIAEoCUgAiAEBEh8KEnR5cGljYWxfYmFja2dyb3VuZBgKIAEoCUgBiAEBQhMKEV9pbmR1c3RyeV9jb250ZXh0QhUKE190eXBpY2FsX2JhY2tncm91bmQiTAoWQ3JlYXRlVGVtcGxhdGVSZXNwb25zZRIyCgh0ZW1wbGF0ZRgBIAEoCzIgLm1pcmFpLnYxLlRhcmdldEF1ZGllbmNlVGVtcGxhdGUiKQoSR2V0VGVtcGxhdGVSZXF1ZXN0EhMKC3RlbXBsYXRlX2lkGAEgASgJIkkKE0dldFRlbXBsYXRlUmVzcG9uc2USMgoIdGVtcGxhdGUYASABKAsyIC5taXJhaS52MS5UYXJnZXRBdWRpZW5jZVRlbXBsYXRlIkoKFExpc3RUZW1wbGF0ZXNSZXF1ZXN0Eh0KEGluY2x1ZGVfYXJjaGl2ZWQYASABKAhIAIgBAUITChFfaW5jbHVkZV9hcmNoaXZlZCJMChVMaXN0VGVtcGxhdGVzUmVzcG9uc2USMwoJdGVtcGxhdGVzGAEgAygLMiAubWlyYWkudjEuVGFyZ2V0QXVkaWVuY2VUZW1wbGF0ZSKhAwoVVXBkYXRlVGVtcGxhdGVSZXF1ZXN0EhMKC3RlbXBsYXRlX2lkGAEgASgJEhEKBG5hbWUYAiABKAlIAIgBARIYCgtkZXNjcmlwdGlvbhgDIAEoCUgBiAEBEhEKBHJvbGUYBCABKAlIAogBARI4ChBleHBlcmllbmNlX2xldmVsGAUgASgOMhkubWlyYWkudjEuRXhwZXJpZW5jZUxldmVsSAOIAQESFgoObGVhcm5pbmdfZ29hbHMYBiADKAkSFQoNcHJlcmVxdWlzaXRlcxgHIAMoCRISCgpjaGFsbGVuZ2VzGAggAygJEhMKC21vdGl2YXRpb25zGAkgAygJEh0KEGluZHVzdHJ5X2NvbnRleHQYCiABKAlIBIgBARIfChJ0eXBpY2FsX2JhY2tncm91bmQYCyABKAlIBYgBAUIHCgVfbmFtZUIOCgxfZGVzY3JpcHRpb25CBwoFX3JvbGVCEwoRX2V4cGVyaWVuY2VfbGV2ZWxCEwoRX2luZHVzdHJ5X2NvbnRleHRCFQoTX3R5cGljYWxfYmFja2dyb3VuZCJMChZVcGRhdGVUZW1wbGF0ZVJlc3BvbnNlEjIKCHRlbXBsYXRlGAEgASgLMiAubWlyYWkudjEuVGFyZ2V0QXVkaWVuY2VUZW1wbGF0ZSIsChVEZWxldGVUZW1wbGF0ZVJlcXVlc3QSEwoLdGVtcGxhdGVfaWQYASABKAkiGAoWRGVsZXRlVGVtcGxhdGVSZXNwb25zZSItChZBcmNoaXZlVGVtcGxhdGVSZXF1ZXN0EhMKC3RlbXBsYXRlX2lkGAEgASgJIk0KF0FyY2hpdmVUZW1wbGF0ZVJlc3BvbnNlEjIKCHRlbXBsYXRlGAEgASgLMiAubWlyYWkudjEuVGFyZ2V0QXVkaWVuY2VUZW1wbGF0ZSItChZSZXN0b3JlVGVtcGxhdGVSZXF1ZXN0EhMKC3RlbXBsYXRlX2lkGAEgASgJIk0KF1Jlc3RvcmVUZW1wbGF0ZVJlc3BvbnNlEjIKCHRlbXBsYXRlGAEgASgLMiAubWlyYWkudjEuVGFyZ2V0QXVkaWVuY2VUZW1wbGF0ZSqxAQoPRXhwZXJpZW5jZUxldmVsEiAKHEVYUEVSSUVOQ0VfTEVWRUxfVU5TUEVDSUZJRUQQABIdChlFWFBFUklFTkNFX0xFVkVMX0JFR0lOTkVSEAESIQodRVhQRVJJRU5DRV9MRVZFTF9JTlRFUk1FRElBVEUQAhIdChlFWFBFUklFTkNFX0xFVkVMX0FEVkFOQ0VEEAMSGwoXRVhQRVJJRU5DRV9MRVZFTF9FWFBFUlQQBCqGAQoUVGFyZ2V0QXVkaWVuY2VTdGF0dXMSJgoiVEFSR0VUX0FVRElFTkNFX1NUQVRVU19VTlNQRUNJRklFRBAAEiEKHVRBUkdFVF9BVURJRU5DRV9TVEFUVVNfQUNUSVZFEAESIwofVEFSR0VUX0FVRElFTkNFX1NUQVRVU19BUkNISVZFRBACMuQEChVUYXJnZXRBdWRpZW5jZVNlcnZpY2USUwoOQ3JlYXRlVGVtcGxhdGUSHy5taXJhaS52MS5DcmVhdGVUZW1wbGF0ZVJlcXVlc3QaIC5taXJhaS52MS5DcmVhdGVUZW1wbGF0ZVJlc3BvbnNlEkoKC0dldFRlbXBsYXRlEhwubWlyYWkudjEuR2V0VGVtcGxhdGVSZXF1ZXN0Gh0ubWlyYWkudjEuR2V0VGVtcGxhdGVSZXNwb25zZRJQCg1MaXN0VGVtcGxhdGVzEh4ubWlyYWkudjEuTGlzdFRlbXBsYXRlc1JlcXVlc3QaHy5taXJhaS52MS5MaXN0VGVtcGxhdGVzUmVzcG9uc2USUwoOVXBkYXRlVGVtcGxhdGUSHy5taXJhaS52MS5VcGRhdGVUZW1wbGF0ZVJlcXVlc3QaIC5taXJhaS52MS5VcGRhdGVUZW1wbGF0ZVJlc3BvbnNlElMKDkRlbGV0ZVRlbXBsYXRlEh8ubWlyYWkudjEuRGVsZXRlVGVtcGxhdGVSZXF1ZXN0GiAubWlyYWkudjEuRGVsZXRlVGVtcGxhdGVSZXNwb25zZRJWCg9BcmNoaXZlVGVtcGxhdGUSIC5taXJhaS52MS5BcmNoaXZlVGVtcGxhdGVSZXF1ZXN0GiEubWlyYWkudjEuQXJjaGl2ZVRlbXBsYXRlUmVzcG9uc2USVgoPUmVzdG9yZVRlbXBsYXRlEiAubWlyYWkudjEuUmVzdG9yZVRlbXBsYXRlUmVxdWVzdBohLm1pcmFpLnYxLlJlc3RvcmVUZW1wbGF0ZVJlc3BvbnNlQpkBCgxjb20ubWlyYWkudjFCE1RhcmdldEF1ZGllbmNlUHJvdG9QAVozZ2l0aHViLmNvbS9zb2dvcy9taXJhaS1iYWNrZW5kL2dlbi9taXJhaS92MTttaXJhaXYxogIDTVhYqgIITWlyYWkuVjHKAghNaXJhaVxWMeICFE1pcmFpXFYxXEdQQk1ldGFkYXRh6gIJTWlyYWk6OlYxYgZwcm90bzM", [file_google_protobuf_timestamp]);
 
 /**
  * TargetAudienceTemplate represents a reusable learner profile template.
@@ -115,6 +115,11 @@ export type TargetAudienceTemplate = Message<"mirai.v1.TargetAudienceTemplate"> 
    * @generated from field: google.protobuf.Timestamp updated_at = 16;
    */
   updatedAt?: Timestamp;
+
+  /**
+   * @generated from field: mirai.v1.TargetAudienceStatus status = 17;
+   */
+  status: TargetAudienceStatus;
 };
 
 /**
@@ -246,11 +251,15 @@ export const GetTemplateResponseSchema: GenMessage<GetTemplateResponse> = /*@__P
   messageDesc(file_mirai_v1_target_audience, 4);
 
 /**
- * ListTemplatesRequest is empty as company is identified by auth context.
+ * ListTemplatesRequest contains optional filters.
  *
  * @generated from message mirai.v1.ListTemplatesRequest
  */
 export type ListTemplatesRequest = Message<"mirai.v1.ListTemplatesRequest"> & {
+  /**
+   * @generated from field: optional bool include_archived = 1;
+   */
+  includeArchived?: boolean;
 };
 
 /**
@@ -402,6 +411,82 @@ export const DeleteTemplateResponseSchema: GenMessage<DeleteTemplateResponse> = 
   messageDesc(file_mirai_v1_target_audience, 10);
 
 /**
+ * ArchiveTemplateRequest contains the template ID to archive.
+ *
+ * @generated from message mirai.v1.ArchiveTemplateRequest
+ */
+export type ArchiveTemplateRequest = Message<"mirai.v1.ArchiveTemplateRequest"> & {
+  /**
+   * @generated from field: string template_id = 1;
+   */
+  templateId: string;
+};
+
+/**
+ * Describes the message mirai.v1.ArchiveTemplateRequest.
+ * Use `create(ArchiveTemplateRequestSchema)` to create a new message.
+ */
+export const ArchiveTemplateRequestSchema: GenMessage<ArchiveTemplateRequest> = /*@__PURE__*/
+  messageDesc(file_mirai_v1_target_audience, 11);
+
+/**
+ * ArchiveTemplateResponse confirms archival.
+ *
+ * @generated from message mirai.v1.ArchiveTemplateResponse
+ */
+export type ArchiveTemplateResponse = Message<"mirai.v1.ArchiveTemplateResponse"> & {
+  /**
+   * @generated from field: mirai.v1.TargetAudienceTemplate template = 1;
+   */
+  template?: TargetAudienceTemplate;
+};
+
+/**
+ * Describes the message mirai.v1.ArchiveTemplateResponse.
+ * Use `create(ArchiveTemplateResponseSchema)` to create a new message.
+ */
+export const ArchiveTemplateResponseSchema: GenMessage<ArchiveTemplateResponse> = /*@__PURE__*/
+  messageDesc(file_mirai_v1_target_audience, 12);
+
+/**
+ * RestoreTemplateRequest contains the template ID to restore.
+ *
+ * @generated from message mirai.v1.RestoreTemplateRequest
+ */
+export type RestoreTemplateRequest = Message<"mirai.v1.RestoreTemplateRequest"> & {
+  /**
+   * @generated from field: string template_id = 1;
+   */
+  templateId: string;
+};
+
+/**
+ * Describes the message mirai.v1.RestoreTemplateRequest.
+ * Use `create(RestoreTemplateRequestSchema)` to create a new message.
+ */
+export const RestoreTemplateRequestSchema: GenMessage<RestoreTemplateRequest> = /*@__PURE__*/
+  messageDesc(file_mirai_v1_target_audience, 13);
+
+/**
+ * RestoreTemplateResponse contains the restored template.
+ *
+ * @generated from message mirai.v1.RestoreTemplateResponse
+ */
+export type RestoreTemplateResponse = Message<"mirai.v1.RestoreTemplateResponse"> & {
+  /**
+   * @generated from field: mirai.v1.TargetAudienceTemplate template = 1;
+   */
+  template?: TargetAudienceTemplate;
+};
+
+/**
+ * Describes the message mirai.v1.RestoreTemplateResponse.
+ * Use `create(RestoreTemplateResponseSchema)` to create a new message.
+ */
+export const RestoreTemplateResponseSchema: GenMessage<RestoreTemplateResponse> = /*@__PURE__*/
+  messageDesc(file_mirai_v1_target_audience, 14);
+
+/**
  * ExperienceLevel represents the learner's experience level.
  *
  * @generated from enum mirai.v1.ExperienceLevel
@@ -438,6 +523,34 @@ export enum ExperienceLevel {
  */
 export const ExperienceLevelSchema: GenEnum<ExperienceLevel> = /*@__PURE__*/
   enumDesc(file_mirai_v1_target_audience, 0);
+
+/**
+ * TargetAudienceStatus represents the state of a target audience template.
+ *
+ * @generated from enum mirai.v1.TargetAudienceStatus
+ */
+export enum TargetAudienceStatus {
+  /**
+   * @generated from enum value: TARGET_AUDIENCE_STATUS_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: TARGET_AUDIENCE_STATUS_ACTIVE = 1;
+   */
+  ACTIVE = 1,
+
+  /**
+   * @generated from enum value: TARGET_AUDIENCE_STATUS_ARCHIVED = 2;
+   */
+  ARCHIVED = 2,
+}
+
+/**
+ * Describes the enum mirai.v1.TargetAudienceStatus.
+ */
+export const TargetAudienceStatusSchema: GenEnum<TargetAudienceStatus> = /*@__PURE__*/
+  enumDesc(file_mirai_v1_target_audience, 1);
 
 /**
  * TargetAudienceService handles target audience template operations.
@@ -486,7 +599,7 @@ export const TargetAudienceService: GenService<{
     output: typeof UpdateTemplateResponseSchema;
   },
   /**
-   * DeleteTemplate deletes a template.
+   * DeleteTemplate archives a template (soft delete).
    *
    * @generated from rpc mirai.v1.TargetAudienceService.DeleteTemplate
    */
@@ -494,6 +607,26 @@ export const TargetAudienceService: GenService<{
     methodKind: "unary";
     input: typeof DeleteTemplateRequestSchema;
     output: typeof DeleteTemplateResponseSchema;
+  },
+  /**
+   * ArchiveTemplate archives a template.
+   *
+   * @generated from rpc mirai.v1.TargetAudienceService.ArchiveTemplate
+   */
+  archiveTemplate: {
+    methodKind: "unary";
+    input: typeof ArchiveTemplateRequestSchema;
+    output: typeof ArchiveTemplateResponseSchema;
+  },
+  /**
+   * RestoreTemplate restores an archived template.
+   *
+   * @generated from rpc mirai.v1.TargetAudienceService.RestoreTemplate
+   */
+  restoreTemplate: {
+    methodKind: "unary";
+    input: typeof RestoreTemplateRequestSchema;
+    output: typeof RestoreTemplateResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_mirai_v1_target_audience, 0);

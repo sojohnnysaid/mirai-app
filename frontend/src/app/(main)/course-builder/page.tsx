@@ -1,248 +1,413 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
+import { useMachine } from '@xstate/react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState, AppDispatch } from '@/store';
+import { loadCourse, setCurrentStep as setReduxStep } from '@/store/slices/courseSlice';
+
+// Machine
+import { courseBuilderMachine, STEP_LABELS } from '@/machines/courseBuilderMachine';
+
+// Step Components
 import {
-  addPersona,
-  updatePersona,
-  removePersona,
-  setCurrentStep,
-  loadCourse,
-} from '@/store/slices/courseSlice';
-import { useCreateCourseMutation, useUpdateCourseMutation } from '@/store/api/apiSlice';
-import Button from '@/components/ui/Button';
-import CourseForm from '@/components/course/CourseForm';
-import PersonaCard from '@/components/course/PersonaCard';
-import ProgressIndicator from '@/components/ui/ProgressIndicator';
-import PersonaDetailForm from '@/components/course/PersonaDetailForm';
-import CourseReviewStep from '@/components/course/CourseReviewStep';
+  CourseBasicsStep,
+  SMESelectionStep,
+  AudienceSelectionStep,
+  ReviewGenerateStep,
+} from '@/components/course-builder';
 import CourseEditor from '@/components/course/CourseEditor';
 import CoursePreview from '@/components/course/CoursePreview';
-import AIGenerationModal from '@/components/ai/AIGenerationModal';
-import { Info } from 'lucide-react';
+
+// AI Generation Components
+import { GenerationProgressPanel, OutlineReviewPanel } from '@/components/ai-generation';
+
+// Hooks
+import { useCreateCourse, useUpdateCourse } from '@/hooks/useCourses';
+import {
+  useGenerateCourseOutline,
+  useGetCourseOutline,
+  useApproveCourseOutline,
+  useRejectCourseOutline,
+  useUpdateCourseOutline,
+  useGenerateAllLessons,
+  useListGeneratedLessons,
+  useGetJob,
+  GenerationJobStatus,
+  type OutlineSection,
+} from '@/hooks/useAIGeneration';
+import { useListTargetAudiences } from '@/hooks/useTargetAudience';
+
+// Content transformation
+import { generatedLessonsToCourseContent, toApiFormat } from '@/lib/contentTransform';
+
+// Icons
+import { Check } from 'lucide-react';
 
 export default function CourseBuilder() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const dispatch = useDispatch<AppDispatch>();
-  const { currentCourse, currentStep, courseBlocks } = useSelector((state: RootState) => state.course);
-  const { isGenerating } = useSelector((state: RootState) => state.aiGeneration);
-  const [showAIModal, setShowAIModal] = useState(false);
 
-  // RTK Query mutations
-  const [createCourse] = useCreateCourseMutation();
-  const [updateCourse] = useUpdateCourseMutation();
+  // Redux state
+  const currentCourse = useSelector((state: RootState) => state.course.currentCourse);
+  const courseBlocks = useSelector((state: RootState) => state.course.courseBlocks);
 
-  // Use refs to track initialization state and prevent duplicate operations
+  // XState machine
+  const [state, send] = useMachine(courseBuilderMachine);
+  const { context } = state;
+
+  // API Hooks
+  const createCourseHook = useCreateCourse();
+  const updateCourseHook = useUpdateCourse();
+  const generateOutlineHook = useGenerateCourseOutline();
+  const getOutlineHook = useGetCourseOutline(context.courseId || undefined);
+  const approveOutlineHook = useApproveCourseOutline();
+  const rejectOutlineHook = useRejectCourseOutline();
+  const updateOutlineHook = useUpdateCourseOutline();
+  const generateLessonsHook = useGenerateAllLessons();
+  const listLessonsHook = useListGeneratedLessons(context.courseId || undefined);
+  const { data: targetAudiences } = useListTargetAudiences();
+
+  // Job polling
+  const { data: outlineJob } = useGetJob(context.outlineJobId || undefined);
+  const { data: lessonJob } = useGetJob(context.lessonJobId || undefined);
+
+  // Refs to prevent duplicate operations
   const hasInitialized = useRef(false);
   const isCreatingCourse = useRef(false);
 
-  // Create or load course on mount - ONLY ONCE
+  // ============================================================
+  // URL Parameter Handling
+  // ============================================================
   useEffect(() => {
-    // Prevent multiple initializations
-    if (hasInitialized.current) {
-      return;
-    }
+    if (hasInitialized.current) return;
+    hasInitialized.current = true;
 
-    // Check if we have a course ID in URL params (for editing existing course)
-    const urlParams = new URLSearchParams(window.location.search);
-    const courseId = urlParams.get('id');
-    const stepParam = urlParams.get('step');
+    const courseId = searchParams.get('id');
+    const stepParam = searchParams.get('step');
 
-    // If step parameter is provided, jump directly to that step
-    if (stepParam) {
-      const step = parseInt(stepParam, 10);
-      if (step >= 1 && step <= 5) {
-        dispatch(setCurrentStep(step));
+    if (courseId) {
+      // Load existing course
+      dispatch(loadCourse(courseId));
+      send({ type: 'COURSE_CREATED', courseId });
+
+      // Jump to specific step if provided
+      if (stepParam) {
+        const step = parseInt(stepParam, 10);
+        if (step >= 1 && step <= 7) {
+          send({ type: 'GO_TO_STEP', step });
+          dispatch(setReduxStep(step));
+        }
       }
     }
+  }, [searchParams, dispatch, send]);
 
-    if (courseId && courseId !== currentCourse.id) {
-      // Load existing course only if it's different from current
-      hasInitialized.current = true;
-      dispatch(loadCourse(courseId));
-    } else if (!currentCourse.id && !courseId && !isCreatingCourse.current) {
-      // Only create a new course if:
-      // 1. We don't have a course ID in Redux state
-      // 2. We don't have a course ID in URL
-      // 3. We're not already creating a course
-      // 4. We haven't already initialized
-      isCreatingCourse.current = true;
-      hasInitialized.current = true;
+  // ============================================================
+  // Course Creation
+  // ============================================================
+  const createCourseIfNeeded = useCallback(async () => {
+    if (context.courseId || isCreatingCourse.current) return context.courseId;
 
-      const initializeCourse = async () => {
-        try {
-          const result = await createCourse({
-            settings: {
-              title: '',
-              desiredOutcome: '',
-              destinationFolder: '',
-              categoryTags: [],
-              dataSource: 'open-web',
-            },
-            personas: [],
-            learningObjectives: [],
-            assessmentSettings: {
-              enableEmbeddedKnowledgeChecks: true,
-              enableFinalExam: true,
-            },
+    isCreatingCourse.current = true;
+    try {
+      const result = await createCourseHook.mutate({
+        settings: {
+          title: context.title,
+          desiredOutcome: context.desiredOutcome,
+          destinationFolder: '',
+          categoryTags: [],
+          dataSource: 'sme',
+        },
+      });
+
+      const newCourseId = result.course?.id || '';
+      send({ type: 'COURSE_CREATED', courseId: newCourseId });
+      dispatch(loadCourse(newCourseId));
+
+      // Update URL
+      router.replace(`/course-builder?id=${newCourseId}`, { scroll: false });
+
+      return newCourseId;
+    } finally {
+      isCreatingCourse.current = false;
+    }
+  }, [context.courseId, context.title, context.desiredOutcome, createCourseHook, send, dispatch, router]);
+
+  // ============================================================
+  // Generation Flow
+  // ============================================================
+  const handleStartGeneration = useCallback(async () => {
+    // Ensure course exists
+    let courseId = context.courseId;
+    if (!courseId) {
+      courseId = await createCourseIfNeeded();
+      if (!courseId) return;
+    }
+
+    // Convert target audiences to personas and update course
+    const selectedAudiences = targetAudiences?.filter((a) =>
+      context.selectedAudienceIds.includes(a.id)
+    ) || [];
+
+    const personas = selectedAudiences.map((audience) => ({
+      id: `persona-${audience.id}`,
+      name: audience.name,
+      role: audience.role || audience.name,
+      kpis: audience.learningGoals?.join(', ') || '',
+      responsibilities: audience.typicalBackground || '',
+      challenges: audience.challenges?.join(', ') || '',
+    }));
+
+    // Update course with personas
+    await updateCourseHook.mutate(courseId, {
+      settings: {
+        title: context.title,
+        desiredOutcome: context.desiredOutcome,
+      },
+      personas,
+    });
+
+    // Start outline generation
+    send({ type: 'START_GENERATION' });
+
+    try {
+      const result = await generateOutlineHook.mutate({
+        courseId,
+        smeIds: context.selectedSmeIds,
+        targetAudienceIds: context.selectedAudienceIds,
+        desiredOutcome: context.desiredOutcome,
+      });
+
+      if (result.job) {
+        send({ type: 'OUTLINE_JOB_STARTED', jobId: result.job.id });
+      }
+    } catch (error) {
+      send({ type: 'ERROR', error: error instanceof Error ? error.message : 'Failed to start generation' });
+    }
+  }, [context, createCourseIfNeeded, targetAudiences, updateCourseHook, generateOutlineHook, send]);
+
+  // Watch for outline job completion
+  useEffect(() => {
+    if (!outlineJob || state.value !== 'generatingOutline') return;
+
+    if (outlineJob.status === GenerationJobStatus.COMPLETED) {
+      send({ type: 'OUTLINE_READY' });
+    } else if (outlineJob.status === GenerationJobStatus.FAILED) {
+      send({ type: 'ERROR', error: outlineJob.errorMessage || 'Outline generation failed' });
+    }
+  }, [outlineJob, state.value, send]);
+
+  // Handle outline approval
+  const handleApproveOutline = useCallback(async () => {
+    if (!context.courseId || !getOutlineHook.data) return;
+
+    try {
+      await approveOutlineHook.mutate(context.courseId, getOutlineHook.data.id);
+
+      send({ type: 'OUTLINE_APPROVED' });
+
+      // Start lesson generation
+      const result = await generateLessonsHook.mutate(context.courseId);
+      if (result.job) {
+        send({ type: 'LESSON_JOB_STARTED', jobId: result.job.id });
+      }
+    } catch (error) {
+      send({ type: 'ERROR', error: error instanceof Error ? error.message : 'Failed to approve outline' });
+    }
+  }, [context.courseId, getOutlineHook.data, approveOutlineHook, generateLessonsHook, send]);
+
+  // Handle outline rejection with reason
+  const handleRejectOutline = useCallback(async (reason: string) => {
+    if (!context.courseId || !getOutlineHook.data) return;
+
+    try {
+      await rejectOutlineHook.mutate(context.courseId, getOutlineHook.data.id, reason);
+      send({ type: 'OUTLINE_REJECTED' });
+    } catch (error) {
+      send({ type: 'ERROR', error: error instanceof Error ? error.message : 'Failed to reject outline' });
+    }
+  }, [context.courseId, getOutlineHook.data, rejectOutlineHook, send]);
+
+  // Handle outline update
+  const handleUpdateOutline = useCallback(async (sections: OutlineSection[]) => {
+    if (!context.courseId || !getOutlineHook.data) return;
+
+    try {
+      await updateOutlineHook.mutate(context.courseId, getOutlineHook.data.id, sections);
+      getOutlineHook.refetch();
+    } catch (error) {
+      console.error('Failed to update outline:', error);
+    }
+  }, [context.courseId, getOutlineHook.data, updateOutlineHook, getOutlineHook]);
+
+  // Handle outline regeneration
+  const handleRegenerateOutline = useCallback(async () => {
+    if (!context.courseId) return;
+
+    try {
+      const result = await generateOutlineHook.mutate({
+        courseId: context.courseId,
+        smeIds: context.selectedSmeIds,
+        targetAudienceIds: context.selectedAudienceIds,
+        desiredOutcome: context.desiredOutcome,
+      });
+
+      if (result.job) {
+        send({ type: 'OUTLINE_JOB_STARTED', jobId: result.job.id });
+      }
+    } catch (error) {
+      send({ type: 'ERROR', error: error instanceof Error ? error.message : 'Failed to regenerate outline' });
+    }
+  }, [context.courseId, context.selectedSmeIds, context.selectedAudienceIds, context.desiredOutcome, generateOutlineHook, send]);
+
+  // Watch for lesson job completion
+  useEffect(() => {
+    if (!lessonJob || state.value !== 'generatingLessons') return;
+
+    if (lessonJob.status === GenerationJobStatus.COMPLETED) {
+      // Fetch lessons and transform content
+      listLessonsHook.refetch().then(async () => {
+        const lessons = listLessonsHook.data || [];
+        const outline = getOutlineHook.data;
+
+        if (lessons.length > 0 && outline && context.courseId) {
+          // Transform content
+          const { sections, courseBlocks } = generatedLessonsToCourseContent(lessons, outline);
+          const apiContent = toApiFormat({ sections, courseBlocks });
+
+          // Update course with content
+          await updateCourseHook.mutate(context.courseId, {
+            content: apiContent,
           });
 
-          // Update Redux with the created course
-          dispatch(loadCourse(result.course?.id || ''));
-        } finally {
-          isCreatingCourse.current = false;
+          // Reload course in Redux
+          dispatch(loadCourse(context.courseId));
         }
-      };
-      initializeCourse();
-    } else if (currentCourse.id) {
-      // We already have a course, mark as initialized
-      hasInitialized.current = true;
+
+        send({ type: 'GENERATION_COMPLETE' });
+      });
+    } else if (lessonJob.status === GenerationJobStatus.FAILED) {
+      send({ type: 'ERROR', error: lessonJob.errorMessage || 'Lesson generation failed' });
     }
-  }, [currentCourse.id, dispatch]); // Include proper dependencies
+  }, [lessonJob, state.value, listLessonsHook, getOutlineHook.data, context.courseId, updateCourseHook, dispatch, send]);
 
-  // ----------------------
-  // Handlers
-  // ----------------------
-  const handleAddPersona = () => {
-    const newPersona = {
-      id: `persona-${Date.now()}`,
-      name: `Persona ${(currentCourse.personas?.length || 0) + 1}`,
-      role: '',
-      kpis: '',
-      responsibilities: '',
-    };
-    dispatch(addPersona(newPersona));
-  };
-
-  const handleUpdatePersona = (id: string, updates: any) => {
-    dispatch(updatePersona({ id, persona: updates }));
-  };
-
-  const handleRemovePersona = (id: string) => {
-    dispatch(removePersona(id));
-  };
-
-  const handleNext = async () => {
-    // Save progress before moving to next step
-    if (currentCourse.id) {
-      try {
-        await updateCourse({
-          id: currentCourse.id,
-          data: {
-            settings: {
-              title: currentCourse.title || '',
-              desiredOutcome: currentCourse.desiredOutcome || '',
-              destinationFolder: currentCourse.destinationFolder || '',
-              categoryTags: currentCourse.categoryTags || [],
-              dataSource: currentCourse.dataSource || '',
-            },
-            personas: currentCourse.personas || [],
-            learningObjectives: currentCourse.learningObjectives || [],
-            assessmentSettings: currentCourse.assessmentSettings,
-            content: {
-              sections: currentCourse.sections || [],
-              courseBlocks: courseBlocks || []
-            },
-          },
-        });
-      } catch (error) {
-        console.error('Failed to save course:', error);
-      }
+  // ============================================================
+  // Step Handlers
+  // ============================================================
+  const handleNext = useCallback(async () => {
+    // Create course when leaving step 1 if not already created
+    if (context.currentStep === 1 && !context.courseId) {
+      await createCourseIfNeeded();
     }
-    if (currentStep < 5) dispatch(setCurrentStep(currentStep + 1));
-  };
+    send({ type: 'NEXT' });
+  }, [context.currentStep, context.courseId, createCourseIfNeeded, send]);
 
-  const handlePrevious = () => {
-    if (currentStep > 1) dispatch(setCurrentStep(currentStep - 1));
-  };
+  const handlePrevious = useCallback(() => {
+    send({ type: 'PREVIOUS' });
+  }, [send]);
 
-  // ----------------------
-  // Step Renderer
-  // ----------------------
+  const handleGoToStep = useCallback((step: number) => {
+    send({ type: 'GO_TO_STEP', step });
+  }, [send]);
+
+  // ============================================================
+  // Render Step Content
+  // ============================================================
   const renderStepContent = () => {
-    switch (currentStep) {
-      case 1:
+    const stateValue = typeof state.value === 'string' ? state.value : Object.keys(state.value)[0];
+
+    switch (stateValue) {
+      case 'courseBasics':
         return (
-          <>
-            {/* Course Form */}
-            <div className="bg-white border border-gray-200 rounded-2xl p-4 lg:p-8 mb-6 lg:mb-8">
-              <CourseForm />
-            </div>
-
-            {/* Personas Section */}
-            <div className="bg-white border border-gray-200 rounded-2xl p-4 lg:p-8 mb-6 lg:mb-8">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
-                <h3 className="text-base lg:text-lg font-semibold text-gray-900">
-                  Target Personas/Roles
-                </h3>
-                <span className="text-sm text-gray-500 italic">
-                  Add 1–4 personas
-                </span>
-              </div>
-              <p className="text-sm text-gray-600 mb-4 lg:mb-6">
-                Define the personas and roles who will be taking this course to ensure the content is tailored and relevant.
-              </p>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                {currentCourse.personas?.map((persona) => (
-                  <PersonaCard
-                    key={persona.id}
-                    persona={persona}
-                    onUpdate={(updates) => handleUpdatePersona(persona.id, updates)}
-                    onRemove={() => handleRemovePersona(persona.id)}
-                  />
-                ))}
-              </div>
-
-              {(!currentCourse.personas || currentCourse.personas.length < 4) && (
-                <Button variant="outline" onClick={handleAddPersona} className="w-full sm:w-auto">
-                  Add Persona
-                </Button>
-              )}
-            </div>
-
-            {/* Next Button - Full width on mobile */}
-            <div className="flex justify-end">
-              <Button onClick={handleNext} className="w-full sm:w-auto">Next Step</Button>
-            </div>
-          </>
+          <CourseBasicsStep
+            title={context.title}
+            desiredOutcome={context.desiredOutcome}
+            onTitleChange={(title) => send({ type: 'SET_TITLE', title })}
+            onOutcomeChange={(outcome) => send({ type: 'SET_DESIRED_OUTCOME', outcome })}
+            onNext={handleNext}
+            canProceed={context.title.trim().length > 0 && context.desiredOutcome.trim().length > 0}
+          />
         );
 
-      case 2:
+      case 'smeSelection':
         return (
-          <>
-            {/* Step Banner */}
-            <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-2xl p-4 lg:p-6 text-center mb-6 lg:mb-8">
-              <p className="text-gray-900 font-medium text-base lg:text-lg">
-                Define your target audience and their learning goals
-              </p>
-              <p className="text-gray-600 text-sm mt-1">
-                Configure each persona's details and set personalized learning objectives
-              </p>
-            </div>
-
-            {/* Persona Deep Dive with integrated Learning Objectives */}
-            <div className="mb-6 lg:mb-8">
-              <PersonaDetailForm />
-            </div>
-
-            {/* Navigation buttons - stack on mobile */}
-            <div className="flex flex-col sm:flex-row gap-3 sm:justify-between">
-              <Button variant="outline" onClick={handlePrevious} className="w-full sm:w-auto order-2 sm:order-1">
-                Previous
-              </Button>
-              <Button onClick={handleNext} className="w-full sm:w-auto order-1 sm:order-2">Next</Button>
-            </div>
-          </>
+          <SMESelectionStep
+            selectedSmeIds={context.selectedSmeIds}
+            onToggleSme={(smeId) => send({ type: 'TOGGLE_SME', smeId })}
+            onNext={handleNext}
+            onPrevious={handlePrevious}
+            canProceed={context.selectedSmeIds.length > 0}
+          />
         );
 
-      case 3:
-        return <CourseReviewStep />;
+      case 'audienceSelection':
+        return (
+          <AudienceSelectionStep
+            selectedAudienceIds={context.selectedAudienceIds}
+            onToggleAudience={(audienceId) => send({ type: 'TOGGLE_AUDIENCE', audienceId })}
+            onNext={handleNext}
+            onPrevious={handlePrevious}
+            canProceed={context.selectedAudienceIds.length > 0}
+          />
+        );
 
-      case 4:
+      case 'reviewGenerate':
+        return (
+          <ReviewGenerateStep
+            title={context.title}
+            desiredOutcome={context.desiredOutcome}
+            selectedSmeIds={context.selectedSmeIds}
+            selectedAudienceIds={context.selectedAudienceIds}
+            isGenerating={false}
+            onGenerate={handleStartGeneration}
+            onPrevious={handlePrevious}
+            onEditStep={handleGoToStep}
+          />
+        );
+
+      case 'generatingOutline':
+        return (
+          <GenerationProgressPanel
+            currentStep="generating-outline"
+            progressPercent={outlineJob?.progressPercent || 0}
+            progressMessage={outlineJob?.progressMessage || 'Generating course outline...'}
+            job={outlineJob}
+          />
+        );
+
+      case 'outlineReview':
+        return getOutlineHook.data ? (
+          <OutlineReviewPanel
+            outline={getOutlineHook.data}
+            onApprove={handleApproveOutline}
+            onReject={handleRejectOutline}
+            onUpdate={handleUpdateOutline}
+            onRegenerate={handleRegenerateOutline}
+            isUpdating={updateOutlineHook.isLoading}
+            isApproving={approveOutlineHook.isLoading}
+          />
+        ) : (
+          <div className="flex items-center justify-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+          </div>
+        );
+
+      case 'generatingLessons':
+        return (
+          <GenerationProgressPanel
+            currentStep="generating-lessons"
+            progressPercent={lessonJob?.progressPercent || 0}
+            progressMessage={lessonJob?.progressMessage || 'Generating lesson content...'}
+            job={lessonJob}
+          />
+        );
+
+      case 'editor':
         return <CourseEditor />;
 
-      case 5:
+      case 'preview':
         return <CoursePreview />;
 
       default:
@@ -250,52 +415,72 @@ export default function CourseBuilder() {
     }
   };
 
-  // For steps 4 and 5, use full screen layout
-  if (currentStep === 4 || currentStep === 5) {
+  // ============================================================
+  // Full-screen layouts for editor/preview
+  // ============================================================
+  const stateValue = typeof state.value === 'string' ? state.value : Object.keys(state.value)[0];
+
+  if (stateValue === 'editor' || stateValue === 'preview') {
     return (
       <div className="h-screen flex flex-col">
         {renderStepContent()}
-        <AIGenerationModal
-          isOpen={isGenerating}
-          onClose={() => setShowAIModal(false)}
-        />
       </div>
     );
   }
 
+  // ============================================================
+  // Main Layout
+  // ============================================================
   return (
-    <>
-      {/* Page Header - Responsive */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6 lg:mb-8">
-        <div>
-          <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-1 lg:mb-2">
-            {currentStep === 1 ? 'Define your learning goal' :
-             currentStep === 2 ? 'Personas & Learning Objectives' :
-             currentStep === 3 ? 'Review & Validate' : 'Course Builder'}
-          </h1>
-          <p className="text-sm lg:text-base text-gray-600">
-            {currentStep === 1 ? 'Your learning goals and the personas/roles who will take the courses generated' :
-             currentStep === 2 ? 'Configure each persona deeply and define what learners will achieve' :
-             currentStep === 3 ? 'Review all inputs before generating your AI-powered course' : ''}
-          </p>
-        </div>
-        {currentStep <= 3 && (
-          <div className="flex-shrink-0">
-            <ProgressIndicator steps={5} currentStep={currentStep} />
+    <div className="min-h-screen bg-gray-50">
+      {/* Progress Steps */}
+      <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
+        <div className="max-w-5xl mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            {STEP_LABELS.slice(0, 4).map((stepInfo, index) => {
+              const isActive = context.currentStep === stepInfo.step;
+              const isCompleted = context.currentStep > stepInfo.step;
+              const isClickable = isCompleted;
+
+              return (
+                <React.Fragment key={stepInfo.step}>
+                  <button
+                    onClick={() => isClickable && handleGoToStep(stepInfo.step)}
+                    disabled={!isClickable}
+                    className={`flex items-center gap-3 ${isClickable ? 'cursor-pointer' : 'cursor-default'}`}
+                  >
+                    <div
+                      className={`
+                        w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold transition-colors
+                        ${isActive ? 'bg-indigo-600 text-white' : ''}
+                        ${isCompleted ? 'bg-green-500 text-white' : ''}
+                        ${!isActive && !isCompleted ? 'bg-gray-200 text-gray-500' : ''}
+                      `}
+                    >
+                      {isCompleted ? <Check className="w-4 h-4" /> : stepInfo.step}
+                    </div>
+                    <div className="hidden sm:block text-left">
+                      <p className={`text-sm font-medium ${isActive ? 'text-indigo-600' : 'text-gray-700'}`}>
+                        {stepInfo.label}
+                      </p>
+                      <p className="text-xs text-gray-500">{stepInfo.description}</p>
+                    </div>
+                  </button>
+
+                  {index < 3 && (
+                    <div className={`flex-1 h-0.5 mx-4 ${isCompleted ? 'bg-green-500' : 'bg-gray-200'}`} />
+                  )}
+                </React.Fragment>
+              );
+            })}
           </div>
-        )}
+        </div>
       </div>
 
       {/* Content Area */}
-      <div className="w-full">
+      <div className="max-w-5xl mx-auto px-4 py-8">
         {renderStepContent()}
       </div>
-
-      {/* AI Generation Modal */}
-      <AIGenerationModal
-        isOpen={isGenerating}
-        onClose={() => setShowAIModal(false)}
-      />
-    </>
+    </div>
   );
 }

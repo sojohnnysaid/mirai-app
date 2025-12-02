@@ -319,6 +319,11 @@ func roleFromProto(r v1.Role) valueobject.Role {
 		return valueobject.RoleAdmin
 	case v1.Role_ROLE_MEMBER:
 		return valueobject.RoleMember
+	case v1.Role_ROLE_INSTRUCTOR:
+		return valueobject.RoleInstructor
+	case v1.Role_ROLE_SME:
+		// SME is an AI entity, not a user role - map to member for safety
+		return valueobject.RoleMember
 	default:
 		return valueobject.RoleMember
 	}

@@ -27,6 +27,8 @@ type TargetAudienceTemplate struct {
 	IndustryContext   *string // Industry-specific context
 	TypicalBackground *string // Background description
 
+	Status valueobject.TargetAudienceStatus
+
 	CreatedByUserID uuid.UUID
 	CreatedAt       time.Time
 	UpdatedAt       time.Time

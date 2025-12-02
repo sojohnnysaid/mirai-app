@@ -90,3 +90,15 @@ func (s *TenantAwareStorage) GenerateDownloadURL(ctx context.Context, tenantID u
 	fullPath := s.BuildPath(tenantID, subpath)
 	return s.inner.GenerateDownloadURL(ctx, fullPath, expiry)
 }
+
+// GetContent retrieves raw file content from storage.
+// Implements ContentStorage interface for SMEIngestionService.
+func (s *TenantAwareStorage) GetContent(ctx context.Context, path string) ([]byte, error) {
+	return s.inner.GetContent(ctx, path)
+}
+
+// PutContent stores raw content to storage.
+// Implements ContentStorage interface for SMEIngestionService.
+func (s *TenantAwareStorage) PutContent(ctx context.Context, path string, content []byte, contentType string) error {
+	return s.inner.PutContent(ctx, path, content, contentType)
+}

@@ -25,8 +25,8 @@ func NewTargetAudienceRepository(db *sql.DB) repository.TargetAudienceRepository
 // Create creates a new template.
 func (r *TargetAudienceRepository) Create(ctx context.Context, template *entity.TargetAudienceTemplate) error {
 	query := `
-		INSERT INTO target_audience_templates (tenant_id, company_id, name, description, role, experience_level, learning_goals, prerequisites, challenges, motivations, industry_context, typical_background, created_by_user_id)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+		INSERT INTO target_audience_templates (tenant_id, company_id, name, description, role, experience_level, learning_goals, prerequisites, challenges, motivations, industry_context, typical_background, status, created_by_user_id)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
 		RETURNING id, created_at, updated_at
 	`
 	return r.db.QueryRowContext(ctx, query,
@@ -42,6 +42,7 @@ func (r *TargetAudienceRepository) Create(ctx context.Context, template *entity.
 		pq.Array(template.Motivations),
 		template.IndustryContext,
 		template.TypicalBackground,
+		template.Status.String(),
 		template.CreatedByUserID,
 	).Scan(&template.ID, &template.CreatedAt, &template.UpdatedAt)
 }
@@ -49,12 +50,12 @@ func (r *TargetAudienceRepository) Create(ctx context.Context, template *entity.
 // GetByID retrieves a template by its ID.
 func (r *TargetAudienceRepository) GetByID(ctx context.Context, id uuid.UUID) (*entity.TargetAudienceTemplate, error) {
 	query := `
-		SELECT id, tenant_id, company_id, name, description, role, experience_level, learning_goals, prerequisites, challenges, motivations, industry_context, typical_background, created_by_user_id, created_at, updated_at
+		SELECT id, tenant_id, company_id, name, description, role, experience_level, learning_goals, prerequisites, challenges, motivations, industry_context, typical_background, status, created_by_user_id, created_at, updated_at
 		FROM target_audience_templates
 		WHERE id = $1
 	`
 	template := &entity.TargetAudienceTemplate{}
-	var expLevelStr string
+	var expLevelStr, statusStr string
 	var learningGoals, prerequisites, challenges, motivations pq.StringArray
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
 		&template.ID,
@@ -70,6 +71,7 @@ func (r *TargetAudienceRepository) GetByID(ctx context.Context, id uuid.UUID) (*
 		&motivations,
 		&template.IndustryContext,
 		&template.TypicalBackground,
+		&statusStr,
 		&template.CreatedByUserID,
 		&template.CreatedAt,
 		&template.UpdatedAt,
@@ -81,6 +83,7 @@ func (r *TargetAudienceRepository) GetByID(ctx context.Context, id uuid.UUID) (*
 		return nil, fmt.Errorf("failed to get template: %w", err)
 	}
 	template.ExperienceLevel, _ = valueobject.ParseExperienceLevel(expLevelStr)
+	template.Status, _ = valueobject.ParseTargetAudienceStatus(statusStr)
 	template.LearningGoals = []string(learningGoals)
 	template.Prerequisites = []string(prerequisites)
 	template.Challenges = []string(challenges)
@@ -91,7 +94,7 @@ func (r *TargetAudienceRepository) GetByID(ctx context.Context, id uuid.UUID) (*
 // List retrieves all templates for the current tenant.
 func (r *TargetAudienceRepository) List(ctx context.Context) ([]*entity.TargetAudienceTemplate, error) {
 	query := `
-		SELECT id, tenant_id, company_id, name, description, role, experience_level, learning_goals, prerequisites, challenges, motivations, industry_context, typical_background, created_by_user_id, created_at, updated_at
+		SELECT id, tenant_id, company_id, name, description, role, experience_level, learning_goals, prerequisites, challenges, motivations, industry_context, typical_background, status, created_by_user_id, created_at, updated_at
 		FROM target_audience_templates
 		ORDER BY name ASC
 	`
@@ -104,7 +107,7 @@ func (r *TargetAudienceRepository) List(ctx context.Context) ([]*entity.TargetAu
 	var templates []*entity.TargetAudienceTemplate
 	for rows.Next() {
 		template := &entity.TargetAudienceTemplate{}
-		var expLevelStr string
+		var expLevelStr, statusStr string
 		var learningGoals, prerequisites, challenges, motivations pq.StringArray
 		if err := rows.Scan(
 			&template.ID,
@@ -120,6 +123,7 @@ func (r *TargetAudienceRepository) List(ctx context.Context) ([]*entity.TargetAu
 			&motivations,
 			&template.IndustryContext,
 			&template.TypicalBackground,
+			&statusStr,
 			&template.CreatedByUserID,
 			&template.CreatedAt,
 			&template.UpdatedAt,
@@ -127,6 +131,7 @@ func (r *TargetAudienceRepository) List(ctx context.Context) ([]*entity.TargetAu
 			return nil, fmt.Errorf("failed to scan template: %w", err)
 		}
 		template.ExperienceLevel, _ = valueobject.ParseExperienceLevel(expLevelStr)
+		template.Status, _ = valueobject.ParseTargetAudienceStatus(statusStr)
 		template.LearningGoals = []string(learningGoals)
 		template.Prerequisites = []string(prerequisites)
 		template.Challenges = []string(challenges)
@@ -140,8 +145,8 @@ func (r *TargetAudienceRepository) List(ctx context.Context) ([]*entity.TargetAu
 func (r *TargetAudienceRepository) Update(ctx context.Context, template *entity.TargetAudienceTemplate) error {
 	query := `
 		UPDATE target_audience_templates
-		SET name = $1, description = $2, role = $3, experience_level = $4, learning_goals = $5, prerequisites = $6, challenges = $7, motivations = $8, industry_context = $9, typical_background = $10, updated_at = NOW()
-		WHERE id = $11
+		SET name = $1, description = $2, role = $3, experience_level = $4, learning_goals = $5, prerequisites = $6, challenges = $7, motivations = $8, industry_context = $9, typical_background = $10, status = $11, updated_at = NOW()
+		WHERE id = $12
 		RETURNING updated_at
 	`
 	return r.db.QueryRowContext(ctx, query,
@@ -155,6 +160,7 @@ func (r *TargetAudienceRepository) Update(ctx context.Context, template *entity.
 		pq.Array(template.Motivations),
 		template.IndustryContext,
 		template.TypicalBackground,
+		template.Status.String(),
 		template.ID,
 	).Scan(&template.UpdatedAt)
 }

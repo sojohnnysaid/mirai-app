@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CancelTaskRequest, CancelTaskResponse, CreateSMERequest, CreateSMEResponse, CreateTaskRequest, CreateTaskResponse, DeleteSMERequest, DeleteSMEResponse, GetKnowledgeRequest, GetKnowledgeResponse, GetSMERequest, GetSMEResponse, GetTaskRequest, GetTaskResponse, GetUploadURLRequest, GetUploadURLResponse, ListSMEsRequest, ListSMEsResponse, ListSubmissionsRequest, ListSubmissionsResponse, ListTasksRequest, ListTasksResponse, SearchKnowledgeRequest, SearchKnowledgeResponse, SubmitContentRequest, SubmitContentResponse, UpdateSMERequest, UpdateSMEResponse, UpdateTaskRequest, UpdateTaskResponse } from "./sme_pb.js";
+import { CancelTaskRequest, CancelTaskResponse, CreateSMERequest, CreateSMEResponse, CreateTaskRequest, CreateTaskResponse, DeleteSMERequest, DeleteSMEResponse, GetKnowledgeRequest, GetKnowledgeResponse, GetSMERequest, GetSMEResponse, GetTaskRequest, GetTaskResponse, GetUploadURLRequest, GetUploadURLResponse, ListSMEsRequest, ListSMEsResponse, ListSubmissionsRequest, ListSubmissionsResponse, ListTasksRequest, ListTasksResponse, RestoreSMERequest, RestoreSMEResponse, SearchKnowledgeRequest, SearchKnowledgeResponse, SubmitContentRequest, SubmitContentResponse, UpdateSMERequest, UpdateSMEResponse, UpdateTaskRequest, UpdateTaskResponse } from "./sme_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -59,7 +59,7 @@ export const SMEService = {
       kind: MethodKind.Unary,
     },
     /**
-     * DeleteSME deletes an SME entity.
+     * DeleteSME archives an SME entity (soft delete).
      *
      * @generated from rpc mirai.v1.SMEService.DeleteSME
      */
@@ -67,6 +67,17 @@ export const SMEService = {
       name: "DeleteSME",
       I: DeleteSMERequest,
       O: DeleteSMEResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * RestoreSME restores an archived SME entity.
+     *
+     * @generated from rpc mirai.v1.SMEService.RestoreSME
+     */
+    restoreSME: {
+      name: "RestoreSME",
+      I: RestoreSMERequest,
+      O: RestoreSMEResponse,
       kind: MethodKind.Unary,
     },
     /**

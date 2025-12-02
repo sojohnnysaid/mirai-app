@@ -98,3 +98,22 @@ func (s *LocalStorage) GenerateUploadURL(ctx context.Context, path string, expir
 func (s *LocalStorage) GenerateDownloadURL(ctx context.Context, path string, expiry time.Duration) (string, error) {
 	return "", errors.New("presigned URLs not supported for local storage")
 }
+
+// GetContent retrieves raw file content from local storage.
+func (s *LocalStorage) GetContent(ctx context.Context, path string) ([]byte, error) {
+	fullPath := filepath.Join(s.basePath, path)
+	return os.ReadFile(fullPath)
+}
+
+// PutContent stores raw content to local storage.
+func (s *LocalStorage) PutContent(ctx context.Context, path string, content []byte, contentType string) error {
+	fullPath := filepath.Join(s.basePath, path)
+
+	// Ensure parent directory exists
+	dir := filepath.Dir(fullPath)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return err
+	}
+
+	return os.WriteFile(fullPath, content, 0644)
+}

@@ -39,6 +39,9 @@ const (
 	UserServiceGetUserProcedure = "/mirai.v1.UserService/GetUser"
 	// UserServiceUpdateUserProcedure is the fully-qualified name of the UserService's UpdateUser RPC.
 	UserServiceUpdateUserProcedure = "/mirai.v1.UserService/UpdateUser"
+	// UserServiceListCompanyUsersProcedure is the fully-qualified name of the UserService's
+	// ListCompanyUsers RPC.
+	UserServiceListCompanyUsersProcedure = "/mirai.v1.UserService/ListCompanyUsers"
 )
 
 // UserServiceClient is a client for the mirai.v1.UserService service.
@@ -49,6 +52,8 @@ type UserServiceClient interface {
 	GetUser(context.Context, *connect.Request[v1.GetUserRequest]) (*connect.Response[v1.GetUserResponse], error)
 	// UpdateUser updates user information.
 	UpdateUser(context.Context, *connect.Request[v1.UpdateUserRequest]) (*connect.Response[v1.UpdateUserResponse], error)
+	// ListCompanyUsers returns all users in the current user's company.
+	ListCompanyUsers(context.Context, *connect.Request[v1.ListCompanyUsersRequest]) (*connect.Response[v1.ListCompanyUsersResponse], error)
 }
 
 // NewUserServiceClient constructs a client for the mirai.v1.UserService service. By default, it
@@ -80,14 +85,21 @@ func NewUserServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(userServiceMethods.ByName("UpdateUser")),
 			connect.WithClientOptions(opts...),
 		),
+		listCompanyUsers: connect.NewClient[v1.ListCompanyUsersRequest, v1.ListCompanyUsersResponse](
+			httpClient,
+			baseURL+UserServiceListCompanyUsersProcedure,
+			connect.WithSchema(userServiceMethods.ByName("ListCompanyUsers")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // userServiceClient implements UserServiceClient.
 type userServiceClient struct {
-	getMe      *connect.Client[v1.GetMeRequest, v1.GetMeResponse]
-	getUser    *connect.Client[v1.GetUserRequest, v1.GetUserResponse]
-	updateUser *connect.Client[v1.UpdateUserRequest, v1.UpdateUserResponse]
+	getMe            *connect.Client[v1.GetMeRequest, v1.GetMeResponse]
+	getUser          *connect.Client[v1.GetUserRequest, v1.GetUserResponse]
+	updateUser       *connect.Client[v1.UpdateUserRequest, v1.UpdateUserResponse]
+	listCompanyUsers *connect.Client[v1.ListCompanyUsersRequest, v1.ListCompanyUsersResponse]
 }
 
 // GetMe calls mirai.v1.UserService.GetMe.
@@ -105,6 +117,11 @@ func (c *userServiceClient) UpdateUser(ctx context.Context, req *connect.Request
 	return c.updateUser.CallUnary(ctx, req)
 }
 
+// ListCompanyUsers calls mirai.v1.UserService.ListCompanyUsers.
+func (c *userServiceClient) ListCompanyUsers(ctx context.Context, req *connect.Request[v1.ListCompanyUsersRequest]) (*connect.Response[v1.ListCompanyUsersResponse], error) {
+	return c.listCompanyUsers.CallUnary(ctx, req)
+}
+
 // UserServiceHandler is an implementation of the mirai.v1.UserService service.
 type UserServiceHandler interface {
 	// GetMe returns the currently authenticated user with their company.
@@ -113,6 +130,8 @@ type UserServiceHandler interface {
 	GetUser(context.Context, *connect.Request[v1.GetUserRequest]) (*connect.Response[v1.GetUserResponse], error)
 	// UpdateUser updates user information.
 	UpdateUser(context.Context, *connect.Request[v1.UpdateUserRequest]) (*connect.Response[v1.UpdateUserResponse], error)
+	// ListCompanyUsers returns all users in the current user's company.
+	ListCompanyUsers(context.Context, *connect.Request[v1.ListCompanyUsersRequest]) (*connect.Response[v1.ListCompanyUsersResponse], error)
 }
 
 // NewUserServiceHandler builds an HTTP handler from the service implementation. It returns the path
@@ -140,6 +159,12 @@ func NewUserServiceHandler(svc UserServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(userServiceMethods.ByName("UpdateUser")),
 		connect.WithHandlerOptions(opts...),
 	)
+	userServiceListCompanyUsersHandler := connect.NewUnaryHandler(
+		UserServiceListCompanyUsersProcedure,
+		svc.ListCompanyUsers,
+		connect.WithSchema(userServiceMethods.ByName("ListCompanyUsers")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/mirai.v1.UserService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case UserServiceGetMeProcedure:
@@ -148,6 +173,8 @@ func NewUserServiceHandler(svc UserServiceHandler, opts ...connect.HandlerOption
 			userServiceGetUserHandler.ServeHTTP(w, r)
 		case UserServiceUpdateUserProcedure:
 			userServiceUpdateUserHandler.ServeHTTP(w, r)
+		case UserServiceListCompanyUsersProcedure:
+			userServiceListCompanyUsersHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -167,4 +194,8 @@ func (UnimplementedUserServiceHandler) GetUser(context.Context, *connect.Request
 
 func (UnimplementedUserServiceHandler) UpdateUser(context.Context, *connect.Request[v1.UpdateUserRequest]) (*connect.Response[v1.UpdateUserResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("mirai.v1.UserService.UpdateUser is not implemented"))
+}
+
+func (UnimplementedUserServiceHandler) ListCompanyUsers(context.Context, *connect.Request[v1.ListCompanyUsersRequest]) (*connect.Response[v1.ListCompanyUsersResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("mirai.v1.UserService.ListCompanyUsers is not implemented"))
 }

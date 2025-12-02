@@ -54,20 +54,20 @@ CREATE INDEX idx_notifications_created ON notifications(user_id, created_at DESC
 -- Enable RLS
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 
--- RLS Policy - users can only see their own notifications
-CREATE POLICY notifications_isolation ON notifications
-    FOR ALL
-    USING (
-        tenant_id = current_tenant_id()
-        AND user_id = current_user_id()
-    ) OR is_superadmin()
-    WITH CHECK (
-        tenant_id = current_tenant_id()
-        AND user_id = current_user_id()
-    ) OR is_superadmin();
-
 -- Create function to get current user from session
 -- This should be set by the application before queries
 CREATE OR REPLACE FUNCTION current_user_id() RETURNS UUID AS $$
     SELECT NULLIF(current_setting('app.user_id', TRUE), '')::UUID;
 $$ LANGUAGE SQL STABLE;
+
+-- RLS Policy - users can only see their own notifications
+CREATE POLICY notifications_isolation ON notifications
+    FOR ALL
+    USING (
+        (tenant_id = current_tenant_id() AND user_id = current_user_id())
+        OR is_superadmin()
+    )
+    WITH CHECK (
+        (tenant_id = current_tenant_id() AND user_id = current_user_id())
+        OR is_superadmin()
+    );

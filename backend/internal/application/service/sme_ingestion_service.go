@@ -17,16 +17,16 @@ import (
 
 // SMEIngestionService handles background processing of SME content submissions.
 type SMEIngestionService struct {
-	smeRepo          repository.SMERepository
-	taskRepo         repository.SMETaskRepository
-	submissionRepo   repository.SMESubmissionRepository
-	knowledgeRepo    repository.SMEKnowledgeRepository
-	jobRepo          repository.GenerationJobRepository
-	aiSettingsRepo   repository.TenantAISettingsRepository
-	storage          ContentStorage
-	aiProvider       service.AIProvider
-	notifier         NotificationSender
-	logger           service.Logger
+	smeRepo           repository.SMERepository
+	taskRepo          repository.SMETaskRepository
+	submissionRepo    repository.SMESubmissionRepository
+	knowledgeRepo     repository.SMEKnowledgeRepository
+	jobRepo           repository.GenerationJobRepository
+	aiSettingsRepo    repository.TenantAISettingsRepository
+	storage           ContentStorage
+	aiProviderFactory AIProviderFactory
+	notifier          NotificationSender
+	logger            service.Logger
 }
 
 // ContentStorage abstracts file storage operations.
@@ -56,21 +56,21 @@ func NewSMEIngestionService(
 	jobRepo repository.GenerationJobRepository,
 	aiSettingsRepo repository.TenantAISettingsRepository,
 	storage ContentStorage,
-	aiProvider service.AIProvider,
+	aiProviderFactory AIProviderFactory,
 	notifier NotificationSender,
 	logger service.Logger,
 ) *SMEIngestionService {
 	return &SMEIngestionService{
-		smeRepo:        smeRepo,
-		taskRepo:       taskRepo,
-		submissionRepo: submissionRepo,
-		knowledgeRepo:  knowledgeRepo,
-		jobRepo:        jobRepo,
-		aiSettingsRepo: aiSettingsRepo,
-		storage:        storage,
-		aiProvider:     aiProvider,
-		notifier:       notifier,
-		logger:         logger,
+		smeRepo:           smeRepo,
+		taskRepo:          taskRepo,
+		submissionRepo:    submissionRepo,
+		knowledgeRepo:     knowledgeRepo,
+		jobRepo:           jobRepo,
+		aiSettingsRepo:    aiSettingsRepo,
+		storage:           storage,
+		aiProviderFactory: aiProviderFactory,
+		notifier:          notifier,
+		logger:            logger,
 	}
 }
 
@@ -169,8 +169,15 @@ func (s *SMEIngestionService) processIngestionJob(ctx context.Context, job *enti
 	job.ProgressMessage = &progressMsg
 	_ = s.jobRepo.Update(ctx, job)
 
+	// Get tenant-specific AI provider
+	aiProvider, err := s.aiProviderFactory.GetProvider(ctx, job.TenantID)
+	if err != nil {
+		log.Error("failed to get AI provider", "error", err)
+		return s.failJob(ctx, job, fmt.Sprintf("failed to get AI provider: %v", err))
+	}
+
 	// Process with AI
-	result, err := s.aiProvider.ProcessSMEContent(ctx, service.ProcessSMEContentRequest{
+	result, err := aiProvider.ProcessSMEContent(ctx, service.ProcessSMEContentRequest{
 		SMEName:       sme.Name,
 		SMEDomain:     sme.Domain,
 		ExtractedText: extractedText,
@@ -407,7 +414,34 @@ func (s *SMEIngestionService) sendFailureNotification(ctx context.Context, job *
 	}
 }
 
+// RunBackground starts the background job processing loop.
+// This polls for queued SME ingestion jobs and processes them.
+func (s *SMEIngestionService) RunBackground(ctx context.Context, interval time.Duration) {
+	log := s.logger.With("job", "sme-ingestion-worker")
+	log.Info("starting SME ingestion background job", "interval", interval)
+
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			log.Info("SME ingestion background job stopped")
+			return
+		case <-ticker.C:
+			processed, err := s.ProcessNextJob(ctx)
+			if err != nil {
+				log.Error("error processing ingestion job", "error", err)
+			}
+			if processed {
+				log.Debug("processed ingestion job")
+			}
+		}
+	}
+}
+
 // Worker runs the ingestion worker loop.
+// Deprecated: Use SMEIngestionService.RunBackground instead.
 type IngestionWorker struct {
 	service      *SMEIngestionService
 	pollInterval time.Duration

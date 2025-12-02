@@ -24,3 +24,10 @@ export const getUser = UserService.method.getUser;
  * @generated from rpc mirai.v1.UserService.UpdateUser
  */
 export const updateUser = UserService.method.updateUser;
+
+/**
+ * ListCompanyUsers returns all users in the current user's company.
+ *
+ * @generated from rpc mirai.v1.UserService.ListCompanyUsers
+ */
+export const listCompanyUsers = UserService.method.listCompanyUsers;

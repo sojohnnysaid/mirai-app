@@ -32,9 +32,11 @@ export interface CourseGenerationContext {
   generatedLessons: GeneratedLesson[];
 
   // Progress tracking
-  currentStep: 'configure' | 'generating-outline' | 'review-outline' | 'generating-lessons' | 'complete';
+  currentStep: 'configure' | 'generating-outline' | 'review-outline' | 'job-queued' | 'generating-lessons' | 'complete';
   progressPercent: number;
   progressMessage: string;
+  totalLessons: number;
+  completedLessons: number;
 
   // Error handling
   error: AuthError | null;
@@ -52,6 +54,9 @@ export type CourseGenerationEvent =
   | { type: 'REJECT_OUTLINE'; reason: string }
   | { type: 'UPDATE_OUTLINE'; sections: OutlineSection[] }
   | { type: 'REGENERATE_OUTLINE' }
+  // Job queued - user choice after outline approval
+  | { type: 'WAIT_FOR_COMPLETION' }  // User wants to watch progress
+  | { type: 'NAVIGATE_AWAY' }        // User will be notified when done
   // Lesson generation
   | { type: 'START_LESSON_GENERATION' }
   | { type: 'POLL_LESSONS' }
@@ -118,6 +123,8 @@ const initialContext: CourseGenerationContext = {
   currentStep: 'configure',
   progressPercent: 0,
   progressMessage: '',
+  totalLessons: 0,
+  completedLessons: 0,
   error: null,
   flowStartedAt: null,
 };
@@ -417,7 +424,7 @@ export const courseGenerationMachine = createMachine({
               outlineId: context.outline!.id,
             }),
             onDone: {
-              target: '#courseGeneration.generatingLessons',
+              target: '#courseGeneration.jobQueued',
               actions: [
                 assign({
                   outline: ({ event }) => event.output.outline,
@@ -504,30 +511,40 @@ export const courseGenerationMachine = createMachine({
     },
 
     // --------------------------------------------------------
-    // Generating Lessons - AI generates content for all lessons
+    // Job Queued - confirmation after outline approval
+    // User can choose to wait for completion or navigate away
     // --------------------------------------------------------
-    generatingLessons: {
+    jobQueued: {
       initial: 'submitting',
-      entry: [
-        assign({
-          currentStep: 'generating-lessons' as const,
-          progressPercent: 0,
-          progressMessage: 'Starting lesson generation...',
-        }),
-        courseGenerationTelemetry.lessonsGenerating,
-      ],
+      entry: assign({
+        currentStep: 'job-queued' as const,
+        progressPercent: 0,
+        progressMessage: 'Starting lesson generation...',
+      }),
       states: {
         submitting: {
           invoke: {
-            id: 'generateLessons',
+            id: 'generateLessonsForQueue',
             src: generateLessonsActor,
             input: ({ context }) => ({ courseId: context.input!.courseId }),
             onDone: {
-              target: 'polling',
+              target: 'confirmation',
               actions: assign({
                 lessonJob: ({ event }) => event.output.job,
-                progressPercent: 10,
-                progressMessage: 'Lesson generation in progress...',
+                progressPercent: 5,
+                progressMessage: ({ context }) => {
+                  // Count lessons in outline
+                  const totalLessons = context.outline?.sections?.reduce(
+                    (acc, section) => acc + (section.lessons?.length || 0),
+                    0
+                  ) || 0;
+                  return `${totalLessons} lessons queued for generation`;
+                },
+                totalLessons: ({ context }) =>
+                  context.outline?.sections?.reduce(
+                    (acc, section) => acc + (section.lessons?.length || 0),
+                    0
+                  ) || 0,
               }),
             },
             onError: {
@@ -546,6 +563,55 @@ export const courseGenerationMachine = createMachine({
             },
           },
         },
+        confirmation: {
+          // User sees confirmation modal with job ID and can choose to wait or navigate away
+          on: {
+            WAIT_FOR_COMPLETION: '#courseGeneration.generatingLessons',
+            NAVIGATE_AWAY: '#courseGeneration.backgroundGeneration',
+          },
+        },
+      },
+    },
+
+    // --------------------------------------------------------
+    // Background Generation - user navigated away, job runs in background
+    // --------------------------------------------------------
+    backgroundGeneration: {
+      type: 'final' as const,
+      entry: [
+        assign({
+          currentStep: 'generating-lessons' as const,
+          progressMessage: 'Generation continues in background. You will be notified when complete.',
+        }),
+        // Emit telemetry for background generation
+        ({ context }) => {
+          emitTelemetry(LMS_TELEMETRY.GENERATION_BACKGROUNDED, {
+            machineId: 'courseGeneration',
+            metadata: {
+              courseId: context.input?.courseId,
+              jobId: context.lessonJob?.id,
+              totalLessons: context.totalLessons,
+            },
+          });
+        },
+      ],
+    },
+
+    // --------------------------------------------------------
+    // Generating Lessons - AI generates content for all lessons
+    // User is actively waiting and watching progress
+    // --------------------------------------------------------
+    generatingLessons: {
+      initial: 'polling',
+      entry: [
+        assign({
+          currentStep: 'generating-lessons' as const,
+          progressPercent: 10,
+          progressMessage: 'Generating lesson content...',
+        }),
+        courseGenerationTelemetry.lessonsGenerating,
+      ],
+      states: {
         polling: {
           invoke: {
             id: 'pollLessonJob',
@@ -580,7 +646,7 @@ export const courseGenerationMachine = createMachine({
                 ],
               },
               {
-                // Still processing
+                // Still processing - update progress and continue
                 target: 'waiting',
                 actions: assign({
                   lessonJob: ({ event }) => event.output.job,
@@ -607,10 +673,11 @@ export const courseGenerationMachine = createMachine({
         },
         waiting: {
           after: {
-            3000: 'polling',
+            7000: 'polling', // Poll every 7 seconds (per user preference)
           },
           on: {
             CANCEL: '#courseGeneration.reviewOutline',
+            NAVIGATE_AWAY: '#courseGeneration.backgroundGeneration',
           },
         },
         fetchingLessons: {
@@ -680,6 +747,7 @@ export function getStepLabel(step: CourseGenerationContext['currentStep']): stri
     configure: 'Configure',
     'generating-outline': 'Generating Outline',
     'review-outline': 'Review Outline',
+    'job-queued': 'Job Queued',
     'generating-lessons': 'Generating Lessons',
     complete: 'Complete',
   };
@@ -694,6 +762,7 @@ export function getStepIndex(step: CourseGenerationContext['currentStep']): numb
     'configure',
     'generating-outline',
     'review-outline',
+    'job-queued',
     'generating-lessons',
     'complete',
   ];
@@ -706,7 +775,22 @@ export function getStepIndex(step: CourseGenerationContext['currentStep']): numb
 export function isGenerating(state: { value: unknown }): boolean {
   const value = state.value;
   if (typeof value === 'string') {
-    return value === 'generatingOutline' || value === 'generatingLessons';
+    return value === 'generatingOutline' || value === 'generatingLessons' || value === 'jobQueued';
+  }
+  // Check for nested states (e.g., { generatingLessons: 'polling' })
+  if (typeof value === 'object' && value !== null) {
+    return 'generatingOutline' in value || 'generatingLessons' in value || 'jobQueued' in value;
+  }
+  return false;
+}
+
+/**
+ * Check if in job queued confirmation state
+ */
+export function isInJobQueuedConfirmation(state: { value: unknown }): boolean {
+  const value = state.value;
+  if (typeof value === 'object' && value !== null && 'jobQueued' in value) {
+    return (value as Record<string, string>).jobQueued === 'confirmation';
   }
   return false;
 }

@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { APIError } from '@/lib/api/client';
 import { ResponsiveModal } from '@/components/ui/ResponsiveModal';
 
 interface CreateTeamModalProps {
@@ -23,7 +22,7 @@ export function CreateTeamModal({ onClose, onCreate }: CreateTeamModalProps) {
     try {
       await onCreate(name, description);
     } catch (err) {
-      if (err instanceof APIError) {
+      if (err instanceof Error) {
         setError(err.message);
       } else {
         setError('Failed to create team');

@@ -48,6 +48,12 @@ const (
 	// TargetAudienceServiceDeleteTemplateProcedure is the fully-qualified name of the
 	// TargetAudienceService's DeleteTemplate RPC.
 	TargetAudienceServiceDeleteTemplateProcedure = "/mirai.v1.TargetAudienceService/DeleteTemplate"
+	// TargetAudienceServiceArchiveTemplateProcedure is the fully-qualified name of the
+	// TargetAudienceService's ArchiveTemplate RPC.
+	TargetAudienceServiceArchiveTemplateProcedure = "/mirai.v1.TargetAudienceService/ArchiveTemplate"
+	// TargetAudienceServiceRestoreTemplateProcedure is the fully-qualified name of the
+	// TargetAudienceService's RestoreTemplate RPC.
+	TargetAudienceServiceRestoreTemplateProcedure = "/mirai.v1.TargetAudienceService/RestoreTemplate"
 )
 
 // TargetAudienceServiceClient is a client for the mirai.v1.TargetAudienceService service.
@@ -60,8 +66,12 @@ type TargetAudienceServiceClient interface {
 	ListTemplates(context.Context, *connect.Request[v1.ListTemplatesRequest]) (*connect.Response[v1.ListTemplatesResponse], error)
 	// UpdateTemplate updates a template.
 	UpdateTemplate(context.Context, *connect.Request[v1.UpdateTemplateRequest]) (*connect.Response[v1.UpdateTemplateResponse], error)
-	// DeleteTemplate deletes a template.
+	// DeleteTemplate archives a template (soft delete).
 	DeleteTemplate(context.Context, *connect.Request[v1.DeleteTemplateRequest]) (*connect.Response[v1.DeleteTemplateResponse], error)
+	// ArchiveTemplate archives a template.
+	ArchiveTemplate(context.Context, *connect.Request[v1.ArchiveTemplateRequest]) (*connect.Response[v1.ArchiveTemplateResponse], error)
+	// RestoreTemplate restores an archived template.
+	RestoreTemplate(context.Context, *connect.Request[v1.RestoreTemplateRequest]) (*connect.Response[v1.RestoreTemplateResponse], error)
 }
 
 // NewTargetAudienceServiceClient constructs a client for the mirai.v1.TargetAudienceService
@@ -105,16 +115,30 @@ func NewTargetAudienceServiceClient(httpClient connect.HTTPClient, baseURL strin
 			connect.WithSchema(targetAudienceServiceMethods.ByName("DeleteTemplate")),
 			connect.WithClientOptions(opts...),
 		),
+		archiveTemplate: connect.NewClient[v1.ArchiveTemplateRequest, v1.ArchiveTemplateResponse](
+			httpClient,
+			baseURL+TargetAudienceServiceArchiveTemplateProcedure,
+			connect.WithSchema(targetAudienceServiceMethods.ByName("ArchiveTemplate")),
+			connect.WithClientOptions(opts...),
+		),
+		restoreTemplate: connect.NewClient[v1.RestoreTemplateRequest, v1.RestoreTemplateResponse](
+			httpClient,
+			baseURL+TargetAudienceServiceRestoreTemplateProcedure,
+			connect.WithSchema(targetAudienceServiceMethods.ByName("RestoreTemplate")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // targetAudienceServiceClient implements TargetAudienceServiceClient.
 type targetAudienceServiceClient struct {
-	createTemplate *connect.Client[v1.CreateTemplateRequest, v1.CreateTemplateResponse]
-	getTemplate    *connect.Client[v1.GetTemplateRequest, v1.GetTemplateResponse]
-	listTemplates  *connect.Client[v1.ListTemplatesRequest, v1.ListTemplatesResponse]
-	updateTemplate *connect.Client[v1.UpdateTemplateRequest, v1.UpdateTemplateResponse]
-	deleteTemplate *connect.Client[v1.DeleteTemplateRequest, v1.DeleteTemplateResponse]
+	createTemplate  *connect.Client[v1.CreateTemplateRequest, v1.CreateTemplateResponse]
+	getTemplate     *connect.Client[v1.GetTemplateRequest, v1.GetTemplateResponse]
+	listTemplates   *connect.Client[v1.ListTemplatesRequest, v1.ListTemplatesResponse]
+	updateTemplate  *connect.Client[v1.UpdateTemplateRequest, v1.UpdateTemplateResponse]
+	deleteTemplate  *connect.Client[v1.DeleteTemplateRequest, v1.DeleteTemplateResponse]
+	archiveTemplate *connect.Client[v1.ArchiveTemplateRequest, v1.ArchiveTemplateResponse]
+	restoreTemplate *connect.Client[v1.RestoreTemplateRequest, v1.RestoreTemplateResponse]
 }
 
 // CreateTemplate calls mirai.v1.TargetAudienceService.CreateTemplate.
@@ -142,6 +166,16 @@ func (c *targetAudienceServiceClient) DeleteTemplate(ctx context.Context, req *c
 	return c.deleteTemplate.CallUnary(ctx, req)
 }
 
+// ArchiveTemplate calls mirai.v1.TargetAudienceService.ArchiveTemplate.
+func (c *targetAudienceServiceClient) ArchiveTemplate(ctx context.Context, req *connect.Request[v1.ArchiveTemplateRequest]) (*connect.Response[v1.ArchiveTemplateResponse], error) {
+	return c.archiveTemplate.CallUnary(ctx, req)
+}
+
+// RestoreTemplate calls mirai.v1.TargetAudienceService.RestoreTemplate.
+func (c *targetAudienceServiceClient) RestoreTemplate(ctx context.Context, req *connect.Request[v1.RestoreTemplateRequest]) (*connect.Response[v1.RestoreTemplateResponse], error) {
+	return c.restoreTemplate.CallUnary(ctx, req)
+}
+
 // TargetAudienceServiceHandler is an implementation of the mirai.v1.TargetAudienceService service.
 type TargetAudienceServiceHandler interface {
 	// CreateTemplate creates a new target audience template.
@@ -152,8 +186,12 @@ type TargetAudienceServiceHandler interface {
 	ListTemplates(context.Context, *connect.Request[v1.ListTemplatesRequest]) (*connect.Response[v1.ListTemplatesResponse], error)
 	// UpdateTemplate updates a template.
 	UpdateTemplate(context.Context, *connect.Request[v1.UpdateTemplateRequest]) (*connect.Response[v1.UpdateTemplateResponse], error)
-	// DeleteTemplate deletes a template.
+	// DeleteTemplate archives a template (soft delete).
 	DeleteTemplate(context.Context, *connect.Request[v1.DeleteTemplateRequest]) (*connect.Response[v1.DeleteTemplateResponse], error)
+	// ArchiveTemplate archives a template.
+	ArchiveTemplate(context.Context, *connect.Request[v1.ArchiveTemplateRequest]) (*connect.Response[v1.ArchiveTemplateResponse], error)
+	// RestoreTemplate restores an archived template.
+	RestoreTemplate(context.Context, *connect.Request[v1.RestoreTemplateRequest]) (*connect.Response[v1.RestoreTemplateResponse], error)
 }
 
 // NewTargetAudienceServiceHandler builds an HTTP handler from the service implementation. It
@@ -193,6 +231,18 @@ func NewTargetAudienceServiceHandler(svc TargetAudienceServiceHandler, opts ...c
 		connect.WithSchema(targetAudienceServiceMethods.ByName("DeleteTemplate")),
 		connect.WithHandlerOptions(opts...),
 	)
+	targetAudienceServiceArchiveTemplateHandler := connect.NewUnaryHandler(
+		TargetAudienceServiceArchiveTemplateProcedure,
+		svc.ArchiveTemplate,
+		connect.WithSchema(targetAudienceServiceMethods.ByName("ArchiveTemplate")),
+		connect.WithHandlerOptions(opts...),
+	)
+	targetAudienceServiceRestoreTemplateHandler := connect.NewUnaryHandler(
+		TargetAudienceServiceRestoreTemplateProcedure,
+		svc.RestoreTemplate,
+		connect.WithSchema(targetAudienceServiceMethods.ByName("RestoreTemplate")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/mirai.v1.TargetAudienceService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case TargetAudienceServiceCreateTemplateProcedure:
@@ -205,6 +255,10 @@ func NewTargetAudienceServiceHandler(svc TargetAudienceServiceHandler, opts ...c
 			targetAudienceServiceUpdateTemplateHandler.ServeHTTP(w, r)
 		case TargetAudienceServiceDeleteTemplateProcedure:
 			targetAudienceServiceDeleteTemplateHandler.ServeHTTP(w, r)
+		case TargetAudienceServiceArchiveTemplateProcedure:
+			targetAudienceServiceArchiveTemplateHandler.ServeHTTP(w, r)
+		case TargetAudienceServiceRestoreTemplateProcedure:
+			targetAudienceServiceRestoreTemplateHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -232,4 +286,12 @@ func (UnimplementedTargetAudienceServiceHandler) UpdateTemplate(context.Context,
 
 func (UnimplementedTargetAudienceServiceHandler) DeleteTemplate(context.Context, *connect.Request[v1.DeleteTemplateRequest]) (*connect.Response[v1.DeleteTemplateResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("mirai.v1.TargetAudienceService.DeleteTemplate is not implemented"))
+}
+
+func (UnimplementedTargetAudienceServiceHandler) ArchiveTemplate(context.Context, *connect.Request[v1.ArchiveTemplateRequest]) (*connect.Response[v1.ArchiveTemplateResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("mirai.v1.TargetAudienceService.ArchiveTemplate is not implemented"))
+}
+
+func (UnimplementedTargetAudienceServiceHandler) RestoreTemplate(context.Context, *connect.Request[v1.RestoreTemplateRequest]) (*connect.Response[v1.RestoreTemplateResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("mirai.v1.TargetAudienceService.RestoreTemplate is not implemented"))
 }

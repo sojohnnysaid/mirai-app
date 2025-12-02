@@ -7,9 +7,13 @@ import { SMECard } from './SMECard';
 interface SMEListProps {
   smes: SubjectMatterExpert[];
   isLoading?: boolean;
+  showArchived?: boolean;
+  onToggleArchived?: (show: boolean) => void;
   onSelect: (sme: SubjectMatterExpert) => void;
   onCreate: () => void;
   onDelete?: (sme: SubjectMatterExpert) => void;
+  onEdit?: (sme: SubjectMatterExpert) => void;
+  onRestore?: (sme: SubjectMatterExpert) => void;
 }
 
 type SortBy = 'name' | 'createdAt' | 'status';
@@ -29,7 +33,7 @@ const STATUS_FILTER_OPTIONS = [
   { value: '4', label: 'Archived' },
 ];
 
-export function SMEList({ smes, isLoading = false, onSelect, onCreate, onDelete }: SMEListProps) {
+export function SMEList({ smes, isLoading = false, showArchived = false, onToggleArchived, onSelect, onCreate, onDelete, onEdit, onRestore }: SMEListProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [scopeFilter, setScopeFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -197,9 +201,22 @@ export function SMEList({ smes, isLoading = false, onSelect, onCreate, onDelete 
         </div>
       </div>
 
-      {/* Results Count */}
-      <div className="mb-4 text-sm text-gray-500">
-        Showing {filteredAndSortedSMEs.length} of {smes.length} SMEs
+      {/* Results Count and Show Archived Toggle */}
+      <div className="mb-4 flex items-center justify-between">
+        <div className="text-sm text-gray-500">
+          Showing {filteredAndSortedSMEs.length} of {smes.length} SMEs
+        </div>
+        {onToggleArchived && (
+          <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={showArchived}
+              onChange={(e) => onToggleArchived(e.target.checked)}
+              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+            />
+            <span>Show archived</span>
+          </label>
+        )}
       </div>
 
       {/* SME Grid */}
@@ -211,6 +228,8 @@ export function SMEList({ smes, isLoading = false, onSelect, onCreate, onDelete 
               sme={sme}
               onSelect={() => onSelect(sme)}
               onDelete={onDelete ? () => onDelete(sme) : undefined}
+              onEdit={onEdit ? () => onEdit(sme) : undefined}
+              onRestore={onRestore ? () => onRestore(sme) : undefined}
             />
           ))}
         </div>

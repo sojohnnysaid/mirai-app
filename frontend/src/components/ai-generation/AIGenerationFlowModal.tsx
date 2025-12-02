@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState, useRef } from 'react';
+import { useCallback, useEffect, useState, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMachine } from '@xstate/react';
 import { fromPromise } from 'xstate';
@@ -17,6 +17,7 @@ import {
 import { AIGenerationWizard } from './AIGenerationWizard';
 import { GenerationProgressPanel } from './GenerationProgressPanel';
 import { OutlineReviewPanel } from './OutlineReviewPanel';
+import { GenerationQueuedConfirmation } from './GenerationQueuedConfirmation';
 
 // Hooks
 import { useListSMEs, type SubjectMatterExpert } from '@/hooks/useSME';
@@ -35,6 +36,9 @@ import {
 } from '@/hooks/useAIGeneration';
 import { useCreateCourse, useUpdateCourse } from '@/hooks/useCourses';
 
+// Content transformation
+import { generatedLessonsToCourseContent, toApiFormat } from '@/lib/contentTransform';
+
 interface AIGenerationFlowModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -48,6 +52,9 @@ export function AIGenerationFlowModal({ isOpen, onClose }: AIGenerationFlowModal
   const [createdCourseId, setCreatedCourseId] = useState<string | null>(null);
   const [courseTitle, setCourseTitle] = useState<string>('');
   const selectedAudiencesRef = useRef<TargetAudienceTemplate[]>([]);
+
+  // Track whether state machine is controlling polling (to disable hook auto-polling)
+  const [machineIsPolling, setMachineIsPolling] = useState(false);
 
   // Confirm close modal
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
@@ -65,8 +72,11 @@ export function AIGenerationFlowModal({ isOpen, onClose }: AIGenerationFlowModal
   const createCourseHook = useCreateCourse();
   const updateCourseHook = useUpdateCourse();
 
-  // Job polling hook with auto-refetch
-  const { data: currentJob, refetch: refetchJob } = useGetJob(currentJobId || undefined);
+  // Job polling hook - disable auto-polling when machine is controlling the polling
+  const { data: currentJob, refetch: refetchJob } = useGetJob(
+    currentJobId || undefined,
+    { refetchInterval: machineIsPolling ? false : undefined }
+  );
 
   // Outline fetching based on course ID
   const { data: outline, refetch: refetchOutline } = useGetCourseOutline(createdCourseId || undefined);
@@ -91,12 +101,30 @@ export function AIGenerationFlowModal({ isOpen, onClose }: AIGenerationFlowModal
         return { job: result.job! };
       }),
       pollJobActor: fromPromise(async ({ input }: { input: { jobId: string } }) => {
-        await refetchJob();
-        return { job: currentJob! };
+        console.log('[pollJobActor] Polling job:', input.jobId);
+        const result = await refetchJob();
+        const freshJob = result.data?.job;
+
+        if (!freshJob) {
+          console.error('[pollJobActor] No job data returned from refetch');
+          throw new Error('Failed to fetch job status');
+        }
+
+        console.log('[pollJobActor] Fresh status:', freshJob.status, 'progress:', freshJob.progressPercent);
+        return { job: freshJob };
       }),
       getOutlineActor: fromPromise(async ({ input }: { input: { courseId: string } }) => {
-        await refetchOutline();
-        return { outline: outline! };
+        console.log('[getOutlineActor] Fetching outline for course:', input.courseId);
+        const result = await refetchOutline();
+        const freshOutline = result.data?.outline;
+
+        if (!freshOutline) {
+          console.error('[getOutlineActor] No outline data returned from refetch');
+          throw new Error('Failed to fetch outline');
+        }
+
+        console.log('[getOutlineActor] Outline fetched with', freshOutline.sections?.length || 0, 'sections');
+        return { outline: freshOutline };
       }),
       approveOutlineActor: fromPromise(async ({ input }: { input: { courseId: string; outlineId: string } }) => {
         const result = await approveOutlineHook.mutate(input.courseId, input.outlineId);
@@ -118,8 +146,12 @@ export function AIGenerationFlowModal({ isOpen, onClose }: AIGenerationFlowModal
         return { job: result.job! };
       }),
       listLessonsActor: fromPromise(async ({ input }: { input: { courseId: string } }) => {
-        await refetchLessons();
-        return { lessons: generatedLessons || [] };
+        console.log('[listLessonsActor] Fetching lessons for course:', input.courseId);
+        const result = await refetchLessons();
+        const freshLessons = result.data?.lessons || [];
+
+        console.log('[listLessonsActor] Fetched', freshLessons.length, 'lessons');
+        return { lessons: freshLessons };
       }),
     },
   });
@@ -138,6 +170,18 @@ export function AIGenerationFlowModal({ isOpen, onClose }: AIGenerationFlowModal
 
   const currentStateValue = getStateValue();
   const context = state.context as CourseGenerationContext;
+
+  // Update machineIsPolling when state changes
+  // When in these states, the state machine controls polling - disable hook auto-polling
+  useEffect(() => {
+    const pollingStates = ['generatingOutline', 'generatingLessons'];
+    const isPollingState = pollingStates.includes(currentStateValue);
+    setMachineIsPolling(isPollingState);
+
+    if (isPollingState) {
+      console.log('[AIGenerationFlowModal] Machine is now controlling polling in state:', currentStateValue);
+    }
+  }, [currentStateValue]);
 
   // Handle wizard completion - create course and start generation
   const handleStartGeneration = useCallback(
@@ -221,45 +265,73 @@ export function AIGenerationFlowModal({ isOpen, onClose }: AIGenerationFlowModal
     send({ type: 'RETRY' });
   }, [send]);
 
-  // Convert target audiences to personas and update course after completion
-  const convertAudiencesToPersonas = useCallback(async () => {
-    if (!createdCourseId || selectedAudiencesRef.current.length === 0) return;
+  // Handle user choosing to wait for completion
+  const handleWaitForCompletion = useCallback(() => {
+    send({ type: 'WAIT_FOR_COMPLETION' });
+  }, [send]);
 
-    const personas = selectedAudiencesRef.current.map((audience, index) => ({
-      id: `persona-${audience.id}`,
-      name: audience.name,
-      role: audience.role || audience.name,
-      kpis: audience.learningGoals?.join(', ') || '',
-      responsibilities: audience.typicalBackground || '',
-      challenges: audience.challenges?.join(', ') || '',
-    }));
+  // Handle user choosing to navigate away
+  const handleNavigateAway = useCallback(() => {
+    send({ type: 'NAVIGATE_AWAY' });
+    // Close modal and let user continue with their work
+    onClose();
+  }, [send, onClose]);
 
-    try {
-      await updateCourseHook.mutate(createdCourseId, {
-        personas,
-      });
-    } catch (error) {
-      console.error('Failed to update course with personas:', error);
-    }
-  }, [createdCourseId, updateCourseHook]);
-
-  // Handle completion - convert personas and redirect
+  // Handle completion - transform content, convert personas, and redirect
   useEffect(() => {
-    if (currentStateValue === 'complete' && createdCourseId) {
-      convertAudiencesToPersonas().then(() => {
-        // Redirect to course preview after a short delay
-        setTimeout(() => {
-          router.push(`/course-builder?id=${createdCourseId}&step=5`);
-          onClose();
-        }, 1500);
-      });
+    if (currentStateValue === 'complete' && createdCourseId && generatedLessons && context.outline) {
+      const transformAndSave = async () => {
+        try {
+          // Transform AI-generated lessons to CourseEditor format
+          const { sections, courseBlocks } = generatedLessonsToCourseContent(
+            generatedLessons,
+            context.outline as CourseOutline
+          );
+
+          // Convert to API format (numeric block types)
+          const apiContent = toApiFormat({ sections, courseBlocks });
+
+          // Convert personas from audiences
+          const personas = selectedAudiencesRef.current.map((audience) => ({
+            id: `persona-${audience.id}`,
+            name: audience.name,
+            role: audience.role || audience.name,
+            kpis: audience.learningGoals?.join(', ') || '',
+            responsibilities: audience.typicalBackground || '',
+            challenges: audience.challenges?.join(', ') || '',
+          }));
+
+          // Update course with transformed content and personas
+          await updateCourseHook.mutate(createdCourseId, {
+            content: apiContent,
+            personas,
+          });
+
+          // Redirect to course editor (step 4) after a short delay
+          setTimeout(() => {
+            router.push(`/course-builder?id=${createdCourseId}&step=4`);
+            onClose();
+          }, 1500);
+        } catch (error) {
+          console.error('Failed to transform and save course content:', error);
+          // Still redirect even on error - content can be edited manually
+          setTimeout(() => {
+            router.push(`/course-builder?id=${createdCourseId}&step=4`);
+            onClose();
+          }, 1500);
+        }
+      };
+
+      transformAndSave();
     }
-  }, [currentStateValue, createdCourseId, convertAudiencesToPersonas, router, onClose]);
+  }, [currentStateValue, createdCourseId, generatedLessons, context.outline, updateCourseHook, router, onClose]);
 
   // Handle close with confirmation if generating
   const handleCloseRequest = useCallback(() => {
     const isGenerating =
-      currentStateValue === 'generatingOutline' || currentStateValue === 'generatingLessons';
+      currentStateValue === 'generatingOutline' ||
+      currentStateValue === 'generatingLessons' ||
+      currentStateValue === 'jobQueued';
     if (isGenerating) {
       setShowCloseConfirm(true);
     } else {
@@ -368,13 +440,36 @@ export function AIGenerationFlowModal({ isOpen, onClose }: AIGenerationFlowModal
         );
 
       case 'generatingOutline':
+        return (
+          <GenerationProgressPanel
+            currentStep={context.currentStep}
+            progressPercent={context.progressPercent}
+            progressMessage={context.progressMessage}
+            job={context.outlineJob}
+            onCancel={handleCancel}
+            error={context.error ? { message: context.error.message } : null}
+            onRetry={handleRetry}
+          />
+        );
+
+      case 'jobQueued':
+        return (
+          <GenerationQueuedConfirmation
+            totalLessons={context.totalLessons}
+            jobId={context.lessonJob?.id || 'pending'}
+            courseTitle={courseTitle}
+            onWaitForCompletion={handleWaitForCompletion}
+            onNavigateAway={handleNavigateAway}
+          />
+        );
+
       case 'generatingLessons':
         return (
           <GenerationProgressPanel
             currentStep={context.currentStep}
             progressPercent={context.progressPercent}
             progressMessage={context.progressMessage}
-            job={currentStateValue === 'generatingOutline' ? context.outlineJob : context.lessonJob}
+            job={context.lessonJob}
             onCancel={handleCancel}
             error={context.error ? { message: context.error.message } : null}
             onRetry={handleRetry}
@@ -415,7 +510,7 @@ export function AIGenerationFlowModal({ isOpen, onClose }: AIGenerationFlowModal
             <p className="text-gray-600 mb-4">
               Your AI-powered course has been created with {generatedLessons?.length || 0} lessons.
             </p>
-            <p className="text-sm text-gray-500">Redirecting to course preview...</p>
+            <p className="text-sm text-gray-500">Redirecting to course editor...</p>
           </div>
         );
 

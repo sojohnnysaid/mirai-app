@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CreateTemplateRequest, CreateTemplateResponse, DeleteTemplateRequest, DeleteTemplateResponse, GetTemplateRequest, GetTemplateResponse, ListTemplatesRequest, ListTemplatesResponse, UpdateTemplateRequest, UpdateTemplateResponse } from "./target_audience_pb.js";
+import { ArchiveTemplateRequest, ArchiveTemplateResponse, CreateTemplateRequest, CreateTemplateResponse, DeleteTemplateRequest, DeleteTemplateResponse, GetTemplateRequest, GetTemplateResponse, ListTemplatesRequest, ListTemplatesResponse, RestoreTemplateRequest, RestoreTemplateResponse, UpdateTemplateRequest, UpdateTemplateResponse } from "./target_audience_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -59,7 +59,7 @@ export const TargetAudienceService = {
       kind: MethodKind.Unary,
     },
     /**
-     * DeleteTemplate deletes a template.
+     * DeleteTemplate archives a template (soft delete).
      *
      * @generated from rpc mirai.v1.TargetAudienceService.DeleteTemplate
      */
@@ -67,6 +67,28 @@ export const TargetAudienceService = {
       name: "DeleteTemplate",
       I: DeleteTemplateRequest,
       O: DeleteTemplateResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * ArchiveTemplate archives a template.
+     *
+     * @generated from rpc mirai.v1.TargetAudienceService.ArchiveTemplate
+     */
+    archiveTemplate: {
+      name: "ArchiveTemplate",
+      I: ArchiveTemplateRequest,
+      O: ArchiveTemplateResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * RestoreTemplate restores an archived template.
+     *
+     * @generated from rpc mirai.v1.TargetAudienceService.RestoreTemplate
+     */
+    restoreTemplate: {
+      name: "RestoreTemplate",
+      I: RestoreTemplateRequest,
+      O: RestoreTemplateResponse,
       kind: MethodKind.Unary,
     },
   }

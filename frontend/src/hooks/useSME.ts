@@ -1,4 +1,4 @@
-import { useQuery, useMutation } from '@connectrpc/connect-query';
+import { useQuery, useMutation, createConnectQueryKey } from '@connectrpc/connect-query';
 import { useQueryClient } from '@tanstack/react-query';
 import { create } from '@bufbuild/protobuf';
 import {
@@ -7,6 +7,7 @@ import {
   listSMEs,
   updateSME,
   deleteSME,
+  restoreSME,
   createTask,
   getTask,
   listTasks,
@@ -28,6 +29,8 @@ import {
   CreateSMERequestSchema,
   UpdateSMERequestSchema,
   DeleteSMERequestSchema,
+  RestoreSMERequestSchema,
+  ListSMEsRequestSchema,
   CreateTaskRequestSchema,
   CancelTaskRequestSchema,
   GetUploadURLRequestSchema,
@@ -41,8 +44,11 @@ export type { SubjectMatterExpert, SMETask, SMETaskSubmission, SMEKnowledgeChunk
 /**
  * Hook to list all SMEs accessible to the current user.
  */
-export function useListSMEs() {
-  const query = useQuery(listSMEs, {});
+export function useListSMEs(options?: { includeArchived?: boolean }) {
+  const request = create(ListSMEsRequestSchema, {
+    includeArchived: options?.includeArchived,
+  });
+  const query = useQuery(listSMEs, request);
 
   return {
     data: query.data?.smes ?? [],
@@ -94,11 +100,9 @@ export function useCreateSME() {
       });
 
       const result = await mutation.mutateAsync(request);
+      // Use type-safe cache invalidation
       await queryClient.invalidateQueries({
-        predicate: (query) =>
-          query.queryKey.some((k) =>
-            typeof k === 'string' && k.includes('listSMEs')
-          ),
+        queryKey: createConnectQueryKey({ schema: listSMEs, cardinality: undefined }),
       });
       return result;
     },
@@ -133,12 +137,11 @@ export function useUpdateSME() {
       });
 
       const result = await mutation.mutateAsync(request);
-      await queryClient.invalidateQueries({
-        predicate: (query) =>
-          query.queryKey.some((k) =>
-            typeof k === 'string' && (k.includes('listSMEs') || k.includes('getSME'))
-          ),
-      });
+      // Use type-safe cache invalidation for both list and individual queries
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: createConnectQueryKey({ schema: listSMEs, cardinality: undefined }) }),
+        queryClient.invalidateQueries({ queryKey: createConnectQueryKey({ schema: getSME, cardinality: undefined }) }),
+      ]);
       return result;
     },
     isLoading: mutation.isPending,
@@ -147,7 +150,7 @@ export function useUpdateSME() {
 }
 
 /**
- * Hook to delete an SME.
+ * Hook to delete (archive) an SME.
  */
 export function useDeleteSME() {
   const queryClient = useQueryClient();
@@ -157,12 +160,33 @@ export function useDeleteSME() {
     mutate: async (smeId: string) => {
       const request = create(DeleteSMERequestSchema, { smeId });
       const result = await mutation.mutateAsync(request);
+      // Use type-safe cache invalidation
       await queryClient.invalidateQueries({
-        predicate: (query) =>
-          query.queryKey.some((k) =>
-            typeof k === 'string' && k.includes('listSMEs')
-          ),
+        queryKey: createConnectQueryKey({ schema: listSMEs, cardinality: undefined }),
       });
+      return result;
+    },
+    isLoading: mutation.isPending,
+    error: mutation.error,
+  };
+}
+
+/**
+ * Hook to restore an archived SME.
+ */
+export function useRestoreSME() {
+  const queryClient = useQueryClient();
+  const mutation = useMutation(restoreSME);
+
+  return {
+    mutate: async (smeId: string) => {
+      const request = create(RestoreSMERequestSchema, { smeId });
+      const result = await mutation.mutateAsync(request);
+      // Use type-safe cache invalidation for both list and individual queries
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: createConnectQueryKey({ schema: listSMEs, cardinality: undefined }) }),
+        queryClient.invalidateQueries({ queryKey: createConnectQueryKey({ schema: getSME, cardinality: undefined }) }),
+      ]);
       return result;
     },
     isLoading: mutation.isPending,
@@ -236,11 +260,9 @@ export function useCreateTask() {
       });
 
       const result = await mutation.mutateAsync(request);
+      // Use type-safe cache invalidation
       await queryClient.invalidateQueries({
-        predicate: (query) =>
-          query.queryKey.some((k) =>
-            typeof k === 'string' && k.includes('listTasks')
-          ),
+        queryKey: createConnectQueryKey({ schema: listTasks, cardinality: undefined }),
       });
       return result;
     },
@@ -260,12 +282,11 @@ export function useCancelTask() {
     mutate: async (taskId: string) => {
       const request = create(CancelTaskRequestSchema, { taskId });
       const result = await mutation.mutateAsync(request);
-      await queryClient.invalidateQueries({
-        predicate: (query) =>
-          query.queryKey.some((k) =>
-            typeof k === 'string' && (k.includes('listTasks') || k.includes('getTask'))
-          ),
-      });
+      // Use type-safe cache invalidation
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: createConnectQueryKey({ schema: listTasks, cardinality: undefined }) }),
+        queryClient.invalidateQueries({ queryKey: createConnectQueryKey({ schema: getTask, cardinality: undefined }) }),
+      ]);
       return result;
     },
     isLoading: mutation.isPending,
@@ -322,12 +343,11 @@ export function useSubmitContent() {
       });
 
       const result = await mutation.mutateAsync(request);
-      await queryClient.invalidateQueries({
-        predicate: (query) =>
-          query.queryKey.some((k) =>
-            typeof k === 'string' && (k.includes('listTasks') || k.includes('listSubmissions'))
-          ),
-      });
+      // Use type-safe cache invalidation
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: createConnectQueryKey({ schema: listTasks, cardinality: undefined }) }),
+        queryClient.invalidateQueries({ queryKey: createConnectQueryKey({ schema: listSubmissions, cardinality: undefined }) }),
+      ]);
       return result;
     },
     isLoading: mutation.isPending,

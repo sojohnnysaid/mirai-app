@@ -182,8 +182,73 @@ func (s *AIGenerationServiceServer) UpdateCourseOutline(
 	ctx context.Context,
 	req *connect.Request[v1.UpdateCourseOutlineRequest],
 ) (*connect.Response[v1.UpdateCourseOutlineResponse], error) {
-	// TODO: Implement when needed
-	return nil, connect.NewError(connect.CodeUnimplemented, errUnauthenticated)
+	kratosIDStr, ok := ctx.Value(kratosIDKey{}).(string)
+	if !ok {
+		return nil, connect.NewError(connect.CodeUnauthenticated, errUnauthenticated)
+	}
+
+	kratosID, err := parseUUID(kratosIDStr)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
+	courseID, err := parseUUID(req.Msg.CourseId)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+
+	outlineID, err := parseUUID(req.Msg.OutlineId)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+
+	// Convert proto sections to service sections
+	sections := make([]service.UpdateCourseOutlineSection, len(req.Msg.Sections))
+	for i, protoSection := range req.Msg.Sections {
+		sectionID, err := parseUUID(protoSection.Id)
+		if err != nil {
+			continue
+		}
+
+		lessons := make([]service.UpdateCourseOutlineLesson, len(protoSection.Lessons))
+		for j, protoLesson := range protoSection.Lessons {
+			lessonID, err := parseUUID(protoLesson.Id)
+			if err != nil {
+				continue
+			}
+
+			var duration *int32
+			if protoLesson.EstimatedDurationMinutes > 0 {
+				duration = &protoLesson.EstimatedDurationMinutes
+			}
+
+			lessons[j] = service.UpdateCourseOutlineLesson{
+				ID:                       lessonID,
+				Title:                    protoLesson.Title,
+				Description:              protoLesson.Description,
+				Order:                    protoLesson.Order,
+				EstimatedDurationMinutes: duration,
+				LearningObjectives:       protoLesson.LearningObjectives,
+			}
+		}
+
+		sections[i] = service.UpdateCourseOutlineSection{
+			ID:          sectionID,
+			Title:       protoSection.Title,
+			Description: protoSection.Description,
+			Order:       protoSection.Order,
+			Lessons:     lessons,
+		}
+	}
+
+	outline, err := s.aiService.UpdateCourseOutline(ctx, kratosID, courseID, outlineID, sections)
+	if err != nil {
+		return nil, toConnectError(err)
+	}
+
+	return connect.NewResponse(&v1.UpdateCourseOutlineResponse{
+		Outline: courseOutlineToProto(outline),
+	}), nil
 }
 
 // GenerateLessonContent generates content for a specific lesson.
@@ -231,8 +296,29 @@ func (s *AIGenerationServiceServer) GenerateAllLessons(
 	ctx context.Context,
 	req *connect.Request[v1.GenerateAllLessonsRequest],
 ) (*connect.Response[v1.GenerateAllLessonsResponse], error) {
-	// TODO: Implement batch lesson generation
-	return nil, connect.NewError(connect.CodeUnimplemented, errUnauthenticated)
+	kratosIDStr, ok := ctx.Value(kratosIDKey{}).(string)
+	if !ok {
+		return nil, connect.NewError(connect.CodeUnauthenticated, errUnauthenticated)
+	}
+
+	kratosID, err := parseUUID(kratosIDStr)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
+	courseID, err := parseUUID(req.Msg.CourseId)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+
+	result, err := s.aiService.GenerateAllLessons(ctx, kratosID, courseID)
+	if err != nil {
+		return nil, toConnectError(err)
+	}
+
+	return connect.NewResponse(&v1.GenerateAllLessonsResponse{
+		Job: generationJobToProto(result.Job),
+	}), nil
 }
 
 // RegenerateComponent regenerates a single component with modifications.
@@ -240,8 +326,46 @@ func (s *AIGenerationServiceServer) RegenerateComponent(
 	ctx context.Context,
 	req *connect.Request[v1.RegenerateComponentRequest],
 ) (*connect.Response[v1.RegenerateComponentResponse], error) {
-	// TODO: Implement component regeneration
-	return nil, connect.NewError(connect.CodeUnimplemented, errUnauthenticated)
+	kratosIDStr, ok := ctx.Value(kratosIDKey{}).(string)
+	if !ok {
+		return nil, connect.NewError(connect.CodeUnauthenticated, errUnauthenticated)
+	}
+
+	kratosID, err := parseUUID(kratosIDStr)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
+	courseID, err := parseUUID(req.Msg.CourseId)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+
+	lessonID, err := parseUUID(req.Msg.LessonId)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+
+	componentID, err := parseUUID(req.Msg.ComponentId)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+
+	serviceReq := service.RegenerateComponentRequest{
+		CourseID:           courseID,
+		LessonID:           lessonID,
+		ComponentID:        componentID,
+		ModificationPrompt: req.Msg.ModificationPrompt,
+	}
+
+	result, err := s.aiService.RegenerateComponent(ctx, kratosID, serviceReq)
+	if err != nil {
+		return nil, toConnectError(err)
+	}
+
+	return connect.NewResponse(&v1.RegenerateComponentResponse{
+		Job: generationJobToProto(result.Job),
+	}), nil
 }
 
 // GetJob returns a generation job by ID.

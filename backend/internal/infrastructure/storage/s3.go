@@ -219,3 +219,28 @@ func (s *S3Storage) GenerateDownloadURL(ctx context.Context, p string, expiry ti
 	}
 	return request.URL, nil
 }
+
+// GetContent retrieves raw file content from S3.
+func (s *S3Storage) GetContent(ctx context.Context, p string) ([]byte, error) {
+	result, err := s.client.GetObject(ctx, &s3.GetObjectInput{
+		Bucket: aws.String(s.bucket),
+		Key:    aws.String(s.fullKey(p)),
+	})
+	if err != nil {
+		return nil, err
+	}
+	defer result.Body.Close()
+
+	return io.ReadAll(result.Body)
+}
+
+// PutContent stores raw content to S3.
+func (s *S3Storage) PutContent(ctx context.Context, p string, content []byte, contentType string) error {
+	_, err := s.client.PutObject(ctx, &s3.PutObjectInput{
+		Bucket:      aws.String(s.bucket),
+		Key:         aws.String(s.fullKey(p)),
+		Body:        bytes.NewReader(content),
+		ContentType: aws.String(contentType),
+	})
+	return err
+}

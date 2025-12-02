@@ -222,6 +222,23 @@ func (s *CourseService) GetCourse(ctx context.Context, kratosID uuid.UUID, id st
 		return nil, domainerrors.ErrNotFound.WithMessage("course not found")
 	}
 
+	// Check if content exists in MinIO/S3 before attempting to read
+	exists, err := s.storage.CourseContentExists(ctx, course.TenantID, course.ID)
+	if err != nil {
+		s.logger.Error("failed to check course content existence",
+			"courseID", id,
+			"tenantID", course.TenantID,
+			"error", err)
+		return nil, domainerrors.ErrInternal.WithCause(err)
+	}
+	if !exists {
+		s.logger.Error("course content not found in storage",
+			"courseID", id,
+			"tenantID", course.TenantID,
+			"contentPath", course.ContentPath)
+		return nil, domainerrors.ErrNotFound.WithMessage("course content not found")
+	}
+
 	// Get content from S3
 	var s3Content S3CourseContent
 	if err := s.storage.ReadCourseContent(ctx, course.TenantID, course.ID, &s3Content); err != nil {
@@ -352,9 +369,13 @@ func (s *CourseService) CreateCourse(ctx context.Context, kratosID uuid.UUID, in
 
 	// Write content to S3 first
 	if err := s.storage.WriteCourseContent(ctx, *user.TenantID, courseID, &s3Content); err != nil {
-		log.Error("failed to write course content to S3", "error", err)
+		log.Error("failed to write course content to storage", "error", err)
 		return nil, domainerrors.ErrInternal.WithCause(err)
 	}
+	log.Info("course content written to storage",
+		"courseID", courseID,
+		"tenantID", user.TenantID,
+		"path", s.storage.CoursePath(*user.TenantID, courseID))
 
 	// Insert metadata into PostgreSQL
 	if err := s.courseRepo.Create(ctx, course); err != nil {
@@ -412,6 +433,19 @@ func (s *CourseService) UpdateCourse(ctx context.Context, kratosID uuid.UUID, id
 	}
 	if course == nil {
 		return nil, domainerrors.ErrNotFound.WithMessage("course not found")
+	}
+
+	// Check if content exists in MinIO/S3 before attempting to read
+	exists, err := s.storage.CourseContentExists(ctx, course.TenantID, course.ID)
+	if err != nil {
+		log.Error("failed to check course content existence", "error", err)
+		return nil, domainerrors.ErrInternal.WithCause(err)
+	}
+	if !exists {
+		log.Error("course content not found - cannot update",
+			"tenantID", course.TenantID,
+			"contentPath", course.ContentPath)
+		return nil, domainerrors.ErrNotFound.WithMessage("course content not found")
 	}
 
 	// Load existing S3 content

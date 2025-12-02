@@ -6,6 +6,15 @@ import { BookOpen, Menu } from 'lucide-react';
 import ProfileDropdown from '@/components/auth/ProfileDropdown';
 import { toggleMobileSidebar } from '@/store/slices/uiSlice';
 import { useIsMobile } from '@/hooks/useBreakpoint';
+import { NotificationBell } from '@/components/notifications/NotificationBell';
+import { NotificationPanel } from '@/components/notifications/NotificationPanel';
+import {
+  useUnreadCount,
+  useListNotifications,
+  useMarkAsRead,
+  useMarkAllAsRead,
+  useDeleteNotification,
+} from '@/hooks/useNotifications';
 
 interface HeaderProps {
   title?: string;
@@ -14,6 +23,13 @@ interface HeaderProps {
 export default function Header({ title }: HeaderProps) {
   const dispatch = useDispatch();
   const isMobile = useIsMobile();
+
+  // Notification hooks (RTK Query / Connect Query)
+  const { count: unreadCount } = useUnreadCount();
+  const { data: notifications, isLoading: notificationsLoading } = useListNotifications({ limit: 20 });
+  const markAsRead = useMarkAsRead();
+  const markAllAsRead = useMarkAllAsRead();
+  const deleteNotification = useDeleteNotification();
 
   return (
     <header className="sticky top-0 z-30 bg-white border-b border-gray-200 px-4 lg:px-6 py-4">
@@ -37,8 +53,23 @@ export default function Header({ title }: HeaderProps) {
           </span>
         </div>
 
-        {/* Profile Dropdown */}
-        <ProfileDropdown isProtectedPage />
+        {/* Notifications & Profile */}
+        <div className="flex items-center gap-2">
+          {/* Notification Bell with Panel */}
+          <div className="relative">
+            <NotificationBell unreadCount={unreadCount} />
+            <NotificationPanel
+              notifications={notifications}
+              isLoading={notificationsLoading}
+              onMarkAsRead={(ids) => markAsRead.mutate(ids)}
+              onMarkAllAsRead={() => markAllAsRead.mutate()}
+              onDelete={(id) => deleteNotification.mutate(id)}
+            />
+          </div>
+
+          {/* Profile Dropdown */}
+          <ProfileDropdown isProtectedPage />
+        </div>
       </div>
     </header>
   );

@@ -31,7 +31,12 @@ export default function CoursePreview() {
   const [examAnswers, setExamAnswers] = useState<{[key: string]: number}>({});
   const [showExamResults, setShowExamResults] = useState(false);
 
-  const currentSection = docOMaticCourseSections[currentSectionIndex];
+  // Use actual course content if available, otherwise fallback to mock data
+  const courseSections = course.content?.sections && course.content.sections.length > 0
+    ? course.content.sections
+    : docOMaticCourseSections;
+
+  const currentSection = courseSections[currentSectionIndex];
   const currentLesson = currentSection?.lessons[currentLessonIndex];
 
   const handleExport = async () => {
@@ -52,7 +57,7 @@ export default function CoursePreview() {
     if (direction === 'next') {
       if (currentLessonIndex < currentSection.lessons.length - 1) {
         setCurrentLessonIndex(currentLessonIndex + 1);
-      } else if (currentSectionIndex < docOMaticCourseSections.length - 1) {
+      } else if (currentSectionIndex < courseSections.length - 1) {
         setCurrentSectionIndex(currentSectionIndex + 1);
         setCurrentLessonIndex(0);
       }
@@ -61,7 +66,7 @@ export default function CoursePreview() {
         setCurrentLessonIndex(currentLessonIndex - 1);
       } else if (currentSectionIndex > 0) {
         setCurrentSectionIndex(currentSectionIndex - 1);
-        const prevSection = docOMaticCourseSections[currentSectionIndex - 1];
+        const prevSection = courseSections[currentSectionIndex - 1];
         setCurrentLessonIndex(prevSection.lessons.length - 1);
       }
     }
@@ -72,6 +77,16 @@ export default function CoursePreview() {
       case 'heading':
         return <h2 className="text-2xl font-bold text-gray-900 mb-4">{block.content}</h2>;
       case 'text':
+        // Check if content contains HTML (for images/figures)
+        const hasHtml = block.content.includes('<') && block.content.includes('>');
+        if (hasHtml) {
+          return (
+            <div
+              className="text-gray-700 leading-relaxed mb-4 prose prose-gray max-w-none"
+              dangerouslySetInnerHTML={{ __html: block.content }}
+            />
+          );
+        }
         return <p className="text-gray-700 leading-relaxed mb-4 whitespace-pre-wrap">{block.content}</p>;
       case 'interactive':
         return (
@@ -88,8 +103,17 @@ export default function CoursePreview() {
       case 'knowledgeCheck':
         try {
           const quizData = JSON.parse(block.content);
-          const selectedAnswer = quizAnswers[block.id];
+          const selectedAnswerId = quizAnswers[block.id];
           const showFeedback = showQuizFeedback[block.id];
+
+          // Support both old format (string[] options) and new format (object[] with id/text)
+          const options = quizData.options || [];
+          const isNewFormat = options.length > 0 && typeof options[0] === 'object' && 'id' in options[0];
+
+          // Determine correct answer - handle both old (correctAnswer index) and new (correctAnswerId) formats
+          const correctAnswerIndex = isNewFormat
+            ? options.findIndex((opt: any) => opt.id === quizData.correctAnswerId)
+            : quizData.correctAnswer;
 
           return (
             <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-lg p-6 mb-4">
@@ -103,49 +127,55 @@ export default function CoursePreview() {
               <p className="text-gray-800 font-medium mb-4">{quizData.question}</p>
 
               <div className="space-y-2 mb-4">
-                {quizData.options.map((option: string, index: number) => (
-                  <label
-                    key={index}
-                    className={`block p-3 rounded-lg border-2 cursor-pointer transition-all ${
-                      selectedAnswer === index
-                        ? showFeedback
-                          ? index === quizData.correctAnswer
-                            ? 'border-green-500 bg-green-100'
-                            : 'border-red-500 bg-red-100'
-                          : 'border-green-400 bg-green-50'
-                        : 'border-gray-200 hover:border-green-300 hover:bg-gray-50'
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name={`quiz-${block.id}`}
-                      value={index}
-                      checked={selectedAnswer === index}
-                      onChange={() => setQuizAnswers({...quizAnswers, [block.id]: index})}
-                      className="mr-3"
-                      disabled={showFeedback}
-                    />
-                    <span className={`${showFeedback && index === quizData.correctAnswer ? 'font-semibold text-green-700' : ''}`}>
-                      {option}
-                    </span>
-                  </label>
-                ))}
+                {options.map((option: any, index: number) => {
+                  const optionText = isNewFormat ? option.text : option;
+                  const isSelected = selectedAnswerId === index;
+                  const isCorrect = index === correctAnswerIndex;
+
+                  return (
+                    <label
+                      key={isNewFormat ? option.id : index}
+                      className={`block p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                        isSelected
+                          ? showFeedback
+                            ? isCorrect
+                              ? 'border-green-500 bg-green-100'
+                              : 'border-red-500 bg-red-100'
+                            : 'border-green-400 bg-green-50'
+                          : 'border-gray-200 hover:border-green-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name={`quiz-${block.id}`}
+                        value={index}
+                        checked={isSelected}
+                        onChange={() => setQuizAnswers({...quizAnswers, [block.id]: index})}
+                        className="mr-3"
+                        disabled={showFeedback}
+                      />
+                      <span className={`${showFeedback && isCorrect ? 'font-semibold text-green-700' : ''}`}>
+                        {optionText}
+                      </span>
+                    </label>
+                  );
+                })}
               </div>
 
               {!showFeedback ? (
                 <button
                   onClick={() => setShowQuizFeedback({...showQuizFeedback, [block.id]: true})}
-                  disabled={selectedAnswer === undefined}
+                  disabled={selectedAnswerId === undefined}
                   className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Submit Answer
                 </button>
               ) : (
-                <div className={`p-4 rounded-lg ${selectedAnswer === quizData.correctAnswer ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                  {selectedAnswer === quizData.correctAnswer ? (
-                    <p className="font-semibold">✅ Correct!</p>
+                <div className={`p-4 rounded-lg ${selectedAnswerId === correctAnswerIndex ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                  {selectedAnswerId === correctAnswerIndex ? (
+                    <p className="font-semibold">✅ Correct! {quizData.correctFeedback || ''}</p>
                   ) : (
-                    <p className="font-semibold">❌ Not quite right.</p>
+                    <p className="font-semibold">❌ Not quite right. {quizData.incorrectFeedback || ''}</p>
                   )}
                   <p className="mt-2">{quizData.explanation}</p>
                 </div>
@@ -180,7 +210,7 @@ export default function CoursePreview() {
 
           <div className="p-4">
             <h3 className="text-sm font-semibold text-gray-500 uppercase mb-4">Course Content</h3>
-            {docOMaticCourseSections.map((section, sIndex) => (
+            {courseSections.map((section, sIndex) => (
               <div key={section.id} className="mb-4">
                 <h4
                   className={`font-medium mb-2 ${
@@ -391,7 +421,7 @@ export default function CoursePreview() {
               </button>
 
               <div className="flex gap-2">
-                {docOMaticCourseSections.map((_, index) => (
+                {courseSections.map((_, index) => (
                   <div
                     key={index}
                     className={`w-2 h-2 rounded-full ${
@@ -404,7 +434,7 @@ export default function CoursePreview() {
               <button
                 onClick={() => navigateLesson('next')}
                 disabled={
-                  currentSectionIndex === docOMaticCourseSections.length - 1 &&
+                  currentSectionIndex === courseSections.length - 1 &&
                   currentLessonIndex === currentSection.lessons.length - 1
                 }
                 className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"

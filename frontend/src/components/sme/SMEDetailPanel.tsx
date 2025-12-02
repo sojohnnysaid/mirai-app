@@ -12,6 +12,8 @@ interface SMEDetailPanelProps {
   onStartIngestion?: () => void;
   onCancelIngestion?: () => void;
   onDelete?: () => void;
+  onEdit?: () => void;
+  onRestore?: () => void;
 }
 
 const STATUS_CONFIG: Record<number, { label: string; color: string; icon: string }> = {
@@ -31,9 +33,12 @@ export function SMEDetailPanel({
   onStartIngestion,
   onCancelIngestion,
   onDelete,
+  onEdit,
+  onRestore,
 }: SMEDetailPanelProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const status = STATUS_CONFIG[sme.status] || STATUS_CONFIG[0];
+  const isArchived = sme.status === 4; // SME_STATUS_ARCHIVED
 
   return (
     <div className="bg-white shadow rounded-lg">
@@ -160,7 +165,41 @@ export function SMEDetailPanel({
       {/* Actions */}
       <div className="px-4 py-4 sm:px-6 border-t border-gray-200 bg-gray-50">
         <div className="flex flex-wrap gap-3">
-          {onStartIngestion && sme.status !== 2 && (
+          {/* Edit button - only for non-archived items */}
+          {onEdit && !isArchived && (
+            <button
+              onClick={onEdit}
+              className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              <svg className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                />
+              </svg>
+              Edit SME
+            </button>
+          )}
+          {/* Restore button - only for archived items */}
+          {onRestore && isArchived && (
+            <button
+              onClick={onRestore}
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+            >
+              <svg className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                />
+              </svg>
+              Restore SME
+            </button>
+          )}
+          {onStartIngestion && sme.status !== 2 && !isArchived && (
             <button
               onClick={onStartIngestion}
               className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
@@ -176,7 +215,7 @@ export function SMEDetailPanel({
               {sme.knowledgeSummary ? 'Re-ingest Knowledge' : 'Start Ingestion'}
             </button>
           )}
-          {onDelete && (
+          {onDelete && !isArchived && (
             <>
               {showDeleteConfirm ? (
                 <div className="flex items-center gap-2">

@@ -31,6 +31,7 @@ const (
 	GenerationJobType_GENERATION_JOB_TYPE_COURSE_OUTLINE  GenerationJobType = 2 // Generate course outline
 	GenerationJobType_GENERATION_JOB_TYPE_LESSON_CONTENT  GenerationJobType = 3 // Generate content for a lesson
 	GenerationJobType_GENERATION_JOB_TYPE_COMPONENT_REGEN GenerationJobType = 4 // Regenerate single component
+	GenerationJobType_GENERATION_JOB_TYPE_FULL_COURSE     GenerationJobType = 5 // Parent job tracking all lesson generation
 )
 
 // Enum value maps for GenerationJobType.
@@ -41,6 +42,7 @@ var (
 		2: "GENERATION_JOB_TYPE_COURSE_OUTLINE",
 		3: "GENERATION_JOB_TYPE_LESSON_CONTENT",
 		4: "GENERATION_JOB_TYPE_COMPONENT_REGEN",
+		5: "GENERATION_JOB_TYPE_FULL_COURSE",
 	}
 	GenerationJobType_value = map[string]int32{
 		"GENERATION_JOB_TYPE_UNSPECIFIED":     0,
@@ -48,6 +50,7 @@ var (
 		"GENERATION_JOB_TYPE_COURSE_OUTLINE":  2,
 		"GENERATION_JOB_TYPE_LESSON_CONTENT":  3,
 		"GENERATION_JOB_TYPE_COMPONENT_REGEN": 4,
+		"GENERATION_JOB_TYPE_FULL_COURSE":     5,
 	}
 )
 
@@ -333,8 +336,10 @@ type GenerationJob struct {
 	CreatedAt       *timestamppb.Timestamp `protobuf:"bytes,17,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	StartedAt       *timestamppb.Timestamp `protobuf:"bytes,18,opt,name=started_at,json=startedAt,proto3,oneof" json:"started_at,omitempty"`
 	CompletedAt     *timestamppb.Timestamp `protobuf:"bytes,19,opt,name=completed_at,json=completedAt,proto3,oneof" json:"completed_at,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// Parent job ID - links child lesson jobs to parent full_course job
+	ParentJobId   *string `protobuf:"bytes,20,opt,name=parent_job_id,json=parentJobId,proto3,oneof" json:"parent_job_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GenerationJob) Reset() {
@@ -498,6 +503,13 @@ func (x *GenerationJob) GetCompletedAt() *timestamppb.Timestamp {
 		return x.CompletedAt
 	}
 	return nil
+}
+
+func (x *GenerationJob) GetParentJobId() string {
+	if x != nil && x.ParentJobId != nil {
+		return *x.ParentJobId
+	}
+	return ""
 }
 
 // CourseOutline represents the generated course structure.
@@ -2680,7 +2692,7 @@ var File_mirai_v1_ai_generation_proto protoreflect.FileDescriptor
 
 const file_mirai_v1_ai_generation_proto_rawDesc = "" +
 	"\n" +
-	"\x1cmirai/v1/ai_generation.proto\x12\bmirai.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc6\a\n" +
+	"\x1cmirai/v1/ai_generation.proto\x12\bmirai.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x81\b\n" +
 	"\rGenerationJob\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1b\n" +
 	"\ttenant_id\x18\x02 \x01(\tR\btenantId\x12/\n" +
@@ -2707,7 +2719,8 @@ const file_mirai_v1_ai_generation_proto_rawDesc = "" +
 	"created_at\x18\x11 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12>\n" +
 	"\n" +
 	"started_at\x18\x12 \x01(\v2\x1a.google.protobuf.TimestampH\aR\tstartedAt\x88\x01\x01\x12B\n" +
-	"\fcompleted_at\x18\x13 \x01(\v2\x1a.google.protobuf.TimestampH\bR\vcompletedAt\x88\x01\x01B\f\n" +
+	"\fcompleted_at\x18\x13 \x01(\v2\x1a.google.protobuf.TimestampH\bR\vcompletedAt\x88\x01\x01\x12'\n" +
+	"\rparent_job_id\x18\x14 \x01(\tH\tR\vparentJobId\x88\x01\x01B\f\n" +
 	"\n" +
 	"_course_idB\f\n" +
 	"\n" +
@@ -2718,7 +2731,8 @@ const file_mirai_v1_ai_generation_proto_rawDesc = "" +
 	"\f_result_pathB\x10\n" +
 	"\x0e_error_messageB\r\n" +
 	"\v_started_atB\x0f\n" +
-	"\r_completed_at\"\xf8\x03\n" +
+	"\r_completed_atB\x10\n" +
+	"\x0e_parent_job_id\"\xf8\x03\n" +
 	"\rCourseOutline\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1b\n" +
 	"\tcourse_id\x18\x02 \x01(\tR\bcourseId\x12\x18\n" +
@@ -2878,13 +2892,14 @@ const file_mirai_v1_ai_generation_proto_rawDesc = "" +
 	"\x1bListGeneratedLessonsRequest\x12\x1b\n" +
 	"\tcourse_id\x18\x01 \x01(\tR\bcourseId\"S\n" +
 	"\x1cListGeneratedLessonsResponse\x123\n" +
-	"\alessons\x18\x01 \x03(\v2\x19.mirai.v1.GeneratedLessonR\alessons*\xd8\x01\n" +
+	"\alessons\x18\x01 \x03(\v2\x19.mirai.v1.GeneratedLessonR\alessons*\xfd\x01\n" +
 	"\x11GenerationJobType\x12#\n" +
 	"\x1fGENERATION_JOB_TYPE_UNSPECIFIED\x10\x00\x12%\n" +
 	"!GENERATION_JOB_TYPE_SME_INGESTION\x10\x01\x12&\n" +
 	"\"GENERATION_JOB_TYPE_COURSE_OUTLINE\x10\x02\x12&\n" +
 	"\"GENERATION_JOB_TYPE_LESSON_CONTENT\x10\x03\x12'\n" +
-	"#GENERATION_JOB_TYPE_COMPONENT_REGEN\x10\x04*\xf0\x01\n" +
+	"#GENERATION_JOB_TYPE_COMPONENT_REGEN\x10\x04\x12#\n" +
+	"\x1fGENERATION_JOB_TYPE_FULL_COURSE\x10\x05*\xf0\x01\n" +
 	"\x13GenerationJobStatus\x12%\n" +
 	"!GENERATION_JOB_STATUS_UNSPECIFIED\x10\x00\x12 \n" +
 	"\x1cGENERATION_JOB_STATUS_QUEUED\x10\x01\x12$\n" +

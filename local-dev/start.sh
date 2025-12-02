@@ -229,6 +229,7 @@ S3_BUCKET="mirai" \
 S3_BASE_PATH="data" \
 S3_ACCESS_KEY="${MINIO_ACCESS_KEY:-minioadmin}" \
 S3_SECRET_KEY="${MINIO_SECRET_KEY:-minioadmin}" \
+ENCRYPTION_KEY="${ENCRYPTION_KEY:-2b14371652d14b51182e6fa2bf3d782ee06029729fcac805475041eb950c6590}" \
 go run ./cmd/server/main.go &
 BACKEND_PID=$!
 echo $BACKEND_PID >> "$PID_FILE"
@@ -254,12 +255,35 @@ echo -e "  ${BLUE}Frontend:${NC}      http://localhost:3000"
 echo -e "  ${BLUE}Marketing:${NC}     http://localhost:3001"
 echo -e "  ${BLUE}Backend API:${NC}   http://localhost:8080"
 echo -e "  ${BLUE}Kratos Auth:${NC}   http://localhost:4433"
+echo ""
+echo -e "  ${GREEN}--- Monitoring ---${NC}"
+echo -e "  ${BLUE}Dozzle Logs:${NC}   http://localhost:9999"
+echo -e "  ${BLUE}Adminer DB:${NC}    http://localhost:8081"
 echo -e "  ${BLUE}Mailpit:${NC}       http://localhost:8025"
 echo -e "  ${BLUE}MinIO Console:${NC} http://localhost:9001"
+echo ""
+echo -e "  ${GREEN}--- Credentials ---${NC}"
+echo -e "  ${BLUE}Adminer (Mirai DB):${NC}"
+echo -e "    System: PostgreSQL | Server: postgres"
+echo -e "    User: ${YELLOW}mirai${NC} | Pass: ${YELLOW}mirailocal${NC} | DB: ${YELLOW}mirai${NC}"
+echo -e "  ${BLUE}Adminer (Kratos DB):${NC}"
+echo -e "    User: ${YELLOW}kratos${NC} | Pass: ${YELLOW}kratoslocal${NC} | DB: ${YELLOW}kratos${NC}"
+echo -e "  ${BLUE}MinIO:${NC}"
+echo -e "    User: ${YELLOW}${MINIO_ACCESS_KEY:-minioadmin}${NC} | Pass: ${YELLOW}${MINIO_SECRET_KEY:-minioadmin}${NC}"
 echo ""
 echo -e "  Press ${YELLOW}Ctrl+C${NC} to stop all services"
 echo ""
 echo -e "  ${YELLOW}Tip:${NC} Use ${BLUE}./start.sh --rebuild${NC} to rebuild Docker images"
+echo ""
+echo -e "${YELLOW}======================================${NC}"
+echo -e "${YELLOW}  IMPORTANT: Stripe Webhooks         ${NC}"
+echo -e "${YELLOW}======================================${NC}"
+echo ""
+echo -e "  To receive Stripe webhooks locally, run in another terminal:"
+echo ""
+echo -e "  ${BLUE}stripe listen --forward-to localhost:8080/api/v1/billing/webhook${NC}"
+echo ""
+echo -e "  This is required for payment flows (registration, subscription changes)."
 echo ""
 
 # Wait for processes

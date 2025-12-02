@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file mirai/v1/user.proto.
  */
 export const file_mirai_v1_user: GenFile = /*@__PURE__*/
-  fileDesc("ChNtaXJhaS92MS91c2VyLnByb3RvEghtaXJhaS52MSIOCgxHZXRNZVJlcXVlc3QiYgoNR2V0TWVSZXNwb25zZRIcCgR1c2VyGAEgASgLMg4ubWlyYWkudjEuVXNlchInCgdjb21wYW55GAIgASgLMhEubWlyYWkudjEuQ29tcGFueUgAiAEBQgoKCF9jb21wYW55IiEKDkdldFVzZXJSZXF1ZXN0Eg8KB3VzZXJfaWQYASABKAkiLwoPR2V0VXNlclJlc3BvbnNlEhwKBHVzZXIYASABKAsyDi5taXJhaS52MS5Vc2VyIlAKEVVwZGF0ZVVzZXJSZXF1ZXN0Eg8KB3VzZXJfaWQYASABKAkSIQoEcm9sZRgCIAEoDjIOLm1pcmFpLnYxLlJvbGVIAIgBAUIHCgVfcm9sZSIyChJVcGRhdGVVc2VyUmVzcG9uc2USHAoEdXNlchgBIAEoCzIOLm1pcmFpLnYxLlVzZXIy0AEKC1VzZXJTZXJ2aWNlEjgKBUdldE1lEhYubWlyYWkudjEuR2V0TWVSZXF1ZXN0GhcubWlyYWkudjEuR2V0TWVSZXNwb25zZRI+CgdHZXRVc2VyEhgubWlyYWkudjEuR2V0VXNlclJlcXVlc3QaGS5taXJhaS52MS5HZXRVc2VyUmVzcG9uc2USRwoKVXBkYXRlVXNlchIbLm1pcmFpLnYxLlVwZGF0ZVVzZXJSZXF1ZXN0GhwubWlyYWkudjEuVXBkYXRlVXNlclJlc3BvbnNlQo8BCgxjb20ubWlyYWkudjFCCVVzZXJQcm90b1ABWjNnaXRodWIuY29tL3NvZ29zL21pcmFpLWJhY2tlbmQvZ2VuL21pcmFpL3YxO21pcmFpdjGiAgNNWFiqAghNaXJhaS5WMcoCCE1pcmFpXFYx4gIUTWlyYWlcVjFcR1BCTWV0YWRhdGHqAglNaXJhaTo6VjFiBnByb3RvMw", [file_mirai_v1_common]);
+  fileDesc("ChNtaXJhaS92MS91c2VyLnByb3RvEghtaXJhaS52MSIOCgxHZXRNZVJlcXVlc3QiYgoNR2V0TWVSZXNwb25zZRIcCgR1c2VyGAEgASgLMg4ubWlyYWkudjEuVXNlchInCgdjb21wYW55GAIgASgLMhEubWlyYWkudjEuQ29tcGFueUgAiAEBQgoKCF9jb21wYW55IiEKDkdldFVzZXJSZXF1ZXN0Eg8KB3VzZXJfaWQYASABKAkiLwoPR2V0VXNlclJlc3BvbnNlEhwKBHVzZXIYASABKAsyDi5taXJhaS52MS5Vc2VyIlAKEVVwZGF0ZVVzZXJSZXF1ZXN0Eg8KB3VzZXJfaWQYASABKAkSIQoEcm9sZRgCIAEoDjIOLm1pcmFpLnYxLlJvbGVIAIgBAUIHCgVfcm9sZSIyChJVcGRhdGVVc2VyUmVzcG9uc2USHAoEdXNlchgBIAEoCzIOLm1pcmFpLnYxLlVzZXIiGQoXTGlzdENvbXBhbnlVc2Vyc1JlcXVlc3QiOQoYTGlzdENvbXBhbnlVc2Vyc1Jlc3BvbnNlEh0KBXVzZXJzGAEgAygLMg4ubWlyYWkudjEuVXNlcjKrAgoLVXNlclNlcnZpY2USOAoFR2V0TWUSFi5taXJhaS52MS5HZXRNZVJlcXVlc3QaFy5taXJhaS52MS5HZXRNZVJlc3BvbnNlEj4KB0dldFVzZXISGC5taXJhaS52MS5HZXRVc2VyUmVxdWVzdBoZLm1pcmFpLnYxLkdldFVzZXJSZXNwb25zZRJHCgpVcGRhdGVVc2VyEhsubWlyYWkudjEuVXBkYXRlVXNlclJlcXVlc3QaHC5taXJhaS52MS5VcGRhdGVVc2VyUmVzcG9uc2USWQoQTGlzdENvbXBhbnlVc2VycxIhLm1pcmFpLnYxLkxpc3RDb21wYW55VXNlcnNSZXF1ZXN0GiIubWlyYWkudjEuTGlzdENvbXBhbnlVc2Vyc1Jlc3BvbnNlQo8BCgxjb20ubWlyYWkudjFCCVVzZXJQcm90b1ABWjNnaXRodWIuY29tL3NvZ29zL21pcmFpLWJhY2tlbmQvZ2VuL21pcmFpL3YxO21pcmFpdjGiAgNNWFiqAghNaXJhaS5WMcoCCE1pcmFpXFYx4gIUTWlyYWlcVjFcR1BCTWV0YWRhdGHqAglNaXJhaTo6VjFiBnByb3RvMw", [file_mirai_v1_common]);
 
 /**
  * GetMeRequest is empty as user is identified by auth context.
@@ -135,6 +135,40 @@ export const UpdateUserResponseSchema: GenMessage<UpdateUserResponse> = /*@__PUR
   messageDesc(file_mirai_v1_user, 5);
 
 /**
+ * ListCompanyUsersRequest is empty as company is identified by auth context.
+ *
+ * @generated from message mirai.v1.ListCompanyUsersRequest
+ */
+export type ListCompanyUsersRequest = Message<"mirai.v1.ListCompanyUsersRequest"> & {
+};
+
+/**
+ * Describes the message mirai.v1.ListCompanyUsersRequest.
+ * Use `create(ListCompanyUsersRequestSchema)` to create a new message.
+ */
+export const ListCompanyUsersRequestSchema: GenMessage<ListCompanyUsersRequest> = /*@__PURE__*/
+  messageDesc(file_mirai_v1_user, 6);
+
+/**
+ * ListCompanyUsersResponse contains all users in the company.
+ *
+ * @generated from message mirai.v1.ListCompanyUsersResponse
+ */
+export type ListCompanyUsersResponse = Message<"mirai.v1.ListCompanyUsersResponse"> & {
+  /**
+   * @generated from field: repeated mirai.v1.User users = 1;
+   */
+  users: User[];
+};
+
+/**
+ * Describes the message mirai.v1.ListCompanyUsersResponse.
+ * Use `create(ListCompanyUsersResponseSchema)` to create a new message.
+ */
+export const ListCompanyUsersResponseSchema: GenMessage<ListCompanyUsersResponse> = /*@__PURE__*/
+  messageDesc(file_mirai_v1_user, 7);
+
+/**
  * UserService handles user-related operations.
  *
  * @generated from service mirai.v1.UserService
@@ -169,6 +203,16 @@ export const UserService: GenService<{
     methodKind: "unary";
     input: typeof UpdateUserRequestSchema;
     output: typeof UpdateUserResponseSchema;
+  },
+  /**
+   * ListCompanyUsers returns all users in the current user's company.
+   *
+   * @generated from rpc mirai.v1.UserService.ListCompanyUsers
+   */
+  listCompanyUsers: {
+    methodKind: "unary";
+    input: typeof ListCompanyUsersRequestSchema;
+    output: typeof ListCompanyUsersResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_mirai_v1_user, 0);

@@ -31,6 +31,7 @@ import {
   GenerateCourseOutlineRequestSchema,
   ApproveCourseOutlineRequestSchema,
   RejectCourseOutlineRequestSchema,
+  UpdateCourseOutlineRequestSchema,
   GenerateLessonContentRequestSchema,
   GenerateAllLessonsRequestSchema,
   RegenerateComponentRequestSchema,
@@ -170,6 +171,35 @@ export function useRejectCourseOutline() {
 }
 
 /**
+ * Hook to update a course outline.
+ */
+export function useUpdateCourseOutline() {
+  const queryClient = useQueryClient();
+  const mutation = useMutation(updateCourseOutline);
+
+  return {
+    mutate: async (courseId: string, outlineId: string, sections: OutlineSection[]) => {
+      const request = create(UpdateCourseOutlineRequestSchema, {
+        courseId,
+        outlineId,
+        sections,
+      });
+
+      const result = await mutation.mutateAsync(request);
+      await queryClient.invalidateQueries({
+        predicate: (query) =>
+          query.queryKey.some((k) =>
+            typeof k === 'string' && k.includes('getCourseOutline')
+          ),
+      });
+      return result;
+    },
+    isLoading: mutation.isPending,
+    error: mutation.error,
+  };
+}
+
+/**
  * Hook to generate lesson content.
  */
 export function useGenerateLessonContent() {
@@ -259,22 +289,32 @@ export function useRegenerateComponent() {
 
 /**
  * Hook to get a generation job by ID.
+ * @param jobId - The job ID to fetch
+ * @param options - Optional configuration
+ * @param options.enabled - Whether the query is enabled (default: true if jobId is provided)
+ * @param options.refetchInterval - Override auto-polling interval. Set to false to disable auto-polling.
  */
-export function useGetJob(jobId: string | undefined) {
+export function useGetJob(
+  jobId: string | undefined,
+  options?: { enabled?: boolean; refetchInterval?: number | false }
+) {
   const query = useQuery(
     getJob,
     jobId ? { jobId } : undefined,
     {
-      enabled: !!jobId,
-      // Poll every 2 seconds if job is in progress
-      refetchInterval: (data) => {
-        const job = data.state.data?.job;
-        if (job?.status === GenerationJobStatus.QUEUED ||
-            job?.status === GenerationJobStatus.PROCESSING) {
-          return 2000;
-        }
-        return false;
-      },
+      enabled: options?.enabled ?? !!jobId,
+      // Use provided refetchInterval, or default to auto-poll when job is in progress
+      refetchInterval: options?.refetchInterval !== undefined
+        ? options.refetchInterval
+        : (data) => {
+            // Default: poll every 2 seconds if job is in progress
+            const job = data.state.data?.job;
+            if (job?.status === GenerationJobStatus.QUEUED ||
+                job?.status === GenerationJobStatus.PROCESSING) {
+              return 2000;
+            }
+            return false;
+          },
     }
   );
 

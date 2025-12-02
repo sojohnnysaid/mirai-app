@@ -16,14 +16,25 @@ import {
   Bell,
   ChevronLeft,
   ChevronRight,
+  Users,
+  Target,
+  Building2,
 } from 'lucide-react';
+import { useIsAdmin } from '@/hooks/useCurrentUser';
 
-// Export navigation items for reuse in prefetching and mobile components
+// Base navigation items (always visible)
 export const menuItems = [
   { icon: LayoutDashboard, label: 'Content Library', path: '/content-library' },
+  { icon: Users, label: 'SMEs', path: '/smes' },
+  { icon: Target, label: 'Audiences', path: '/target-audiences' },
   { icon: FileText, label: 'Templates', path: '/templates' },
   { icon: BookOpen, label: 'Tutorials', path: '/tutorials' },
   { icon: Settings, label: 'Settings', path: '/settings' },
+];
+
+// Admin-only navigation items
+export const adminMenuItems = [
+  { icon: Building2, label: 'Teams', path: '/teams' },
 ];
 
 export const bottomItems = [
@@ -37,6 +48,12 @@ export default function Sidebar() {
   const { sidebarOpen, mobileSidebarOpen } = useSelector((state: RootState) => state.ui);
   const [showText, setShowText] = useState(sidebarOpen);
   const isMobile = useIsMobile();
+  const { isAdmin } = useIsAdmin();
+
+  // Combine menu items based on user role
+  const visibleMenuItems = isAdmin
+    ? [...menuItems.slice(0, -1), ...adminMenuItems, menuItems[menuItems.length - 1]]
+    : menuItems;
 
   useEffect(() => {
     if (sidebarOpen) {
@@ -99,7 +116,7 @@ export default function Sidebar() {
         </button>
 
         <nav className="sidebar-menu">
-          {menuItems.map((item) => {
+          {visibleMenuItems.map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.path;
 

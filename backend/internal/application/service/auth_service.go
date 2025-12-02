@@ -54,14 +54,26 @@ func NewAuthService(
 	}
 }
 
-// CheckEmailExists checks if an email is already registered.
+// CheckEmailExists checks if an email is already registered in Kratos
+// or has a pending registration awaiting payment.
 func (s *AuthService) CheckEmailExists(ctx context.Context, email string) (bool, error) {
+	// Check Kratos identities (completed registrations)
 	exists, err := s.identity.CheckEmailExists(ctx, email)
 	if err != nil {
-		s.logger.Error("failed to check email exists", "email", email, "error", err)
+		s.logger.Error("failed to check email exists in Kratos", "email", email, "error", err)
 		return false, domainerrors.ErrExternalService.WithCause(err)
 	}
-	return exists, nil
+	if exists {
+		return true, nil
+	}
+
+	// Check pending registrations (awaiting payment)
+	pendingExists, err := s.pendingRegRepo.ExistsByEmail(ctx, email)
+	if err != nil {
+		s.logger.Error("failed to check pending registration exists", "email", email, "error", err)
+		return false, domainerrors.ErrInternal.WithCause(err)
+	}
+	return pendingExists, nil
 }
 
 // Register creates a pending registration and returns the Stripe checkout URL.

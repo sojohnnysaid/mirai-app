@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '@/store';
 import {
@@ -22,6 +22,13 @@ import CourseBlock from './CourseBlock';
 import BlockAlignmentPanel from './BlockAlignmentPanel';
 import DropdownMenu from '@/components/ui/DropdownMenu';
 import { docOMaticCourseBlocks, docOMaticCourseSections } from '@/lib/docOMaticMockData';
+import {
+  useRegenerateComponent,
+  useGetJob,
+  useGetGeneratedLesson,
+  GenerationJobStatus,
+} from '@/hooks/useAIGeneration';
+import { transformRegeneratedComponent } from '@/lib/contentTransform';
 import {
   addCourseBlock,
   updateCourseBlock,
@@ -49,6 +56,64 @@ export default function CourseEditor() {
   const [showAddBlockMenu, setShowAddBlockMenu] = useState(false);
   const [collapsedSummary, setCollapsedSummary] = useState(false);
   const [showMobileStructure, setShowMobileStructure] = useState(false);
+
+  // Block regeneration state
+  const [regeneratingBlockId, setRegeneratingBlockId] = useState<string | null>(null);
+  const [regenerationJobId, setRegenerationJobId] = useState<string | null>(null);
+
+  // Regeneration hooks
+  const regenerateHook = useRegenerateComponent();
+  const { data: currentJob } = useGetJob(regenerationJobId || undefined);
+  const activeBlock = courseBlocks.find(b => b.id === activeBlockId);
+  const { data: lesson, refetch: refetchLesson } = useGetGeneratedLesson(activeBlock?.lessonId);
+
+  // Watch for regeneration job completion
+  useEffect(() => {
+    if (!currentJob || !regenerationJobId || !regeneratingBlockId) return;
+
+    if (currentJob.status === GenerationJobStatus.COMPLETED) {
+      // Job completed - fetch updated lesson
+      refetchLesson().then(() => {
+        const block = courseBlocks.find(b => b.id === regeneratingBlockId);
+        const updatedComponent = lesson?.components.find((c) => c.id === regeneratingBlockId);
+        if (updatedComponent && block) {
+          const newBlock = transformRegeneratedComponent(updatedComponent, block);
+          dispatch(updateCourseBlock({ id: block.id, block: newBlock }));
+        }
+        setRegeneratingBlockId(null);
+        setRegenerationJobId(null);
+      });
+    } else if (currentJob.status === GenerationJobStatus.FAILED) {
+      console.error('Regeneration failed:', currentJob.errorMessage);
+      setRegeneratingBlockId(null);
+      setRegenerationJobId(null);
+    }
+  }, [currentJob, regenerationJobId, regeneratingBlockId, lesson, courseBlocks, dispatch, refetchLesson]);
+
+  // Handle regeneration from BlockAlignmentPanel
+  const handleBlockRegenerate = useCallback(async () => {
+    if (!activeBlock || !course.id || !activeBlock.lessonId) {
+      console.warn('Cannot regenerate: missing courseId or lessonId');
+      return;
+    }
+
+    setRegeneratingBlockId(activeBlock.id);
+    try {
+      const result = await regenerateHook.mutate({
+        courseId: course.id,
+        lessonId: activeBlock.lessonId,
+        componentId: activeBlock.id,
+        modificationPrompt: 'Regenerate this content with the current alignment settings',
+      });
+
+      if (result.job) {
+        setRegenerationJobId(result.job.id);
+      }
+    } catch (error) {
+      console.error('Failed to start regeneration:', error);
+      setRegeneratingBlockId(null);
+    }
+  }, [activeBlock, course.id, regenerateHook]);
 
   // Initialize course blocks from saved course data
   useEffect(() => {
@@ -120,8 +185,6 @@ export default function CourseEditor() {
         return '';
     }
   };
-
-  const activeBlock = courseBlocks.find(b => b.id === activeBlockId);
 
   // Course structure sidebar content (reused in both desktop sidebar and mobile sheet)
   const courseStructureContent = (
@@ -288,6 +351,8 @@ export default function CourseEditor() {
             <CourseBlock
               key={block.id}
               block={block}
+              courseId={course.id}
+              lessonId={block.lessonId}
               onUpdate={handleBlockUpdate}
               onDelete={handleBlockDelete}
               onAlignmentClick={handleAlignmentClick}
@@ -363,9 +428,8 @@ export default function CourseEditor() {
                   setShowAlignmentPanel(false);
                   dispatch(setActiveBlockId(null));
                 }}
-                onRegenerate={() => {
-                  console.log('Regenerating block:', activeBlock.id);
-                }}
+                onRegenerate={handleBlockRegenerate}
+                isRegenerating={regeneratingBlockId === activeBlock.id}
               />
             </div>
           )}
@@ -392,9 +456,8 @@ export default function CourseEditor() {
                 setShowAlignmentPanel(false);
                 dispatch(setActiveBlockId(null));
               }}
-              onRegenerate={() => {
-                console.log('Regenerating block:', activeBlock.id);
-              }}
+              onRegenerate={handleBlockRegenerate}
+              isRegenerating={regeneratingBlockId === activeBlock.id}
             />
           )}
         </BottomSheet>

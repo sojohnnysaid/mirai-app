@@ -11,6 +11,7 @@ enum GenerationJobType {
   GENERATION_JOB_TYPE_COURSE_OUTLINE = 2;     // Generate course outline
   GENERATION_JOB_TYPE_LESSON_CONTENT = 3;     // Generate content for a lesson
   GENERATION_JOB_TYPE_COMPONENT_REGEN = 4;    // Regenerate single component
+  GENERATION_JOB_TYPE_FULL_COURSE = 5;        // Parent job tracking all lesson generation
 }
 
 // GenerationJobStatus represents job state.
@@ -93,6 +94,9 @@ message GenerationJob {
   google.protobuf.Timestamp created_at = 17;
   optional google.protobuf.Timestamp started_at = 18;
   optional google.protobuf.Timestamp completed_at = 19;
+
+  // Parent job ID - links child lesson jobs to parent full_course job
+  optional string parent_job_id = 20;
 }
 
 // CourseOutline represents the generated course structure.

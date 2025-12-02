@@ -51,6 +51,7 @@ export const courseBlockSchema = z.object({
   prompt: z.string().optional(),
   alignment: blockAlignmentSchema.optional(),
   order: z.number(),
+  lessonId: z.string().optional(),
 });
 
 /**

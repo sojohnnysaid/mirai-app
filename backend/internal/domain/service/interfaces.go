@@ -18,6 +18,9 @@ type IdentityProvider interface {
 	// This is used when provisioning accounts from pending registrations.
 	CreateIdentityWithHash(ctx context.Context, req CreateIdentityWithHashRequest) (*Identity, error)
 
+	// GetIdentity retrieves an identity by its ID.
+	GetIdentity(ctx context.Context, identityID string) (*Identity, error)
+
 	// CheckEmailExists checks if an email is already registered.
 	CheckEmailExists(ctx context.Context, email string) (bool, error)
 

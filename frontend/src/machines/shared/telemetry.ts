@@ -67,6 +67,7 @@ export const LMS_TELEMETRY = {
   COURSE_LESSONS_GENERATING: 'lms.course.lessons_generating',
   COURSE_GENERATION_COMPLETED: 'lms.course.generation_completed',
   COURSE_GENERATION_FAILED: 'lms.course.generation_failed',
+  GENERATION_BACKGROUNDED: 'lms.course.generation_backgrounded',
 
   // Component editing events
   COMPONENT_EDIT_STARTED: 'lms.component.edit_started',

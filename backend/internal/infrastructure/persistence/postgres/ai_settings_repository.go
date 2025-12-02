@@ -22,7 +22,17 @@ func NewTenantAISettingsRepository(db *sql.DB) repository.TenantAISettingsReposi
 }
 
 // Get retrieves AI settings for a tenant (creates default if not exists).
+// Uses INSERT ... ON CONFLICT to handle race conditions safely.
 func (r *TenantAISettingsRepository) Get(ctx context.Context, tenantID uuid.UUID) (*entity.TenantAISettings, error) {
+	// First, try to ensure settings exist using upsert (handles race conditions)
+	upsertQuery := `
+		INSERT INTO tenant_ai_settings (tenant_id, provider)
+		VALUES ($1, $2)
+		ON CONFLICT (tenant_id) DO NOTHING
+	`
+	_, _ = r.db.ExecContext(ctx, upsertQuery, tenantID, valueobject.AIProviderGemini.String())
+
+	// Now fetch the settings (will always exist after upsert)
 	query := `
 		SELECT id, tenant_id, provider, encrypted_api_key, total_tokens_used, monthly_token_limit, updated_at, updated_by_user_id
 		FROM tenant_ai_settings
@@ -40,22 +50,6 @@ func (r *TenantAISettingsRepository) Get(ctx context.Context, tenantID uuid.UUID
 		&settings.UpdatedAt,
 		&settings.UpdatedByUserID,
 	)
-	if err == sql.ErrNoRows {
-		// Create default settings
-		settings = &entity.TenantAISettings{
-			TenantID: tenantID,
-			Provider: valueobject.AIProviderGemini,
-		}
-		createQuery := `
-			INSERT INTO tenant_ai_settings (tenant_id, provider)
-			VALUES ($1, $2)
-			RETURNING id, updated_at
-		`
-		if err := r.db.QueryRowContext(ctx, createQuery, tenantID, settings.Provider.String()).Scan(&settings.ID, &settings.UpdatedAt); err != nil {
-			return nil, fmt.Errorf("failed to create default AI settings: %w", err)
-		}
-		return settings, nil
-	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to get AI settings: %w", err)
 	}

@@ -78,6 +78,56 @@ func (ExperienceLevel) EnumDescriptor() ([]byte, []int) {
 	return file_mirai_v1_target_audience_proto_rawDescGZIP(), []int{0}
 }
 
+// TargetAudienceStatus represents the state of a target audience template.
+type TargetAudienceStatus int32
+
+const (
+	TargetAudienceStatus_TARGET_AUDIENCE_STATUS_UNSPECIFIED TargetAudienceStatus = 0
+	TargetAudienceStatus_TARGET_AUDIENCE_STATUS_ACTIVE      TargetAudienceStatus = 1
+	TargetAudienceStatus_TARGET_AUDIENCE_STATUS_ARCHIVED    TargetAudienceStatus = 2
+)
+
+// Enum value maps for TargetAudienceStatus.
+var (
+	TargetAudienceStatus_name = map[int32]string{
+		0: "TARGET_AUDIENCE_STATUS_UNSPECIFIED",
+		1: "TARGET_AUDIENCE_STATUS_ACTIVE",
+		2: "TARGET_AUDIENCE_STATUS_ARCHIVED",
+	}
+	TargetAudienceStatus_value = map[string]int32{
+		"TARGET_AUDIENCE_STATUS_UNSPECIFIED": 0,
+		"TARGET_AUDIENCE_STATUS_ACTIVE":      1,
+		"TARGET_AUDIENCE_STATUS_ARCHIVED":    2,
+	}
+)
+
+func (x TargetAudienceStatus) Enum() *TargetAudienceStatus {
+	p := new(TargetAudienceStatus)
+	*p = x
+	return p
+}
+
+func (x TargetAudienceStatus) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (TargetAudienceStatus) Descriptor() protoreflect.EnumDescriptor {
+	return file_mirai_v1_target_audience_proto_enumTypes[1].Descriptor()
+}
+
+func (TargetAudienceStatus) Type() protoreflect.EnumType {
+	return &file_mirai_v1_target_audience_proto_enumTypes[1]
+}
+
+func (x TargetAudienceStatus) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use TargetAudienceStatus.Descriptor instead.
+func (TargetAudienceStatus) EnumDescriptor() ([]byte, []int) {
+	return file_mirai_v1_target_audience_proto_rawDescGZIP(), []int{1}
+}
+
 // TargetAudienceTemplate represents a reusable learner profile template.
 type TargetAudienceTemplate struct {
 	state       protoimpl.MessageState `protogen:"open.v1"`
@@ -98,6 +148,7 @@ type TargetAudienceTemplate struct {
 	CreatedByUserId   string                 `protobuf:"bytes,14,opt,name=created_by_user_id,json=createdByUserId,proto3" json:"created_by_user_id,omitempty"`
 	CreatedAt         *timestamppb.Timestamp `protobuf:"bytes,15,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	UpdatedAt         *timestamppb.Timestamp `protobuf:"bytes,16,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	Status            TargetAudienceStatus   `protobuf:"varint,17,opt,name=status,proto3,enum=mirai.v1.TargetAudienceStatus" json:"status,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -242,6 +293,13 @@ func (x *TargetAudienceTemplate) GetUpdatedAt() *timestamppb.Timestamp {
 		return x.UpdatedAt
 	}
 	return nil
+}
+
+func (x *TargetAudienceTemplate) GetStatus() TargetAudienceStatus {
+	if x != nil {
+		return x.Status
+	}
+	return TargetAudienceStatus_TARGET_AUDIENCE_STATUS_UNSPECIFIED
 }
 
 // CreateTemplateRequest contains data for a new template.
@@ -496,11 +554,12 @@ func (x *GetTemplateResponse) GetTemplate() *TargetAudienceTemplate {
 	return nil
 }
 
-// ListTemplatesRequest is empty as company is identified by auth context.
+// ListTemplatesRequest contains optional filters.
 type ListTemplatesRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	IncludeArchived *bool                  `protobuf:"varint,1,opt,name=include_archived,json=includeArchived,proto3,oneof" json:"include_archived,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *ListTemplatesRequest) Reset() {
@@ -531,6 +590,13 @@ func (x *ListTemplatesRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use ListTemplatesRequest.ProtoReflect.Descriptor instead.
 func (*ListTemplatesRequest) Descriptor() ([]byte, []int) {
 	return file_mirai_v1_target_audience_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *ListTemplatesRequest) GetIncludeArchived() bool {
+	if x != nil && x.IncludeArchived != nil {
+		return *x.IncludeArchived
+	}
+	return false
 }
 
 // ListTemplatesResponse contains all templates.
@@ -830,11 +896,191 @@ func (*DeleteTemplateResponse) Descriptor() ([]byte, []int) {
 	return file_mirai_v1_target_audience_proto_rawDescGZIP(), []int{10}
 }
 
+// ArchiveTemplateRequest contains the template ID to archive.
+type ArchiveTemplateRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TemplateId    string                 `protobuf:"bytes,1,opt,name=template_id,json=templateId,proto3" json:"template_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ArchiveTemplateRequest) Reset() {
+	*x = ArchiveTemplateRequest{}
+	mi := &file_mirai_v1_target_audience_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ArchiveTemplateRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ArchiveTemplateRequest) ProtoMessage() {}
+
+func (x *ArchiveTemplateRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_mirai_v1_target_audience_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ArchiveTemplateRequest.ProtoReflect.Descriptor instead.
+func (*ArchiveTemplateRequest) Descriptor() ([]byte, []int) {
+	return file_mirai_v1_target_audience_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *ArchiveTemplateRequest) GetTemplateId() string {
+	if x != nil {
+		return x.TemplateId
+	}
+	return ""
+}
+
+// ArchiveTemplateResponse confirms archival.
+type ArchiveTemplateResponse struct {
+	state         protoimpl.MessageState  `protogen:"open.v1"`
+	Template      *TargetAudienceTemplate `protobuf:"bytes,1,opt,name=template,proto3" json:"template,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ArchiveTemplateResponse) Reset() {
+	*x = ArchiveTemplateResponse{}
+	mi := &file_mirai_v1_target_audience_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ArchiveTemplateResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ArchiveTemplateResponse) ProtoMessage() {}
+
+func (x *ArchiveTemplateResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_mirai_v1_target_audience_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ArchiveTemplateResponse.ProtoReflect.Descriptor instead.
+func (*ArchiveTemplateResponse) Descriptor() ([]byte, []int) {
+	return file_mirai_v1_target_audience_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *ArchiveTemplateResponse) GetTemplate() *TargetAudienceTemplate {
+	if x != nil {
+		return x.Template
+	}
+	return nil
+}
+
+// RestoreTemplateRequest contains the template ID to restore.
+type RestoreTemplateRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TemplateId    string                 `protobuf:"bytes,1,opt,name=template_id,json=templateId,proto3" json:"template_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RestoreTemplateRequest) Reset() {
+	*x = RestoreTemplateRequest{}
+	mi := &file_mirai_v1_target_audience_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RestoreTemplateRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RestoreTemplateRequest) ProtoMessage() {}
+
+func (x *RestoreTemplateRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_mirai_v1_target_audience_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RestoreTemplateRequest.ProtoReflect.Descriptor instead.
+func (*RestoreTemplateRequest) Descriptor() ([]byte, []int) {
+	return file_mirai_v1_target_audience_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *RestoreTemplateRequest) GetTemplateId() string {
+	if x != nil {
+		return x.TemplateId
+	}
+	return ""
+}
+
+// RestoreTemplateResponse contains the restored template.
+type RestoreTemplateResponse struct {
+	state         protoimpl.MessageState  `protogen:"open.v1"`
+	Template      *TargetAudienceTemplate `protobuf:"bytes,1,opt,name=template,proto3" json:"template,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RestoreTemplateResponse) Reset() {
+	*x = RestoreTemplateResponse{}
+	mi := &file_mirai_v1_target_audience_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RestoreTemplateResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RestoreTemplateResponse) ProtoMessage() {}
+
+func (x *RestoreTemplateResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_mirai_v1_target_audience_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RestoreTemplateResponse.ProtoReflect.Descriptor instead.
+func (*RestoreTemplateResponse) Descriptor() ([]byte, []int) {
+	return file_mirai_v1_target_audience_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *RestoreTemplateResponse) GetTemplate() *TargetAudienceTemplate {
+	if x != nil {
+		return x.Template
+	}
+	return nil
+}
+
 var File_mirai_v1_target_audience_proto protoreflect.FileDescriptor
 
 const file_mirai_v1_target_audience_proto_rawDesc = "" +
 	"\n" +
-	"\x1emirai/v1/target_audience.proto\x12\bmirai.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xb6\x05\n" +
+	"\x1emirai/v1/target_audience.proto\x12\bmirai.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xee\x05\n" +
 	"\x16TargetAudienceTemplate\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1b\n" +
 	"\ttenant_id\x18\x02 \x01(\tR\btenantId\x12\x1d\n" +
@@ -857,7 +1103,8 @@ const file_mirai_v1_target_audience_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\x0f \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\x10 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAtB\x13\n" +
+	"updated_at\x18\x10 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x126\n" +
+	"\x06status\x18\x11 \x01(\x0e2\x1e.mirai.v1.TargetAudienceStatusR\x06statusB\x13\n" +
 	"\x11_industry_contextB\x15\n" +
 	"\x13_typical_background\"\xc6\x03\n" +
 	"\x15CreateTemplateRequest\x12\x12\n" +
@@ -882,8 +1129,10 @@ const file_mirai_v1_target_audience_proto_rawDesc = "" +
 	"\vtemplate_id\x18\x01 \x01(\tR\n" +
 	"templateId\"S\n" +
 	"\x13GetTemplateResponse\x12<\n" +
-	"\btemplate\x18\x01 \x01(\v2 .mirai.v1.TargetAudienceTemplateR\btemplate\"\x16\n" +
-	"\x14ListTemplatesRequest\"W\n" +
+	"\btemplate\x18\x01 \x01(\v2 .mirai.v1.TargetAudienceTemplateR\btemplate\"[\n" +
+	"\x14ListTemplatesRequest\x12.\n" +
+	"\x10include_archived\x18\x01 \x01(\bH\x00R\x0fincludeArchived\x88\x01\x01B\x13\n" +
+	"\x11_include_archived\"W\n" +
 	"\x15ListTemplatesResponse\x12>\n" +
 	"\ttemplates\x18\x01 \x03(\v2 .mirai.v1.TargetAudienceTemplateR\ttemplates\"\xb2\x04\n" +
 	"\x15UpdateTemplateRequest\x12\x1f\n" +
@@ -913,19 +1162,35 @@ const file_mirai_v1_target_audience_proto_rawDesc = "" +
 	"\x15DeleteTemplateRequest\x12\x1f\n" +
 	"\vtemplate_id\x18\x01 \x01(\tR\n" +
 	"templateId\"\x18\n" +
-	"\x16DeleteTemplateResponse*\xb1\x01\n" +
+	"\x16DeleteTemplateResponse\"9\n" +
+	"\x16ArchiveTemplateRequest\x12\x1f\n" +
+	"\vtemplate_id\x18\x01 \x01(\tR\n" +
+	"templateId\"W\n" +
+	"\x17ArchiveTemplateResponse\x12<\n" +
+	"\btemplate\x18\x01 \x01(\v2 .mirai.v1.TargetAudienceTemplateR\btemplate\"9\n" +
+	"\x16RestoreTemplateRequest\x12\x1f\n" +
+	"\vtemplate_id\x18\x01 \x01(\tR\n" +
+	"templateId\"W\n" +
+	"\x17RestoreTemplateResponse\x12<\n" +
+	"\btemplate\x18\x01 \x01(\v2 .mirai.v1.TargetAudienceTemplateR\btemplate*\xb1\x01\n" +
 	"\x0fExperienceLevel\x12 \n" +
 	"\x1cEXPERIENCE_LEVEL_UNSPECIFIED\x10\x00\x12\x1d\n" +
 	"\x19EXPERIENCE_LEVEL_BEGINNER\x10\x01\x12!\n" +
 	"\x1dEXPERIENCE_LEVEL_INTERMEDIATE\x10\x02\x12\x1d\n" +
 	"\x19EXPERIENCE_LEVEL_ADVANCED\x10\x03\x12\x1b\n" +
-	"\x17EXPERIENCE_LEVEL_EXPERT\x10\x042\xb4\x03\n" +
+	"\x17EXPERIENCE_LEVEL_EXPERT\x10\x04*\x86\x01\n" +
+	"\x14TargetAudienceStatus\x12&\n" +
+	"\"TARGET_AUDIENCE_STATUS_UNSPECIFIED\x10\x00\x12!\n" +
+	"\x1dTARGET_AUDIENCE_STATUS_ACTIVE\x10\x01\x12#\n" +
+	"\x1fTARGET_AUDIENCE_STATUS_ARCHIVED\x10\x022\xe4\x04\n" +
 	"\x15TargetAudienceService\x12S\n" +
 	"\x0eCreateTemplate\x12\x1f.mirai.v1.CreateTemplateRequest\x1a .mirai.v1.CreateTemplateResponse\x12J\n" +
 	"\vGetTemplate\x12\x1c.mirai.v1.GetTemplateRequest\x1a\x1d.mirai.v1.GetTemplateResponse\x12P\n" +
 	"\rListTemplates\x12\x1e.mirai.v1.ListTemplatesRequest\x1a\x1f.mirai.v1.ListTemplatesResponse\x12S\n" +
 	"\x0eUpdateTemplate\x12\x1f.mirai.v1.UpdateTemplateRequest\x1a .mirai.v1.UpdateTemplateResponse\x12S\n" +
-	"\x0eDeleteTemplate\x12\x1f.mirai.v1.DeleteTemplateRequest\x1a .mirai.v1.DeleteTemplateResponseB\x99\x01\n" +
+	"\x0eDeleteTemplate\x12\x1f.mirai.v1.DeleteTemplateRequest\x1a .mirai.v1.DeleteTemplateResponse\x12V\n" +
+	"\x0fArchiveTemplate\x12 .mirai.v1.ArchiveTemplateRequest\x1a!.mirai.v1.ArchiveTemplateResponse\x12V\n" +
+	"\x0fRestoreTemplate\x12 .mirai.v1.RestoreTemplateRequest\x1a!.mirai.v1.RestoreTemplateResponseB\x99\x01\n" +
 	"\fcom.mirai.v1B\x13TargetAudienceProtoP\x01Z3github.com/sogos/mirai-backend/gen/mirai/v1;miraiv1\xa2\x02\x03MXX\xaa\x02\bMirai.V1\xca\x02\bMirai\\V1\xe2\x02\x14Mirai\\V1\\GPBMetadata\xea\x02\tMirai::V1b\x06proto3"
 
 var (
@@ -940,48 +1205,60 @@ func file_mirai_v1_target_audience_proto_rawDescGZIP() []byte {
 	return file_mirai_v1_target_audience_proto_rawDescData
 }
 
-var file_mirai_v1_target_audience_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_mirai_v1_target_audience_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_mirai_v1_target_audience_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+var file_mirai_v1_target_audience_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
 var file_mirai_v1_target_audience_proto_goTypes = []any{
-	(ExperienceLevel)(0),           // 0: mirai.v1.ExperienceLevel
-	(*TargetAudienceTemplate)(nil), // 1: mirai.v1.TargetAudienceTemplate
-	(*CreateTemplateRequest)(nil),  // 2: mirai.v1.CreateTemplateRequest
-	(*CreateTemplateResponse)(nil), // 3: mirai.v1.CreateTemplateResponse
-	(*GetTemplateRequest)(nil),     // 4: mirai.v1.GetTemplateRequest
-	(*GetTemplateResponse)(nil),    // 5: mirai.v1.GetTemplateResponse
-	(*ListTemplatesRequest)(nil),   // 6: mirai.v1.ListTemplatesRequest
-	(*ListTemplatesResponse)(nil),  // 7: mirai.v1.ListTemplatesResponse
-	(*UpdateTemplateRequest)(nil),  // 8: mirai.v1.UpdateTemplateRequest
-	(*UpdateTemplateResponse)(nil), // 9: mirai.v1.UpdateTemplateResponse
-	(*DeleteTemplateRequest)(nil),  // 10: mirai.v1.DeleteTemplateRequest
-	(*DeleteTemplateResponse)(nil), // 11: mirai.v1.DeleteTemplateResponse
-	(*timestamppb.Timestamp)(nil),  // 12: google.protobuf.Timestamp
+	(ExperienceLevel)(0),            // 0: mirai.v1.ExperienceLevel
+	(TargetAudienceStatus)(0),       // 1: mirai.v1.TargetAudienceStatus
+	(*TargetAudienceTemplate)(nil),  // 2: mirai.v1.TargetAudienceTemplate
+	(*CreateTemplateRequest)(nil),   // 3: mirai.v1.CreateTemplateRequest
+	(*CreateTemplateResponse)(nil),  // 4: mirai.v1.CreateTemplateResponse
+	(*GetTemplateRequest)(nil),      // 5: mirai.v1.GetTemplateRequest
+	(*GetTemplateResponse)(nil),     // 6: mirai.v1.GetTemplateResponse
+	(*ListTemplatesRequest)(nil),    // 7: mirai.v1.ListTemplatesRequest
+	(*ListTemplatesResponse)(nil),   // 8: mirai.v1.ListTemplatesResponse
+	(*UpdateTemplateRequest)(nil),   // 9: mirai.v1.UpdateTemplateRequest
+	(*UpdateTemplateResponse)(nil),  // 10: mirai.v1.UpdateTemplateResponse
+	(*DeleteTemplateRequest)(nil),   // 11: mirai.v1.DeleteTemplateRequest
+	(*DeleteTemplateResponse)(nil),  // 12: mirai.v1.DeleteTemplateResponse
+	(*ArchiveTemplateRequest)(nil),  // 13: mirai.v1.ArchiveTemplateRequest
+	(*ArchiveTemplateResponse)(nil), // 14: mirai.v1.ArchiveTemplateResponse
+	(*RestoreTemplateRequest)(nil),  // 15: mirai.v1.RestoreTemplateRequest
+	(*RestoreTemplateResponse)(nil), // 16: mirai.v1.RestoreTemplateResponse
+	(*timestamppb.Timestamp)(nil),   // 17: google.protobuf.Timestamp
 }
 var file_mirai_v1_target_audience_proto_depIdxs = []int32{
 	0,  // 0: mirai.v1.TargetAudienceTemplate.experience_level:type_name -> mirai.v1.ExperienceLevel
-	12, // 1: mirai.v1.TargetAudienceTemplate.created_at:type_name -> google.protobuf.Timestamp
-	12, // 2: mirai.v1.TargetAudienceTemplate.updated_at:type_name -> google.protobuf.Timestamp
-	0,  // 3: mirai.v1.CreateTemplateRequest.experience_level:type_name -> mirai.v1.ExperienceLevel
-	1,  // 4: mirai.v1.CreateTemplateResponse.template:type_name -> mirai.v1.TargetAudienceTemplate
-	1,  // 5: mirai.v1.GetTemplateResponse.template:type_name -> mirai.v1.TargetAudienceTemplate
-	1,  // 6: mirai.v1.ListTemplatesResponse.templates:type_name -> mirai.v1.TargetAudienceTemplate
-	0,  // 7: mirai.v1.UpdateTemplateRequest.experience_level:type_name -> mirai.v1.ExperienceLevel
-	1,  // 8: mirai.v1.UpdateTemplateResponse.template:type_name -> mirai.v1.TargetAudienceTemplate
-	2,  // 9: mirai.v1.TargetAudienceService.CreateTemplate:input_type -> mirai.v1.CreateTemplateRequest
-	4,  // 10: mirai.v1.TargetAudienceService.GetTemplate:input_type -> mirai.v1.GetTemplateRequest
-	6,  // 11: mirai.v1.TargetAudienceService.ListTemplates:input_type -> mirai.v1.ListTemplatesRequest
-	8,  // 12: mirai.v1.TargetAudienceService.UpdateTemplate:input_type -> mirai.v1.UpdateTemplateRequest
-	10, // 13: mirai.v1.TargetAudienceService.DeleteTemplate:input_type -> mirai.v1.DeleteTemplateRequest
-	3,  // 14: mirai.v1.TargetAudienceService.CreateTemplate:output_type -> mirai.v1.CreateTemplateResponse
-	5,  // 15: mirai.v1.TargetAudienceService.GetTemplate:output_type -> mirai.v1.GetTemplateResponse
-	7,  // 16: mirai.v1.TargetAudienceService.ListTemplates:output_type -> mirai.v1.ListTemplatesResponse
-	9,  // 17: mirai.v1.TargetAudienceService.UpdateTemplate:output_type -> mirai.v1.UpdateTemplateResponse
-	11, // 18: mirai.v1.TargetAudienceService.DeleteTemplate:output_type -> mirai.v1.DeleteTemplateResponse
-	14, // [14:19] is the sub-list for method output_type
-	9,  // [9:14] is the sub-list for method input_type
-	9,  // [9:9] is the sub-list for extension type_name
-	9,  // [9:9] is the sub-list for extension extendee
-	0,  // [0:9] is the sub-list for field type_name
+	17, // 1: mirai.v1.TargetAudienceTemplate.created_at:type_name -> google.protobuf.Timestamp
+	17, // 2: mirai.v1.TargetAudienceTemplate.updated_at:type_name -> google.protobuf.Timestamp
+	1,  // 3: mirai.v1.TargetAudienceTemplate.status:type_name -> mirai.v1.TargetAudienceStatus
+	0,  // 4: mirai.v1.CreateTemplateRequest.experience_level:type_name -> mirai.v1.ExperienceLevel
+	2,  // 5: mirai.v1.CreateTemplateResponse.template:type_name -> mirai.v1.TargetAudienceTemplate
+	2,  // 6: mirai.v1.GetTemplateResponse.template:type_name -> mirai.v1.TargetAudienceTemplate
+	2,  // 7: mirai.v1.ListTemplatesResponse.templates:type_name -> mirai.v1.TargetAudienceTemplate
+	0,  // 8: mirai.v1.UpdateTemplateRequest.experience_level:type_name -> mirai.v1.ExperienceLevel
+	2,  // 9: mirai.v1.UpdateTemplateResponse.template:type_name -> mirai.v1.TargetAudienceTemplate
+	2,  // 10: mirai.v1.ArchiveTemplateResponse.template:type_name -> mirai.v1.TargetAudienceTemplate
+	2,  // 11: mirai.v1.RestoreTemplateResponse.template:type_name -> mirai.v1.TargetAudienceTemplate
+	3,  // 12: mirai.v1.TargetAudienceService.CreateTemplate:input_type -> mirai.v1.CreateTemplateRequest
+	5,  // 13: mirai.v1.TargetAudienceService.GetTemplate:input_type -> mirai.v1.GetTemplateRequest
+	7,  // 14: mirai.v1.TargetAudienceService.ListTemplates:input_type -> mirai.v1.ListTemplatesRequest
+	9,  // 15: mirai.v1.TargetAudienceService.UpdateTemplate:input_type -> mirai.v1.UpdateTemplateRequest
+	11, // 16: mirai.v1.TargetAudienceService.DeleteTemplate:input_type -> mirai.v1.DeleteTemplateRequest
+	13, // 17: mirai.v1.TargetAudienceService.ArchiveTemplate:input_type -> mirai.v1.ArchiveTemplateRequest
+	15, // 18: mirai.v1.TargetAudienceService.RestoreTemplate:input_type -> mirai.v1.RestoreTemplateRequest
+	4,  // 19: mirai.v1.TargetAudienceService.CreateTemplate:output_type -> mirai.v1.CreateTemplateResponse
+	6,  // 20: mirai.v1.TargetAudienceService.GetTemplate:output_type -> mirai.v1.GetTemplateResponse
+	8,  // 21: mirai.v1.TargetAudienceService.ListTemplates:output_type -> mirai.v1.ListTemplatesResponse
+	10, // 22: mirai.v1.TargetAudienceService.UpdateTemplate:output_type -> mirai.v1.UpdateTemplateResponse
+	12, // 23: mirai.v1.TargetAudienceService.DeleteTemplate:output_type -> mirai.v1.DeleteTemplateResponse
+	14, // 24: mirai.v1.TargetAudienceService.ArchiveTemplate:output_type -> mirai.v1.ArchiveTemplateResponse
+	16, // 25: mirai.v1.TargetAudienceService.RestoreTemplate:output_type -> mirai.v1.RestoreTemplateResponse
+	19, // [19:26] is the sub-list for method output_type
+	12, // [12:19] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_mirai_v1_target_audience_proto_init() }
@@ -991,14 +1268,15 @@ func file_mirai_v1_target_audience_proto_init() {
 	}
 	file_mirai_v1_target_audience_proto_msgTypes[0].OneofWrappers = []any{}
 	file_mirai_v1_target_audience_proto_msgTypes[1].OneofWrappers = []any{}
+	file_mirai_v1_target_audience_proto_msgTypes[5].OneofWrappers = []any{}
 	file_mirai_v1_target_audience_proto_msgTypes[7].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_mirai_v1_target_audience_proto_rawDesc), len(file_mirai_v1_target_audience_proto_rawDesc)),
-			NumEnums:      1,
-			NumMessages:   11,
+			NumEnums:      2,
+			NumMessages:   15,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -29,6 +29,12 @@ type StorageAdapter interface {
 
 	// GenerateDownloadURL generates a presigned URL for downloads.
 	GenerateDownloadURL(ctx context.Context, path string, expiry time.Duration) (string, error)
+
+	// GetContent retrieves raw file content from storage.
+	GetContent(ctx context.Context, path string) ([]byte, error)
+
+	// PutContent stores raw content to storage.
+	PutContent(ctx context.Context, path string, content []byte, contentType string) error
 }
 
 // TenantStorage provides tenant-aware storage operations.

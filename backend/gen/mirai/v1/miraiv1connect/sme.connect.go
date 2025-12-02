@@ -43,6 +43,8 @@ const (
 	SMEServiceUpdateSMEProcedure = "/mirai.v1.SMEService/UpdateSME"
 	// SMEServiceDeleteSMEProcedure is the fully-qualified name of the SMEService's DeleteSME RPC.
 	SMEServiceDeleteSMEProcedure = "/mirai.v1.SMEService/DeleteSME"
+	// SMEServiceRestoreSMEProcedure is the fully-qualified name of the SMEService's RestoreSME RPC.
+	SMEServiceRestoreSMEProcedure = "/mirai.v1.SMEService/RestoreSME"
 	// SMEServiceCreateTaskProcedure is the fully-qualified name of the SMEService's CreateTask RPC.
 	SMEServiceCreateTaskProcedure = "/mirai.v1.SMEService/CreateTask"
 	// SMEServiceGetTaskProcedure is the fully-qualified name of the SMEService's GetTask RPC.
@@ -78,8 +80,10 @@ type SMEServiceClient interface {
 	ListSMEs(context.Context, *connect.Request[v1.ListSMEsRequest]) (*connect.Response[v1.ListSMEsResponse], error)
 	// UpdateSME updates an SME entity.
 	UpdateSME(context.Context, *connect.Request[v1.UpdateSMERequest]) (*connect.Response[v1.UpdateSMEResponse], error)
-	// DeleteSME deletes an SME entity.
+	// DeleteSME archives an SME entity (soft delete).
 	DeleteSME(context.Context, *connect.Request[v1.DeleteSMERequest]) (*connect.Response[v1.DeleteSMEResponse], error)
+	// RestoreSME restores an archived SME entity.
+	RestoreSME(context.Context, *connect.Request[v1.RestoreSMERequest]) (*connect.Response[v1.RestoreSMEResponse], error)
 	// CreateTask creates a delegated task for content submission.
 	CreateTask(context.Context, *connect.Request[v1.CreateTaskRequest]) (*connect.Response[v1.CreateTaskResponse], error)
 	// GetTask returns a specific task by ID.
@@ -141,6 +145,12 @@ func NewSMEServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...
 			httpClient,
 			baseURL+SMEServiceDeleteSMEProcedure,
 			connect.WithSchema(sMEServiceMethods.ByName("DeleteSME")),
+			connect.WithClientOptions(opts...),
+		),
+		restoreSME: connect.NewClient[v1.RestoreSMERequest, v1.RestoreSMEResponse](
+			httpClient,
+			baseURL+SMEServiceRestoreSMEProcedure,
+			connect.WithSchema(sMEServiceMethods.ByName("RestoreSME")),
 			connect.WithClientOptions(opts...),
 		),
 		createTask: connect.NewClient[v1.CreateTaskRequest, v1.CreateTaskResponse](
@@ -213,6 +223,7 @@ type sMEServiceClient struct {
 	listSMEs        *connect.Client[v1.ListSMEsRequest, v1.ListSMEsResponse]
 	updateSME       *connect.Client[v1.UpdateSMERequest, v1.UpdateSMEResponse]
 	deleteSME       *connect.Client[v1.DeleteSMERequest, v1.DeleteSMEResponse]
+	restoreSME      *connect.Client[v1.RestoreSMERequest, v1.RestoreSMEResponse]
 	createTask      *connect.Client[v1.CreateTaskRequest, v1.CreateTaskResponse]
 	getTask         *connect.Client[v1.GetTaskRequest, v1.GetTaskResponse]
 	listTasks       *connect.Client[v1.ListTasksRequest, v1.ListTasksResponse]
@@ -248,6 +259,11 @@ func (c *sMEServiceClient) UpdateSME(ctx context.Context, req *connect.Request[v
 // DeleteSME calls mirai.v1.SMEService.DeleteSME.
 func (c *sMEServiceClient) DeleteSME(ctx context.Context, req *connect.Request[v1.DeleteSMERequest]) (*connect.Response[v1.DeleteSMEResponse], error) {
 	return c.deleteSME.CallUnary(ctx, req)
+}
+
+// RestoreSME calls mirai.v1.SMEService.RestoreSME.
+func (c *sMEServiceClient) RestoreSME(ctx context.Context, req *connect.Request[v1.RestoreSMERequest]) (*connect.Response[v1.RestoreSMEResponse], error) {
+	return c.restoreSME.CallUnary(ctx, req)
 }
 
 // CreateTask calls mirai.v1.SMEService.CreateTask.
@@ -310,8 +326,10 @@ type SMEServiceHandler interface {
 	ListSMEs(context.Context, *connect.Request[v1.ListSMEsRequest]) (*connect.Response[v1.ListSMEsResponse], error)
 	// UpdateSME updates an SME entity.
 	UpdateSME(context.Context, *connect.Request[v1.UpdateSMERequest]) (*connect.Response[v1.UpdateSMEResponse], error)
-	// DeleteSME deletes an SME entity.
+	// DeleteSME archives an SME entity (soft delete).
 	DeleteSME(context.Context, *connect.Request[v1.DeleteSMERequest]) (*connect.Response[v1.DeleteSMEResponse], error)
+	// RestoreSME restores an archived SME entity.
+	RestoreSME(context.Context, *connect.Request[v1.RestoreSMERequest]) (*connect.Response[v1.RestoreSMEResponse], error)
 	// CreateTask creates a delegated task for content submission.
 	CreateTask(context.Context, *connect.Request[v1.CreateTaskRequest]) (*connect.Response[v1.CreateTaskResponse], error)
 	// GetTask returns a specific task by ID.
@@ -369,6 +387,12 @@ func NewSMEServiceHandler(svc SMEServiceHandler, opts ...connect.HandlerOption) 
 		SMEServiceDeleteSMEProcedure,
 		svc.DeleteSME,
 		connect.WithSchema(sMEServiceMethods.ByName("DeleteSME")),
+		connect.WithHandlerOptions(opts...),
+	)
+	sMEServiceRestoreSMEHandler := connect.NewUnaryHandler(
+		SMEServiceRestoreSMEProcedure,
+		svc.RestoreSME,
+		connect.WithSchema(sMEServiceMethods.ByName("RestoreSME")),
 		connect.WithHandlerOptions(opts...),
 	)
 	sMEServiceCreateTaskHandler := connect.NewUnaryHandler(
@@ -443,6 +467,8 @@ func NewSMEServiceHandler(svc SMEServiceHandler, opts ...connect.HandlerOption) 
 			sMEServiceUpdateSMEHandler.ServeHTTP(w, r)
 		case SMEServiceDeleteSMEProcedure:
 			sMEServiceDeleteSMEHandler.ServeHTTP(w, r)
+		case SMEServiceRestoreSMEProcedure:
+			sMEServiceRestoreSMEHandler.ServeHTTP(w, r)
 		case SMEServiceCreateTaskProcedure:
 			sMEServiceCreateTaskHandler.ServeHTTP(w, r)
 		case SMEServiceGetTaskProcedure:
@@ -490,6 +516,10 @@ func (UnimplementedSMEServiceHandler) UpdateSME(context.Context, *connect.Reques
 
 func (UnimplementedSMEServiceHandler) DeleteSME(context.Context, *connect.Request[v1.DeleteSMERequest]) (*connect.Response[v1.DeleteSMEResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("mirai.v1.SMEService.DeleteSME is not implemented"))
+}
+
+func (UnimplementedSMEServiceHandler) RestoreSME(context.Context, *connect.Request[v1.RestoreSMERequest]) (*connect.Response[v1.RestoreSMEResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("mirai.v1.SMEService.RestoreSME is not implemented"))
 }
 
 func (UnimplementedSMEServiceHandler) CreateTask(context.Context, *connect.Request[v1.CreateTaskRequest]) (*connect.Response[v1.CreateTaskResponse], error) {

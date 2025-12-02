@@ -11,8 +11,11 @@ interface TargetAudienceListProps {
   onCreate: () => void;
   onEdit?: (template: TargetAudienceTemplate) => void;
   onDelete?: (template: TargetAudienceTemplate) => void;
+  onRestore?: (template: TargetAudienceTemplate) => void;
   selectedIds?: string[];
   selectionMode?: boolean;
+  showArchived?: boolean;
+  onToggleArchived?: (show: boolean) => void;
 }
 
 type SortBy = 'name' | 'createdAt' | 'experienceLevel';
@@ -32,8 +35,11 @@ export function TargetAudienceList({
   onCreate,
   onEdit,
   onDelete,
+  onRestore,
   selectedIds = [],
   selectionMode = false,
+  showArchived = false,
+  onToggleArchived,
 }: TargetAudienceListProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [experienceFilter, setExperienceFilter] = useState<string>('all');
@@ -120,7 +126,7 @@ export function TargetAudienceList({
       )}
 
       {/* Filters */}
-      <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Search */}
         <div className="relative">
           <svg
@@ -185,6 +191,19 @@ export function TargetAudienceList({
             )}
           </button>
         </div>
+
+        {/* Show Archived Toggle */}
+        {onToggleArchived && (
+          <label className="flex items-center gap-2 px-4 py-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={showArchived}
+              onChange={(e) => onToggleArchived(e.target.checked)}
+              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+            />
+            <span className="text-sm text-gray-700">Show archived</span>
+          </label>
+        )}
       </div>
 
       {/* Selection Info */}
@@ -211,6 +230,7 @@ export function TargetAudienceList({
               onSelect={() => onSelect(template)}
               onEdit={onEdit ? () => onEdit(template) : undefined}
               onDelete={onDelete ? () => onDelete(template) : undefined}
+              onRestore={onRestore ? () => onRestore(template) : undefined}
               isSelected={selectedIds.includes(template.id)}
             />
           ))}

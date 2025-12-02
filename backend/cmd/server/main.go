@@ -11,6 +11,8 @@ import (
 	// Infrastructure
 	"github.com/sogos/mirai-backend/internal/infrastructure/cache"
 	"github.com/sogos/mirai-backend/internal/infrastructure/config"
+	"github.com/sogos/mirai-backend/internal/infrastructure/crypto"
+	"github.com/sogos/mirai-backend/internal/infrastructure/external/gemini"
 	"github.com/sogos/mirai-backend/internal/infrastructure/external/kratos"
 	"github.com/sogos/mirai-backend/internal/infrastructure/external/smtp"
 	"github.com/sogos/mirai-backend/internal/infrastructure/external/stripe"
@@ -59,6 +61,26 @@ func main() {
 	pendingRegRepo := postgres.NewPendingRegistrationRepository(db.DB)
 	courseRepo := postgres.NewCourseRepository(db.DB)
 	folderRepo := postgres.NewFolderRepository(db.DB)
+
+	// SME repositories
+	smeRepo := postgres.NewSMERepository(db.DB)
+	smeTaskRepo := postgres.NewSMETaskRepository(db.DB)
+	smeSubmissionRepo := postgres.NewSMESubmissionRepository(db.DB)
+	smeKnowledgeRepo := postgres.NewSMEKnowledgeRepository(db.DB)
+
+	// Target Audience repository
+	targetAudienceRepo := postgres.NewTargetAudienceRepository(db.DB)
+
+	// AI & Generation repositories
+	aiSettingsRepo := postgres.NewTenantAISettingsRepository(db.DB)
+	notificationRepo := postgres.NewNotificationRepository(db.DB)
+	outlineRepo := postgres.NewCourseOutlineRepository(db.DB)
+	sectionRepo := postgres.NewOutlineSectionRepository(db.DB)
+	lessonRepo := postgres.NewOutlineLessonRepository(db.DB)
+	genLessonRepo := postgres.NewGeneratedLessonRepository(db.DB)
+	componentRepo := postgres.NewLessonComponentRepository(db.DB)
+	genInputRepo := postgres.NewCourseGenerationInputRepository(db.DB)
+	generationJobRepo := postgres.NewGenerationJobRepository(db.DB)
 
 	// Initialize shared HTTP client
 	httpClient := httputil.NewClient()
@@ -112,6 +134,20 @@ func main() {
 	// Initialize cache for CourseService
 	courseCache := cache.NewNoOpCache() // Use NoOpCache for local dev (Redis in production)
 
+	// Initialize encryptor for API key encryption (optional for development)
+	var encryptor *crypto.Encryptor
+	if cfg.EncryptionKey != "" {
+		var err error
+		encryptor, err = crypto.NewEncryptor(cfg.EncryptionKey)
+		if err != nil {
+			logger.Error("failed to initialize encryptor", "error", err)
+			os.Exit(1)
+		}
+		logger.Info("encryption configured for API keys")
+	} else {
+		logger.Warn("ENCRYPTION_KEY not configured, AI features requiring API keys will not work")
+	}
+
 	// Initialize application services
 	authService := service.NewAuthService(userRepo, companyRepo, invitationRepo, pendingRegRepo, kratosClient, stripeClient, logger, cfg.FrontendURL, cfg.MarketingURL, cfg.BackendURL)
 	billingService := service.NewBillingService(userRepo, companyRepo, stripeClient, logger, cfg.FrontendURL)
@@ -121,26 +157,87 @@ func main() {
 	invitationService := service.NewInvitationService(userRepo, companyRepo, invitationRepo, stripeClient, emailClient, logger, cfg.FrontendURL)
 	courseService := service.NewCourseService(courseRepo, folderRepo, userRepo, tenantStorage, courseCache, logger)
 
+	// Notification service (created first for dependency injection)
+	notificationService := service.NewNotificationService(userRepo, notificationRepo, kratosClient, emailClient, cfg.FrontendURL, logger)
+
+	// SME and Target Audience services
+	smeService := service.NewSMEService(userRepo, companyRepo, teamRepo, smeRepo, smeTaskRepo, smeSubmissionRepo, smeKnowledgeRepo, tenantStorage, notificationService, logger)
+	targetAudienceService := service.NewTargetAudienceService(userRepo, targetAudienceRepo, logger)
+
+	// AI services (require encryptor)
+	var tenantSettingsService *service.TenantSettingsService
+	var aiGenerationService *service.AIGenerationService
+	var smeIngestionService *service.SMEIngestionService
+	if encryptor != nil {
+		tenantSettingsService = service.NewTenantSettingsService(userRepo, aiSettingsRepo, encryptor, logger)
+
+		// Create Gemini provider factory for per-tenant API key management
+		geminiProviderFactory := gemini.NewProviderFactory(tenantSettingsService, logger)
+
+		// AI Generation service
+		aiGenerationService = service.NewAIGenerationService(
+			userRepo,
+			smeRepo,
+			smeKnowledgeRepo,
+			targetAudienceRepo,
+			generationJobRepo,
+			outlineRepo,
+			sectionRepo,
+			lessonRepo,
+			genLessonRepo,
+			componentRepo,
+			genInputRepo,
+			aiSettingsRepo,
+			geminiProviderFactory,
+			notificationService, // For tenant-isolated job notifications
+			notificationService, // For course completion notifications (implements CourseCompletionNotifier)
+			logger,
+		)
+
+		// SME Ingestion service
+		smeIngestionService = service.NewSMEIngestionService(
+			smeRepo,
+			smeTaskRepo,
+			smeSubmissionRepo,
+			smeKnowledgeRepo,
+			generationJobRepo,
+			aiSettingsRepo,
+			tenantStorage,
+			geminiProviderFactory,
+			notificationService,
+			logger,
+		)
+
+		logger.Info("AI services initialized")
+	} else {
+		logger.Warn("AI services not initialized (encryption key required)")
+	}
+
 	// Background services for deferred account provisioning
 	provisioningService := service.NewProvisioningService(pendingRegRepo, tenantRepo, userRepo, companyRepo, kratosClient, emailClient, logger, cfg.FrontendURL)
 	cleanupService := service.NewCleanupService(pendingRegRepo, logger)
 
 	// Create Connect server mux
 	mux := connectserver.NewServeMux(connectserver.ServerConfig{
-		AuthService:       authService,
-		UserService:       userService,
-		CompanyService:    companyService,
-		TeamService:       teamService,
-		BillingService:    billingService,
-		InvitationService: invitationService,
-		CourseService:     courseService,
-		PendingRegRepo:    pendingRegRepo,
-		UserRepo:          userRepo, // For tenant context in auth interceptor
-		Identity:          kratosClient,
-		Payments:          stripeClient,
-		Logger:            logger,
-		AllowedOrigin:     cfg.AllowedOrigin,
-		FrontendURL:       cfg.FrontendURL,
+		AuthService:           authService,
+		UserService:           userService,
+		CompanyService:        companyService,
+		TeamService:           teamService,
+		BillingService:        billingService,
+		InvitationService:     invitationService,
+		CourseService:         courseService,
+		SMEService:            smeService,
+		TargetAudienceService: targetAudienceService,
+		TenantSettingsService: tenantSettingsService,
+		NotificationService:   notificationService,
+		AIGenerationService:   aiGenerationService,
+		PendingRegRepo:        pendingRegRepo,
+		UserRepo:              userRepo, // For tenant context in auth interceptor
+		Identity:              kratosClient,
+		Payments:              stripeClient,
+		Logger:                logger,
+		AllowedOrigin:         cfg.AllowedOrigin,
+		FrontendURL:           cfg.FrontendURL,
 	})
 
 	// Wrap with CORS middleware
@@ -163,6 +260,16 @@ func main() {
 
 	// Start background job: cleanup expired registrations every hour
 	go cleanupService.RunBackground(bgCtx, 1*time.Hour)
+
+	// Start AI background workers (only if AI services are initialized)
+	if aiGenerationService != nil {
+		go aiGenerationService.RunBackground(bgCtx, 5*time.Second)
+		logger.Info("AI generation worker started")
+	}
+	if smeIngestionService != nil {
+		go smeIngestionService.RunBackground(bgCtx, 5*time.Second)
+		logger.Info("SME ingestion worker started")
+	}
 
 	// Start server in goroutine
 	go func() {

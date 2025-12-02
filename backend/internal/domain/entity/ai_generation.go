@@ -47,9 +47,12 @@ type GenerationJob struct {
 	SMETaskID    *uuid.UUID
 	SubmissionID *uuid.UUID
 
+	// Parent job ID - links child lesson jobs to parent full_course job
+	ParentJobID *uuid.UUID
+
 	// Progress tracking
-	ProgressPercent  int32
-	ProgressMessage  *string
+	ProgressPercent int32
+	ProgressMessage *string
 
 	// Results
 	ResultPath   *string // S3 path to result JSON

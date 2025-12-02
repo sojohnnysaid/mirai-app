@@ -1010,12 +1010,13 @@ func (x *GetSMEResponse) GetSme() *SubjectMatterExpert {
 
 // ListSMEsRequest contains optional filters.
 type ListSMEsRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Scope         *SMEScope              `protobuf:"varint,1,opt,name=scope,proto3,enum=mirai.v1.SMEScope,oneof" json:"scope,omitempty"`
-	Status        *SMEStatus             `protobuf:"varint,2,opt,name=status,proto3,enum=mirai.v1.SMEStatus,oneof" json:"status,omitempty"`
-	TeamId        *string                `protobuf:"bytes,3,opt,name=team_id,json=teamId,proto3,oneof" json:"team_id,omitempty"` // Filter by team access
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Scope           *SMEScope              `protobuf:"varint,1,opt,name=scope,proto3,enum=mirai.v1.SMEScope,oneof" json:"scope,omitempty"`
+	Status          *SMEStatus             `protobuf:"varint,2,opt,name=status,proto3,enum=mirai.v1.SMEStatus,oneof" json:"status,omitempty"`
+	TeamId          *string                `protobuf:"bytes,3,opt,name=team_id,json=teamId,proto3,oneof" json:"team_id,omitempty"` // Filter by team access
+	IncludeArchived *bool                  `protobuf:"varint,4,opt,name=include_archived,json=includeArchived,proto3,oneof" json:"include_archived,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *ListSMEsRequest) Reset() {
@@ -1067,6 +1068,13 @@ func (x *ListSMEsRequest) GetTeamId() string {
 		return *x.TeamId
 	}
 	return ""
+}
+
+func (x *ListSMEsRequest) GetIncludeArchived() bool {
+	if x != nil && x.IncludeArchived != nil {
+		return *x.IncludeArchived
+	}
+	return false
 }
 
 // ListSMEsResponse contains SMEs matching the filters.
@@ -1334,6 +1342,96 @@ func (*DeleteSMEResponse) Descriptor() ([]byte, []int) {
 	return file_mirai_v1_sme_proto_rawDescGZIP(), []int{13}
 }
 
+// RestoreSMERequest contains the SME ID to restore.
+type RestoreSMERequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SmeId         string                 `protobuf:"bytes,1,opt,name=sme_id,json=smeId,proto3" json:"sme_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RestoreSMERequest) Reset() {
+	*x = RestoreSMERequest{}
+	mi := &file_mirai_v1_sme_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RestoreSMERequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RestoreSMERequest) ProtoMessage() {}
+
+func (x *RestoreSMERequest) ProtoReflect() protoreflect.Message {
+	mi := &file_mirai_v1_sme_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RestoreSMERequest.ProtoReflect.Descriptor instead.
+func (*RestoreSMERequest) Descriptor() ([]byte, []int) {
+	return file_mirai_v1_sme_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *RestoreSMERequest) GetSmeId() string {
+	if x != nil {
+		return x.SmeId
+	}
+	return ""
+}
+
+// RestoreSMEResponse contains the restored SME.
+type RestoreSMEResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Sme           *SubjectMatterExpert   `protobuf:"bytes,1,opt,name=sme,proto3" json:"sme,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RestoreSMEResponse) Reset() {
+	*x = RestoreSMEResponse{}
+	mi := &file_mirai_v1_sme_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RestoreSMEResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RestoreSMEResponse) ProtoMessage() {}
+
+func (x *RestoreSMEResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_mirai_v1_sme_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RestoreSMEResponse.ProtoReflect.Descriptor instead.
+func (*RestoreSMEResponse) Descriptor() ([]byte, []int) {
+	return file_mirai_v1_sme_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *RestoreSMEResponse) GetSme() *SubjectMatterExpert {
+	if x != nil {
+		return x.Sme
+	}
+	return nil
+}
+
 // CreateTaskRequest contains data for a new task.
 type CreateTaskRequest struct {
 	state               protoimpl.MessageState `protogen:"open.v1"`
@@ -1350,7 +1448,7 @@ type CreateTaskRequest struct {
 
 func (x *CreateTaskRequest) Reset() {
 	*x = CreateTaskRequest{}
-	mi := &file_mirai_v1_sme_proto_msgTypes[14]
+	mi := &file_mirai_v1_sme_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1362,7 +1460,7 @@ func (x *CreateTaskRequest) String() string {
 func (*CreateTaskRequest) ProtoMessage() {}
 
 func (x *CreateTaskRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_mirai_v1_sme_proto_msgTypes[14]
+	mi := &file_mirai_v1_sme_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1375,7 +1473,7 @@ func (x *CreateTaskRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateTaskRequest.ProtoReflect.Descriptor instead.
 func (*CreateTaskRequest) Descriptor() ([]byte, []int) {
-	return file_mirai_v1_sme_proto_rawDescGZIP(), []int{14}
+	return file_mirai_v1_sme_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *CreateTaskRequest) GetSmeId() string {
@@ -1437,7 +1535,7 @@ type CreateTaskResponse struct {
 
 func (x *CreateTaskResponse) Reset() {
 	*x = CreateTaskResponse{}
-	mi := &file_mirai_v1_sme_proto_msgTypes[15]
+	mi := &file_mirai_v1_sme_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1449,7 +1547,7 @@ func (x *CreateTaskResponse) String() string {
 func (*CreateTaskResponse) ProtoMessage() {}
 
 func (x *CreateTaskResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_mirai_v1_sme_proto_msgTypes[15]
+	mi := &file_mirai_v1_sme_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1462,7 +1560,7 @@ func (x *CreateTaskResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateTaskResponse.ProtoReflect.Descriptor instead.
 func (*CreateTaskResponse) Descriptor() ([]byte, []int) {
-	return file_mirai_v1_sme_proto_rawDescGZIP(), []int{15}
+	return file_mirai_v1_sme_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *CreateTaskResponse) GetTask() *SMETask {
@@ -1482,7 +1580,7 @@ type GetTaskRequest struct {
 
 func (x *GetTaskRequest) Reset() {
 	*x = GetTaskRequest{}
-	mi := &file_mirai_v1_sme_proto_msgTypes[16]
+	mi := &file_mirai_v1_sme_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1494,7 +1592,7 @@ func (x *GetTaskRequest) String() string {
 func (*GetTaskRequest) ProtoMessage() {}
 
 func (x *GetTaskRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_mirai_v1_sme_proto_msgTypes[16]
+	mi := &file_mirai_v1_sme_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1507,7 +1605,7 @@ func (x *GetTaskRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTaskRequest.ProtoReflect.Descriptor instead.
 func (*GetTaskRequest) Descriptor() ([]byte, []int) {
-	return file_mirai_v1_sme_proto_rawDescGZIP(), []int{16}
+	return file_mirai_v1_sme_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *GetTaskRequest) GetTaskId() string {
@@ -1527,7 +1625,7 @@ type GetTaskResponse struct {
 
 func (x *GetTaskResponse) Reset() {
 	*x = GetTaskResponse{}
-	mi := &file_mirai_v1_sme_proto_msgTypes[17]
+	mi := &file_mirai_v1_sme_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1539,7 +1637,7 @@ func (x *GetTaskResponse) String() string {
 func (*GetTaskResponse) ProtoMessage() {}
 
 func (x *GetTaskResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_mirai_v1_sme_proto_msgTypes[17]
+	mi := &file_mirai_v1_sme_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1552,7 +1650,7 @@ func (x *GetTaskResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTaskResponse.ProtoReflect.Descriptor instead.
 func (*GetTaskResponse) Descriptor() ([]byte, []int) {
-	return file_mirai_v1_sme_proto_rawDescGZIP(), []int{17}
+	return file_mirai_v1_sme_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *GetTaskResponse) GetTask() *SMETask {
@@ -1574,7 +1672,7 @@ type ListTasksRequest struct {
 
 func (x *ListTasksRequest) Reset() {
 	*x = ListTasksRequest{}
-	mi := &file_mirai_v1_sme_proto_msgTypes[18]
+	mi := &file_mirai_v1_sme_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1586,7 +1684,7 @@ func (x *ListTasksRequest) String() string {
 func (*ListTasksRequest) ProtoMessage() {}
 
 func (x *ListTasksRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_mirai_v1_sme_proto_msgTypes[18]
+	mi := &file_mirai_v1_sme_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1599,7 +1697,7 @@ func (x *ListTasksRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListTasksRequest.ProtoReflect.Descriptor instead.
 func (*ListTasksRequest) Descriptor() ([]byte, []int) {
-	return file_mirai_v1_sme_proto_rawDescGZIP(), []int{18}
+	return file_mirai_v1_sme_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *ListTasksRequest) GetSmeId() string {
@@ -1633,7 +1731,7 @@ type ListTasksResponse struct {
 
 func (x *ListTasksResponse) Reset() {
 	*x = ListTasksResponse{}
-	mi := &file_mirai_v1_sme_proto_msgTypes[19]
+	mi := &file_mirai_v1_sme_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1645,7 +1743,7 @@ func (x *ListTasksResponse) String() string {
 func (*ListTasksResponse) ProtoMessage() {}
 
 func (x *ListTasksResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_mirai_v1_sme_proto_msgTypes[19]
+	mi := &file_mirai_v1_sme_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1658,7 +1756,7 @@ func (x *ListTasksResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListTasksResponse.ProtoReflect.Descriptor instead.
 func (*ListTasksResponse) Descriptor() ([]byte, []int) {
-	return file_mirai_v1_sme_proto_rawDescGZIP(), []int{19}
+	return file_mirai_v1_sme_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *ListTasksResponse) GetTasks() []*SMETask {
@@ -1682,7 +1780,7 @@ type UpdateTaskRequest struct {
 
 func (x *UpdateTaskRequest) Reset() {
 	*x = UpdateTaskRequest{}
-	mi := &file_mirai_v1_sme_proto_msgTypes[20]
+	mi := &file_mirai_v1_sme_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1694,7 +1792,7 @@ func (x *UpdateTaskRequest) String() string {
 func (*UpdateTaskRequest) ProtoMessage() {}
 
 func (x *UpdateTaskRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_mirai_v1_sme_proto_msgTypes[20]
+	mi := &file_mirai_v1_sme_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1707,7 +1805,7 @@ func (x *UpdateTaskRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateTaskRequest.ProtoReflect.Descriptor instead.
 func (*UpdateTaskRequest) Descriptor() ([]byte, []int) {
-	return file_mirai_v1_sme_proto_rawDescGZIP(), []int{20}
+	return file_mirai_v1_sme_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *UpdateTaskRequest) GetTaskId() string {
@@ -1755,7 +1853,7 @@ type UpdateTaskResponse struct {
 
 func (x *UpdateTaskResponse) Reset() {
 	*x = UpdateTaskResponse{}
-	mi := &file_mirai_v1_sme_proto_msgTypes[21]
+	mi := &file_mirai_v1_sme_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1767,7 +1865,7 @@ func (x *UpdateTaskResponse) String() string {
 func (*UpdateTaskResponse) ProtoMessage() {}
 
 func (x *UpdateTaskResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_mirai_v1_sme_proto_msgTypes[21]
+	mi := &file_mirai_v1_sme_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1780,7 +1878,7 @@ func (x *UpdateTaskResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateTaskResponse.ProtoReflect.Descriptor instead.
 func (*UpdateTaskResponse) Descriptor() ([]byte, []int) {
-	return file_mirai_v1_sme_proto_rawDescGZIP(), []int{21}
+	return file_mirai_v1_sme_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *UpdateTaskResponse) GetTask() *SMETask {
@@ -1800,7 +1898,7 @@ type CancelTaskRequest struct {
 
 func (x *CancelTaskRequest) Reset() {
 	*x = CancelTaskRequest{}
-	mi := &file_mirai_v1_sme_proto_msgTypes[22]
+	mi := &file_mirai_v1_sme_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1812,7 +1910,7 @@ func (x *CancelTaskRequest) String() string {
 func (*CancelTaskRequest) ProtoMessage() {}
 
 func (x *CancelTaskRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_mirai_v1_sme_proto_msgTypes[22]
+	mi := &file_mirai_v1_sme_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1825,7 +1923,7 @@ func (x *CancelTaskRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CancelTaskRequest.ProtoReflect.Descriptor instead.
 func (*CancelTaskRequest) Descriptor() ([]byte, []int) {
-	return file_mirai_v1_sme_proto_rawDescGZIP(), []int{22}
+	return file_mirai_v1_sme_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *CancelTaskRequest) GetTaskId() string {
@@ -1845,7 +1943,7 @@ type CancelTaskResponse struct {
 
 func (x *CancelTaskResponse) Reset() {
 	*x = CancelTaskResponse{}
-	mi := &file_mirai_v1_sme_proto_msgTypes[23]
+	mi := &file_mirai_v1_sme_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1857,7 +1955,7 @@ func (x *CancelTaskResponse) String() string {
 func (*CancelTaskResponse) ProtoMessage() {}
 
 func (x *CancelTaskResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_mirai_v1_sme_proto_msgTypes[23]
+	mi := &file_mirai_v1_sme_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1870,7 +1968,7 @@ func (x *CancelTaskResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CancelTaskResponse.ProtoReflect.Descriptor instead.
 func (*CancelTaskResponse) Descriptor() ([]byte, []int) {
-	return file_mirai_v1_sme_proto_rawDescGZIP(), []int{23}
+	return file_mirai_v1_sme_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *CancelTaskResponse) GetTask() *SMETask {
@@ -1893,7 +1991,7 @@ type GetUploadURLRequest struct {
 
 func (x *GetUploadURLRequest) Reset() {
 	*x = GetUploadURLRequest{}
-	mi := &file_mirai_v1_sme_proto_msgTypes[24]
+	mi := &file_mirai_v1_sme_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1905,7 +2003,7 @@ func (x *GetUploadURLRequest) String() string {
 func (*GetUploadURLRequest) ProtoMessage() {}
 
 func (x *GetUploadURLRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_mirai_v1_sme_proto_msgTypes[24]
+	mi := &file_mirai_v1_sme_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1918,7 +2016,7 @@ func (x *GetUploadURLRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetUploadURLRequest.ProtoReflect.Descriptor instead.
 func (*GetUploadURLRequest) Descriptor() ([]byte, []int) {
-	return file_mirai_v1_sme_proto_rawDescGZIP(), []int{24}
+	return file_mirai_v1_sme_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *GetUploadURLRequest) GetTaskId() string {
@@ -1961,7 +2059,7 @@ type GetUploadURLResponse struct {
 
 func (x *GetUploadURLResponse) Reset() {
 	*x = GetUploadURLResponse{}
-	mi := &file_mirai_v1_sme_proto_msgTypes[25]
+	mi := &file_mirai_v1_sme_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1973,7 +2071,7 @@ func (x *GetUploadURLResponse) String() string {
 func (*GetUploadURLResponse) ProtoMessage() {}
 
 func (x *GetUploadURLResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_mirai_v1_sme_proto_msgTypes[25]
+	mi := &file_mirai_v1_sme_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1986,7 +2084,7 @@ func (x *GetUploadURLResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetUploadURLResponse.ProtoReflect.Descriptor instead.
 func (*GetUploadURLResponse) Descriptor() ([]byte, []int) {
-	return file_mirai_v1_sme_proto_rawDescGZIP(), []int{25}
+	return file_mirai_v1_sme_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *GetUploadURLResponse) GetUploadUrl() string {
@@ -2024,7 +2122,7 @@ type SubmitContentRequest struct {
 
 func (x *SubmitContentRequest) Reset() {
 	*x = SubmitContentRequest{}
-	mi := &file_mirai_v1_sme_proto_msgTypes[26]
+	mi := &file_mirai_v1_sme_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2036,7 +2134,7 @@ func (x *SubmitContentRequest) String() string {
 func (*SubmitContentRequest) ProtoMessage() {}
 
 func (x *SubmitContentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_mirai_v1_sme_proto_msgTypes[26]
+	mi := &file_mirai_v1_sme_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2049,7 +2147,7 @@ func (x *SubmitContentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SubmitContentRequest.ProtoReflect.Descriptor instead.
 func (*SubmitContentRequest) Descriptor() ([]byte, []int) {
-	return file_mirai_v1_sme_proto_rawDescGZIP(), []int{26}
+	return file_mirai_v1_sme_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *SubmitContentRequest) GetTaskId() string {
@@ -2097,7 +2195,7 @@ type SubmitContentResponse struct {
 
 func (x *SubmitContentResponse) Reset() {
 	*x = SubmitContentResponse{}
-	mi := &file_mirai_v1_sme_proto_msgTypes[27]
+	mi := &file_mirai_v1_sme_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2109,7 +2207,7 @@ func (x *SubmitContentResponse) String() string {
 func (*SubmitContentResponse) ProtoMessage() {}
 
 func (x *SubmitContentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_mirai_v1_sme_proto_msgTypes[27]
+	mi := &file_mirai_v1_sme_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2122,7 +2220,7 @@ func (x *SubmitContentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SubmitContentResponse.ProtoReflect.Descriptor instead.
 func (*SubmitContentResponse) Descriptor() ([]byte, []int) {
-	return file_mirai_v1_sme_proto_rawDescGZIP(), []int{27}
+	return file_mirai_v1_sme_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *SubmitContentResponse) GetSubmission() *SMETaskSubmission {
@@ -2142,7 +2240,7 @@ type ListSubmissionsRequest struct {
 
 func (x *ListSubmissionsRequest) Reset() {
 	*x = ListSubmissionsRequest{}
-	mi := &file_mirai_v1_sme_proto_msgTypes[28]
+	mi := &file_mirai_v1_sme_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2154,7 +2252,7 @@ func (x *ListSubmissionsRequest) String() string {
 func (*ListSubmissionsRequest) ProtoMessage() {}
 
 func (x *ListSubmissionsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_mirai_v1_sme_proto_msgTypes[28]
+	mi := &file_mirai_v1_sme_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2167,7 +2265,7 @@ func (x *ListSubmissionsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListSubmissionsRequest.ProtoReflect.Descriptor instead.
 func (*ListSubmissionsRequest) Descriptor() ([]byte, []int) {
-	return file_mirai_v1_sme_proto_rawDescGZIP(), []int{28}
+	return file_mirai_v1_sme_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *ListSubmissionsRequest) GetTaskId() string {
@@ -2187,7 +2285,7 @@ type ListSubmissionsResponse struct {
 
 func (x *ListSubmissionsResponse) Reset() {
 	*x = ListSubmissionsResponse{}
-	mi := &file_mirai_v1_sme_proto_msgTypes[29]
+	mi := &file_mirai_v1_sme_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2199,7 +2297,7 @@ func (x *ListSubmissionsResponse) String() string {
 func (*ListSubmissionsResponse) ProtoMessage() {}
 
 func (x *ListSubmissionsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_mirai_v1_sme_proto_msgTypes[29]
+	mi := &file_mirai_v1_sme_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2212,7 +2310,7 @@ func (x *ListSubmissionsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListSubmissionsResponse.ProtoReflect.Descriptor instead.
 func (*ListSubmissionsResponse) Descriptor() ([]byte, []int) {
-	return file_mirai_v1_sme_proto_rawDescGZIP(), []int{29}
+	return file_mirai_v1_sme_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *ListSubmissionsResponse) GetSubmissions() []*SMETaskSubmission {
@@ -2232,7 +2330,7 @@ type GetKnowledgeRequest struct {
 
 func (x *GetKnowledgeRequest) Reset() {
 	*x = GetKnowledgeRequest{}
-	mi := &file_mirai_v1_sme_proto_msgTypes[30]
+	mi := &file_mirai_v1_sme_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2244,7 +2342,7 @@ func (x *GetKnowledgeRequest) String() string {
 func (*GetKnowledgeRequest) ProtoMessage() {}
 
 func (x *GetKnowledgeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_mirai_v1_sme_proto_msgTypes[30]
+	mi := &file_mirai_v1_sme_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2257,7 +2355,7 @@ func (x *GetKnowledgeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetKnowledgeRequest.ProtoReflect.Descriptor instead.
 func (*GetKnowledgeRequest) Descriptor() ([]byte, []int) {
-	return file_mirai_v1_sme_proto_rawDescGZIP(), []int{30}
+	return file_mirai_v1_sme_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *GetKnowledgeRequest) GetSmeId() string {
@@ -2278,7 +2376,7 @@ type GetKnowledgeResponse struct {
 
 func (x *GetKnowledgeResponse) Reset() {
 	*x = GetKnowledgeResponse{}
-	mi := &file_mirai_v1_sme_proto_msgTypes[31]
+	mi := &file_mirai_v1_sme_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2290,7 +2388,7 @@ func (x *GetKnowledgeResponse) String() string {
 func (*GetKnowledgeResponse) ProtoMessage() {}
 
 func (x *GetKnowledgeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_mirai_v1_sme_proto_msgTypes[31]
+	mi := &file_mirai_v1_sme_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2303,7 +2401,7 @@ func (x *GetKnowledgeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetKnowledgeResponse.ProtoReflect.Descriptor instead.
 func (*GetKnowledgeResponse) Descriptor() ([]byte, []int) {
-	return file_mirai_v1_sme_proto_rawDescGZIP(), []int{31}
+	return file_mirai_v1_sme_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *GetKnowledgeResponse) GetSme() *SubjectMatterExpert {
@@ -2332,7 +2430,7 @@ type SearchKnowledgeRequest struct {
 
 func (x *SearchKnowledgeRequest) Reset() {
 	*x = SearchKnowledgeRequest{}
-	mi := &file_mirai_v1_sme_proto_msgTypes[32]
+	mi := &file_mirai_v1_sme_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2344,7 +2442,7 @@ func (x *SearchKnowledgeRequest) String() string {
 func (*SearchKnowledgeRequest) ProtoMessage() {}
 
 func (x *SearchKnowledgeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_mirai_v1_sme_proto_msgTypes[32]
+	mi := &file_mirai_v1_sme_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2357,7 +2455,7 @@ func (x *SearchKnowledgeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SearchKnowledgeRequest.ProtoReflect.Descriptor instead.
 func (*SearchKnowledgeRequest) Descriptor() ([]byte, []int) {
-	return file_mirai_v1_sme_proto_rawDescGZIP(), []int{32}
+	return file_mirai_v1_sme_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *SearchKnowledgeRequest) GetSmeIds() []string {
@@ -2391,7 +2489,7 @@ type SearchKnowledgeResponse struct {
 
 func (x *SearchKnowledgeResponse) Reset() {
 	*x = SearchKnowledgeResponse{}
-	mi := &file_mirai_v1_sme_proto_msgTypes[33]
+	mi := &file_mirai_v1_sme_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2403,7 +2501,7 @@ func (x *SearchKnowledgeResponse) String() string {
 func (*SearchKnowledgeResponse) ProtoMessage() {}
 
 func (x *SearchKnowledgeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_mirai_v1_sme_proto_msgTypes[33]
+	mi := &file_mirai_v1_sme_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2416,7 +2514,7 @@ func (x *SearchKnowledgeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SearchKnowledgeResponse.ProtoReflect.Descriptor instead.
 func (*SearchKnowledgeResponse) Descriptor() ([]byte, []int) {
-	return file_mirai_v1_sme_proto_rawDescGZIP(), []int{33}
+	return file_mirai_v1_sme_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *SearchKnowledgeResponse) GetChunks() []*SMEKnowledgeChunk {
@@ -2516,15 +2614,17 @@ const file_mirai_v1_sme_proto_rawDesc = "" +
 	"\rGetSMERequest\x12\x15\n" +
 	"\x06sme_id\x18\x01 \x01(\tR\x05smeId\"A\n" +
 	"\x0eGetSMEResponse\x12/\n" +
-	"\x03sme\x18\x01 \x01(\v2\x1d.mirai.v1.SubjectMatterExpertR\x03sme\"\xb1\x01\n" +
+	"\x03sme\x18\x01 \x01(\v2\x1d.mirai.v1.SubjectMatterExpertR\x03sme\"\xf6\x01\n" +
 	"\x0fListSMEsRequest\x12-\n" +
 	"\x05scope\x18\x01 \x01(\x0e2\x12.mirai.v1.SMEScopeH\x00R\x05scope\x88\x01\x01\x120\n" +
 	"\x06status\x18\x02 \x01(\x0e2\x13.mirai.v1.SMEStatusH\x01R\x06status\x88\x01\x01\x12\x1c\n" +
-	"\ateam_id\x18\x03 \x01(\tH\x02R\x06teamId\x88\x01\x01B\b\n" +
+	"\ateam_id\x18\x03 \x01(\tH\x02R\x06teamId\x88\x01\x01\x12.\n" +
+	"\x10include_archived\x18\x04 \x01(\bH\x03R\x0fincludeArchived\x88\x01\x01B\b\n" +
 	"\x06_scopeB\t\n" +
 	"\a_statusB\n" +
 	"\n" +
-	"\b_team_id\"E\n" +
+	"\b_team_idB\x13\n" +
+	"\x11_include_archived\"E\n" +
 	"\x10ListSMEsResponse\x121\n" +
 	"\x04smes\x18\x01 \x03(\v2\x1d.mirai.v1.SubjectMatterExpertR\x04smes\"\xbb\x02\n" +
 	"\x10UpdateSMERequest\x12\x15\n" +
@@ -2544,7 +2644,11 @@ const file_mirai_v1_sme_proto_rawDesc = "" +
 	"\x03sme\x18\x01 \x01(\v2\x1d.mirai.v1.SubjectMatterExpertR\x03sme\")\n" +
 	"\x10DeleteSMERequest\x12\x15\n" +
 	"\x06sme_id\x18\x01 \x01(\tR\x05smeId\"\x13\n" +
-	"\x11DeleteSMEResponse\"\xcf\x02\n" +
+	"\x11DeleteSMEResponse\"*\n" +
+	"\x11RestoreSMERequest\x12\x15\n" +
+	"\x06sme_id\x18\x01 \x01(\tR\x05smeId\"E\n" +
+	"\x12RestoreSMEResponse\x12/\n" +
+	"\x03sme\x18\x01 \x01(\v2\x1d.mirai.v1.SubjectMatterExpertR\x03sme\"\xcf\x02\n" +
 	"\x11CreateTaskRequest\x12\x15\n" +
 	"\x06sme_id\x18\x01 \x01(\tR\x05smeId\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12 \n" +
@@ -2648,7 +2752,7 @@ const file_mirai_v1_sme_proto_rawDesc = "" +
 	"\x12CONTENT_TYPE_VIDEO\x10\x03\x12\x16\n" +
 	"\x12CONTENT_TYPE_AUDIO\x10\x04\x12\x14\n" +
 	"\x10CONTENT_TYPE_URL\x10\x05\x12\x15\n" +
-	"\x11CONTENT_TYPE_TEXT\x10\x062\xdf\b\n" +
+	"\x11CONTENT_TYPE_TEXT\x10\x062\xa8\t\n" +
 	"\n" +
 	"SMEService\x12D\n" +
 	"\tCreateSME\x12\x1a.mirai.v1.CreateSMERequest\x1a\x1b.mirai.v1.CreateSMEResponse\x12;\n" +
@@ -2656,6 +2760,8 @@ const file_mirai_v1_sme_proto_rawDesc = "" +
 	"\bListSMEs\x12\x19.mirai.v1.ListSMEsRequest\x1a\x1a.mirai.v1.ListSMEsResponse\x12D\n" +
 	"\tUpdateSME\x12\x1a.mirai.v1.UpdateSMERequest\x1a\x1b.mirai.v1.UpdateSMEResponse\x12D\n" +
 	"\tDeleteSME\x12\x1a.mirai.v1.DeleteSMERequest\x1a\x1b.mirai.v1.DeleteSMEResponse\x12G\n" +
+	"\n" +
+	"RestoreSME\x12\x1b.mirai.v1.RestoreSMERequest\x1a\x1c.mirai.v1.RestoreSMEResponse\x12G\n" +
 	"\n" +
 	"CreateTask\x12\x1b.mirai.v1.CreateTaskRequest\x1a\x1c.mirai.v1.CreateTaskResponse\x12>\n" +
 	"\aGetTask\x12\x18.mirai.v1.GetTaskRequest\x1a\x19.mirai.v1.GetTaskResponse\x12D\n" +
@@ -2684,7 +2790,7 @@ func file_mirai_v1_sme_proto_rawDescGZIP() []byte {
 }
 
 var file_mirai_v1_sme_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
-var file_mirai_v1_sme_proto_msgTypes = make([]protoimpl.MessageInfo, 34)
+var file_mirai_v1_sme_proto_msgTypes = make([]protoimpl.MessageInfo, 36)
 var file_mirai_v1_sme_proto_goTypes = []any{
 	(SMEScope)(0),                   // 0: mirai.v1.SMEScope
 	(SMEStatus)(0),                  // 1: mirai.v1.SMEStatus
@@ -2704,43 +2810,45 @@ var file_mirai_v1_sme_proto_goTypes = []any{
 	(*UpdateSMEResponse)(nil),       // 15: mirai.v1.UpdateSMEResponse
 	(*DeleteSMERequest)(nil),        // 16: mirai.v1.DeleteSMERequest
 	(*DeleteSMEResponse)(nil),       // 17: mirai.v1.DeleteSMEResponse
-	(*CreateTaskRequest)(nil),       // 18: mirai.v1.CreateTaskRequest
-	(*CreateTaskResponse)(nil),      // 19: mirai.v1.CreateTaskResponse
-	(*GetTaskRequest)(nil),          // 20: mirai.v1.GetTaskRequest
-	(*GetTaskResponse)(nil),         // 21: mirai.v1.GetTaskResponse
-	(*ListTasksRequest)(nil),        // 22: mirai.v1.ListTasksRequest
-	(*ListTasksResponse)(nil),       // 23: mirai.v1.ListTasksResponse
-	(*UpdateTaskRequest)(nil),       // 24: mirai.v1.UpdateTaskRequest
-	(*UpdateTaskResponse)(nil),      // 25: mirai.v1.UpdateTaskResponse
-	(*CancelTaskRequest)(nil),       // 26: mirai.v1.CancelTaskRequest
-	(*CancelTaskResponse)(nil),      // 27: mirai.v1.CancelTaskResponse
-	(*GetUploadURLRequest)(nil),     // 28: mirai.v1.GetUploadURLRequest
-	(*GetUploadURLResponse)(nil),    // 29: mirai.v1.GetUploadURLResponse
-	(*SubmitContentRequest)(nil),    // 30: mirai.v1.SubmitContentRequest
-	(*SubmitContentResponse)(nil),   // 31: mirai.v1.SubmitContentResponse
-	(*ListSubmissionsRequest)(nil),  // 32: mirai.v1.ListSubmissionsRequest
-	(*ListSubmissionsResponse)(nil), // 33: mirai.v1.ListSubmissionsResponse
-	(*GetKnowledgeRequest)(nil),     // 34: mirai.v1.GetKnowledgeRequest
-	(*GetKnowledgeResponse)(nil),    // 35: mirai.v1.GetKnowledgeResponse
-	(*SearchKnowledgeRequest)(nil),  // 36: mirai.v1.SearchKnowledgeRequest
-	(*SearchKnowledgeResponse)(nil), // 37: mirai.v1.SearchKnowledgeResponse
-	(*timestamppb.Timestamp)(nil),   // 38: google.protobuf.Timestamp
+	(*RestoreSMERequest)(nil),       // 18: mirai.v1.RestoreSMERequest
+	(*RestoreSMEResponse)(nil),      // 19: mirai.v1.RestoreSMEResponse
+	(*CreateTaskRequest)(nil),       // 20: mirai.v1.CreateTaskRequest
+	(*CreateTaskResponse)(nil),      // 21: mirai.v1.CreateTaskResponse
+	(*GetTaskRequest)(nil),          // 22: mirai.v1.GetTaskRequest
+	(*GetTaskResponse)(nil),         // 23: mirai.v1.GetTaskResponse
+	(*ListTasksRequest)(nil),        // 24: mirai.v1.ListTasksRequest
+	(*ListTasksResponse)(nil),       // 25: mirai.v1.ListTasksResponse
+	(*UpdateTaskRequest)(nil),       // 26: mirai.v1.UpdateTaskRequest
+	(*UpdateTaskResponse)(nil),      // 27: mirai.v1.UpdateTaskResponse
+	(*CancelTaskRequest)(nil),       // 28: mirai.v1.CancelTaskRequest
+	(*CancelTaskResponse)(nil),      // 29: mirai.v1.CancelTaskResponse
+	(*GetUploadURLRequest)(nil),     // 30: mirai.v1.GetUploadURLRequest
+	(*GetUploadURLResponse)(nil),    // 31: mirai.v1.GetUploadURLResponse
+	(*SubmitContentRequest)(nil),    // 32: mirai.v1.SubmitContentRequest
+	(*SubmitContentResponse)(nil),   // 33: mirai.v1.SubmitContentResponse
+	(*ListSubmissionsRequest)(nil),  // 34: mirai.v1.ListSubmissionsRequest
+	(*ListSubmissionsResponse)(nil), // 35: mirai.v1.ListSubmissionsResponse
+	(*GetKnowledgeRequest)(nil),     // 36: mirai.v1.GetKnowledgeRequest
+	(*GetKnowledgeResponse)(nil),    // 37: mirai.v1.GetKnowledgeResponse
+	(*SearchKnowledgeRequest)(nil),  // 38: mirai.v1.SearchKnowledgeRequest
+	(*SearchKnowledgeResponse)(nil), // 39: mirai.v1.SearchKnowledgeResponse
+	(*timestamppb.Timestamp)(nil),   // 40: google.protobuf.Timestamp
 }
 var file_mirai_v1_sme_proto_depIdxs = []int32{
 	0,  // 0: mirai.v1.SubjectMatterExpert.scope:type_name -> mirai.v1.SMEScope
 	1,  // 1: mirai.v1.SubjectMatterExpert.status:type_name -> mirai.v1.SMEStatus
-	38, // 2: mirai.v1.SubjectMatterExpert.created_at:type_name -> google.protobuf.Timestamp
-	38, // 3: mirai.v1.SubjectMatterExpert.updated_at:type_name -> google.protobuf.Timestamp
+	40, // 2: mirai.v1.SubjectMatterExpert.created_at:type_name -> google.protobuf.Timestamp
+	40, // 3: mirai.v1.SubjectMatterExpert.updated_at:type_name -> google.protobuf.Timestamp
 	3,  // 4: mirai.v1.SMETask.expected_content_type:type_name -> mirai.v1.ContentType
 	2,  // 5: mirai.v1.SMETask.status:type_name -> mirai.v1.SMETaskStatus
-	38, // 6: mirai.v1.SMETask.due_date:type_name -> google.protobuf.Timestamp
-	38, // 7: mirai.v1.SMETask.created_at:type_name -> google.protobuf.Timestamp
-	38, // 8: mirai.v1.SMETask.updated_at:type_name -> google.protobuf.Timestamp
-	38, // 9: mirai.v1.SMETask.completed_at:type_name -> google.protobuf.Timestamp
+	40, // 6: mirai.v1.SMETask.due_date:type_name -> google.protobuf.Timestamp
+	40, // 7: mirai.v1.SMETask.created_at:type_name -> google.protobuf.Timestamp
+	40, // 8: mirai.v1.SMETask.updated_at:type_name -> google.protobuf.Timestamp
+	40, // 9: mirai.v1.SMETask.completed_at:type_name -> google.protobuf.Timestamp
 	3,  // 10: mirai.v1.SMETaskSubmission.content_type:type_name -> mirai.v1.ContentType
-	38, // 11: mirai.v1.SMETaskSubmission.submitted_at:type_name -> google.protobuf.Timestamp
-	38, // 12: mirai.v1.SMETaskSubmission.processed_at:type_name -> google.protobuf.Timestamp
-	38, // 13: mirai.v1.SMEKnowledgeChunk.created_at:type_name -> google.protobuf.Timestamp
+	40, // 11: mirai.v1.SMETaskSubmission.submitted_at:type_name -> google.protobuf.Timestamp
+	40, // 12: mirai.v1.SMETaskSubmission.processed_at:type_name -> google.protobuf.Timestamp
+	40, // 13: mirai.v1.SMEKnowledgeChunk.created_at:type_name -> google.protobuf.Timestamp
 	0,  // 14: mirai.v1.CreateSMERequest.scope:type_name -> mirai.v1.SMEScope
 	4,  // 15: mirai.v1.CreateSMEResponse.sme:type_name -> mirai.v1.SubjectMatterExpert
 	4,  // 16: mirai.v1.GetSMEResponse.sme:type_name -> mirai.v1.SubjectMatterExpert
@@ -2750,59 +2858,62 @@ var file_mirai_v1_sme_proto_depIdxs = []int32{
 	0,  // 20: mirai.v1.UpdateSMERequest.scope:type_name -> mirai.v1.SMEScope
 	1,  // 21: mirai.v1.UpdateSMERequest.status:type_name -> mirai.v1.SMEStatus
 	4,  // 22: mirai.v1.UpdateSMEResponse.sme:type_name -> mirai.v1.SubjectMatterExpert
-	3,  // 23: mirai.v1.CreateTaskRequest.expected_content_type:type_name -> mirai.v1.ContentType
-	38, // 24: mirai.v1.CreateTaskRequest.due_date:type_name -> google.protobuf.Timestamp
-	5,  // 25: mirai.v1.CreateTaskResponse.task:type_name -> mirai.v1.SMETask
-	5,  // 26: mirai.v1.GetTaskResponse.task:type_name -> mirai.v1.SMETask
-	2,  // 27: mirai.v1.ListTasksRequest.status:type_name -> mirai.v1.SMETaskStatus
-	5,  // 28: mirai.v1.ListTasksResponse.tasks:type_name -> mirai.v1.SMETask
-	3,  // 29: mirai.v1.UpdateTaskRequest.expected_content_type:type_name -> mirai.v1.ContentType
-	38, // 30: mirai.v1.UpdateTaskRequest.due_date:type_name -> google.protobuf.Timestamp
-	5,  // 31: mirai.v1.UpdateTaskResponse.task:type_name -> mirai.v1.SMETask
-	5,  // 32: mirai.v1.CancelTaskResponse.task:type_name -> mirai.v1.SMETask
-	3,  // 33: mirai.v1.GetUploadURLRequest.content_type:type_name -> mirai.v1.ContentType
-	38, // 34: mirai.v1.GetUploadURLResponse.expires_at:type_name -> google.protobuf.Timestamp
-	3,  // 35: mirai.v1.SubmitContentRequest.content_type:type_name -> mirai.v1.ContentType
-	6,  // 36: mirai.v1.SubmitContentResponse.submission:type_name -> mirai.v1.SMETaskSubmission
-	6,  // 37: mirai.v1.ListSubmissionsResponse.submissions:type_name -> mirai.v1.SMETaskSubmission
-	4,  // 38: mirai.v1.GetKnowledgeResponse.sme:type_name -> mirai.v1.SubjectMatterExpert
-	7,  // 39: mirai.v1.GetKnowledgeResponse.chunks:type_name -> mirai.v1.SMEKnowledgeChunk
-	7,  // 40: mirai.v1.SearchKnowledgeResponse.chunks:type_name -> mirai.v1.SMEKnowledgeChunk
-	8,  // 41: mirai.v1.SMEService.CreateSME:input_type -> mirai.v1.CreateSMERequest
-	10, // 42: mirai.v1.SMEService.GetSME:input_type -> mirai.v1.GetSMERequest
-	12, // 43: mirai.v1.SMEService.ListSMEs:input_type -> mirai.v1.ListSMEsRequest
-	14, // 44: mirai.v1.SMEService.UpdateSME:input_type -> mirai.v1.UpdateSMERequest
-	16, // 45: mirai.v1.SMEService.DeleteSME:input_type -> mirai.v1.DeleteSMERequest
-	18, // 46: mirai.v1.SMEService.CreateTask:input_type -> mirai.v1.CreateTaskRequest
-	20, // 47: mirai.v1.SMEService.GetTask:input_type -> mirai.v1.GetTaskRequest
-	22, // 48: mirai.v1.SMEService.ListTasks:input_type -> mirai.v1.ListTasksRequest
-	24, // 49: mirai.v1.SMEService.UpdateTask:input_type -> mirai.v1.UpdateTaskRequest
-	26, // 50: mirai.v1.SMEService.CancelTask:input_type -> mirai.v1.CancelTaskRequest
-	28, // 51: mirai.v1.SMEService.GetUploadURL:input_type -> mirai.v1.GetUploadURLRequest
-	30, // 52: mirai.v1.SMEService.SubmitContent:input_type -> mirai.v1.SubmitContentRequest
-	32, // 53: mirai.v1.SMEService.ListSubmissions:input_type -> mirai.v1.ListSubmissionsRequest
-	34, // 54: mirai.v1.SMEService.GetKnowledge:input_type -> mirai.v1.GetKnowledgeRequest
-	36, // 55: mirai.v1.SMEService.SearchKnowledge:input_type -> mirai.v1.SearchKnowledgeRequest
-	9,  // 56: mirai.v1.SMEService.CreateSME:output_type -> mirai.v1.CreateSMEResponse
-	11, // 57: mirai.v1.SMEService.GetSME:output_type -> mirai.v1.GetSMEResponse
-	13, // 58: mirai.v1.SMEService.ListSMEs:output_type -> mirai.v1.ListSMEsResponse
-	15, // 59: mirai.v1.SMEService.UpdateSME:output_type -> mirai.v1.UpdateSMEResponse
-	17, // 60: mirai.v1.SMEService.DeleteSME:output_type -> mirai.v1.DeleteSMEResponse
-	19, // 61: mirai.v1.SMEService.CreateTask:output_type -> mirai.v1.CreateTaskResponse
-	21, // 62: mirai.v1.SMEService.GetTask:output_type -> mirai.v1.GetTaskResponse
-	23, // 63: mirai.v1.SMEService.ListTasks:output_type -> mirai.v1.ListTasksResponse
-	25, // 64: mirai.v1.SMEService.UpdateTask:output_type -> mirai.v1.UpdateTaskResponse
-	27, // 65: mirai.v1.SMEService.CancelTask:output_type -> mirai.v1.CancelTaskResponse
-	29, // 66: mirai.v1.SMEService.GetUploadURL:output_type -> mirai.v1.GetUploadURLResponse
-	31, // 67: mirai.v1.SMEService.SubmitContent:output_type -> mirai.v1.SubmitContentResponse
-	33, // 68: mirai.v1.SMEService.ListSubmissions:output_type -> mirai.v1.ListSubmissionsResponse
-	35, // 69: mirai.v1.SMEService.GetKnowledge:output_type -> mirai.v1.GetKnowledgeResponse
-	37, // 70: mirai.v1.SMEService.SearchKnowledge:output_type -> mirai.v1.SearchKnowledgeResponse
-	56, // [56:71] is the sub-list for method output_type
-	41, // [41:56] is the sub-list for method input_type
-	41, // [41:41] is the sub-list for extension type_name
-	41, // [41:41] is the sub-list for extension extendee
-	0,  // [0:41] is the sub-list for field type_name
+	4,  // 23: mirai.v1.RestoreSMEResponse.sme:type_name -> mirai.v1.SubjectMatterExpert
+	3,  // 24: mirai.v1.CreateTaskRequest.expected_content_type:type_name -> mirai.v1.ContentType
+	40, // 25: mirai.v1.CreateTaskRequest.due_date:type_name -> google.protobuf.Timestamp
+	5,  // 26: mirai.v1.CreateTaskResponse.task:type_name -> mirai.v1.SMETask
+	5,  // 27: mirai.v1.GetTaskResponse.task:type_name -> mirai.v1.SMETask
+	2,  // 28: mirai.v1.ListTasksRequest.status:type_name -> mirai.v1.SMETaskStatus
+	5,  // 29: mirai.v1.ListTasksResponse.tasks:type_name -> mirai.v1.SMETask
+	3,  // 30: mirai.v1.UpdateTaskRequest.expected_content_type:type_name -> mirai.v1.ContentType
+	40, // 31: mirai.v1.UpdateTaskRequest.due_date:type_name -> google.protobuf.Timestamp
+	5,  // 32: mirai.v1.UpdateTaskResponse.task:type_name -> mirai.v1.SMETask
+	5,  // 33: mirai.v1.CancelTaskResponse.task:type_name -> mirai.v1.SMETask
+	3,  // 34: mirai.v1.GetUploadURLRequest.content_type:type_name -> mirai.v1.ContentType
+	40, // 35: mirai.v1.GetUploadURLResponse.expires_at:type_name -> google.protobuf.Timestamp
+	3,  // 36: mirai.v1.SubmitContentRequest.content_type:type_name -> mirai.v1.ContentType
+	6,  // 37: mirai.v1.SubmitContentResponse.submission:type_name -> mirai.v1.SMETaskSubmission
+	6,  // 38: mirai.v1.ListSubmissionsResponse.submissions:type_name -> mirai.v1.SMETaskSubmission
+	4,  // 39: mirai.v1.GetKnowledgeResponse.sme:type_name -> mirai.v1.SubjectMatterExpert
+	7,  // 40: mirai.v1.GetKnowledgeResponse.chunks:type_name -> mirai.v1.SMEKnowledgeChunk
+	7,  // 41: mirai.v1.SearchKnowledgeResponse.chunks:type_name -> mirai.v1.SMEKnowledgeChunk
+	8,  // 42: mirai.v1.SMEService.CreateSME:input_type -> mirai.v1.CreateSMERequest
+	10, // 43: mirai.v1.SMEService.GetSME:input_type -> mirai.v1.GetSMERequest
+	12, // 44: mirai.v1.SMEService.ListSMEs:input_type -> mirai.v1.ListSMEsRequest
+	14, // 45: mirai.v1.SMEService.UpdateSME:input_type -> mirai.v1.UpdateSMERequest
+	16, // 46: mirai.v1.SMEService.DeleteSME:input_type -> mirai.v1.DeleteSMERequest
+	18, // 47: mirai.v1.SMEService.RestoreSME:input_type -> mirai.v1.RestoreSMERequest
+	20, // 48: mirai.v1.SMEService.CreateTask:input_type -> mirai.v1.CreateTaskRequest
+	22, // 49: mirai.v1.SMEService.GetTask:input_type -> mirai.v1.GetTaskRequest
+	24, // 50: mirai.v1.SMEService.ListTasks:input_type -> mirai.v1.ListTasksRequest
+	26, // 51: mirai.v1.SMEService.UpdateTask:input_type -> mirai.v1.UpdateTaskRequest
+	28, // 52: mirai.v1.SMEService.CancelTask:input_type -> mirai.v1.CancelTaskRequest
+	30, // 53: mirai.v1.SMEService.GetUploadURL:input_type -> mirai.v1.GetUploadURLRequest
+	32, // 54: mirai.v1.SMEService.SubmitContent:input_type -> mirai.v1.SubmitContentRequest
+	34, // 55: mirai.v1.SMEService.ListSubmissions:input_type -> mirai.v1.ListSubmissionsRequest
+	36, // 56: mirai.v1.SMEService.GetKnowledge:input_type -> mirai.v1.GetKnowledgeRequest
+	38, // 57: mirai.v1.SMEService.SearchKnowledge:input_type -> mirai.v1.SearchKnowledgeRequest
+	9,  // 58: mirai.v1.SMEService.CreateSME:output_type -> mirai.v1.CreateSMEResponse
+	11, // 59: mirai.v1.SMEService.GetSME:output_type -> mirai.v1.GetSMEResponse
+	13, // 60: mirai.v1.SMEService.ListSMEs:output_type -> mirai.v1.ListSMEsResponse
+	15, // 61: mirai.v1.SMEService.UpdateSME:output_type -> mirai.v1.UpdateSMEResponse
+	17, // 62: mirai.v1.SMEService.DeleteSME:output_type -> mirai.v1.DeleteSMEResponse
+	19, // 63: mirai.v1.SMEService.RestoreSME:output_type -> mirai.v1.RestoreSMEResponse
+	21, // 64: mirai.v1.SMEService.CreateTask:output_type -> mirai.v1.CreateTaskResponse
+	23, // 65: mirai.v1.SMEService.GetTask:output_type -> mirai.v1.GetTaskResponse
+	25, // 66: mirai.v1.SMEService.ListTasks:output_type -> mirai.v1.ListTasksResponse
+	27, // 67: mirai.v1.SMEService.UpdateTask:output_type -> mirai.v1.UpdateTaskResponse
+	29, // 68: mirai.v1.SMEService.CancelTask:output_type -> mirai.v1.CancelTaskResponse
+	31, // 69: mirai.v1.SMEService.GetUploadURL:output_type -> mirai.v1.GetUploadURLResponse
+	33, // 70: mirai.v1.SMEService.SubmitContent:output_type -> mirai.v1.SubmitContentResponse
+	35, // 71: mirai.v1.SMEService.ListSubmissions:output_type -> mirai.v1.ListSubmissionsResponse
+	37, // 72: mirai.v1.SMEService.GetKnowledge:output_type -> mirai.v1.GetKnowledgeResponse
+	39, // 73: mirai.v1.SMEService.SearchKnowledge:output_type -> mirai.v1.SearchKnowledgeResponse
+	58, // [58:74] is the sub-list for method output_type
+	42, // [42:58] is the sub-list for method input_type
+	42, // [42:42] is the sub-list for extension type_name
+	42, // [42:42] is the sub-list for extension extendee
+	0,  // [0:42] is the sub-list for field type_name
 }
 
 func init() { file_mirai_v1_sme_proto_init() }
@@ -2816,16 +2927,16 @@ func file_mirai_v1_sme_proto_init() {
 	file_mirai_v1_sme_proto_msgTypes[3].OneofWrappers = []any{}
 	file_mirai_v1_sme_proto_msgTypes[8].OneofWrappers = []any{}
 	file_mirai_v1_sme_proto_msgTypes[10].OneofWrappers = []any{}
-	file_mirai_v1_sme_proto_msgTypes[14].OneofWrappers = []any{}
-	file_mirai_v1_sme_proto_msgTypes[18].OneofWrappers = []any{}
+	file_mirai_v1_sme_proto_msgTypes[16].OneofWrappers = []any{}
 	file_mirai_v1_sme_proto_msgTypes[20].OneofWrappers = []any{}
+	file_mirai_v1_sme_proto_msgTypes[22].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_mirai_v1_sme_proto_rawDesc), len(file_mirai_v1_sme_proto_rawDesc)),
 			NumEnums:      4,
-			NumMessages:   34,
+			NumMessages:   36,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

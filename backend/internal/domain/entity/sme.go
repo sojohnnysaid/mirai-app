@@ -103,9 +103,10 @@ type SMEKnowledgeChunk struct {
 
 // SMEListOptions provides filtering options for listing SMEs.
 type SMEListOptions struct {
-	Scope  *valueobject.SMEScope
-	Status *valueobject.SMEStatus
-	TeamID *uuid.UUID // Filter by team access
+	Scope           *valueobject.SMEScope
+	Status          *valueobject.SMEStatus
+	TeamID          *uuid.UUID // Filter by team access
+	IncludeArchived bool       // Include archived SMEs in results
 }
 
 // SMETaskListOptions provides filtering options for listing tasks.

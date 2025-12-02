@@ -107,7 +107,12 @@ func (s *TargetAudienceServiceServer) ListTemplates(
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 
-	audiences, err := s.audienceService.ListTargetAudiences(ctx, kratosID)
+	opts := &service.ListTargetAudiencesOptions{}
+	if req.Msg.IncludeArchived != nil && *req.Msg.IncludeArchived {
+		opts.IncludeArchived = true
+	}
+
+	audiences, err := s.audienceService.ListTargetAudiences(ctx, kratosID, opts)
 	if err != nil {
 		return nil, toConnectError(err)
 	}
@@ -206,6 +211,66 @@ func (s *TargetAudienceServiceServer) DeleteTemplate(
 	return connect.NewResponse(&v1.DeleteTemplateResponse{}), nil
 }
 
+// ArchiveTemplate archives a target audience template.
+func (s *TargetAudienceServiceServer) ArchiveTemplate(
+	ctx context.Context,
+	req *connect.Request[v1.ArchiveTemplateRequest],
+) (*connect.Response[v1.ArchiveTemplateResponse], error) {
+	kratosIDStr, ok := ctx.Value(kratosIDKey{}).(string)
+	if !ok {
+		return nil, connect.NewError(connect.CodeUnauthenticated, errUnauthenticated)
+	}
+
+	kratosID, err := parseUUID(kratosIDStr)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
+	audienceID, err := parseUUID(req.Msg.TemplateId)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+
+	audience, err := s.audienceService.ArchiveTargetAudience(ctx, kratosID, audienceID)
+	if err != nil {
+		return nil, toConnectError(err)
+	}
+
+	return connect.NewResponse(&v1.ArchiveTemplateResponse{
+		Template: targetAudienceToProto(audience),
+	}), nil
+}
+
+// RestoreTemplate restores an archived target audience template.
+func (s *TargetAudienceServiceServer) RestoreTemplate(
+	ctx context.Context,
+	req *connect.Request[v1.RestoreTemplateRequest],
+) (*connect.Response[v1.RestoreTemplateResponse], error) {
+	kratosIDStr, ok := ctx.Value(kratosIDKey{}).(string)
+	if !ok {
+		return nil, connect.NewError(connect.CodeUnauthenticated, errUnauthenticated)
+	}
+
+	kratosID, err := parseUUID(kratosIDStr)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
+	audienceID, err := parseUUID(req.Msg.TemplateId)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+
+	audience, err := s.audienceService.RestoreTargetAudience(ctx, kratosID, audienceID)
+	if err != nil {
+		return nil, toConnectError(err)
+	}
+
+	return connect.NewResponse(&v1.RestoreTemplateResponse{
+		Template: targetAudienceToProto(audience),
+	}), nil
+}
+
 // Helper functions for proto conversion
 
 func targetAudienceToProto(aud *entity.TargetAudienceTemplate) *v1.TargetAudienceTemplate {
@@ -235,6 +300,7 @@ func targetAudienceToProto(aud *entity.TargetAudienceTemplate) *v1.TargetAudienc
 		Motivations:       aud.Motivations,
 		IndustryContext:   industryContext,
 		TypicalBackground: typicalBackground,
+		Status:            targetAudienceStatusToProto(aud.Status),
 		CreatedByUserId:   aud.CreatedByUserID.String(),
 		CreatedAt:         timestamppb.New(aud.CreatedAt),
 		UpdatedAt:         timestamppb.New(aud.UpdatedAt),
@@ -268,5 +334,16 @@ func protoToExperienceLevel(level v1.ExperienceLevel) valueobject.ExperienceLeve
 		return valueobject.ExperienceLevelExpert
 	default:
 		return valueobject.ExperienceLevelBeginner
+	}
+}
+
+func targetAudienceStatusToProto(status valueobject.TargetAudienceStatus) v1.TargetAudienceStatus {
+	switch status {
+	case valueobject.TargetAudienceStatusActive:
+		return v1.TargetAudienceStatus_TARGET_AUDIENCE_STATUS_ACTIVE
+	case valueobject.TargetAudienceStatusArchived:
+		return v1.TargetAudienceStatus_TARGET_AUDIENCE_STATUS_ARCHIVED
+	default:
+		return v1.TargetAudienceStatus_TARGET_AUDIENCE_STATUS_UNSPECIFIED
 	}
 }

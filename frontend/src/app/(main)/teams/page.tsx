@@ -1,45 +1,20 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { api, Team, APIError } from '@/lib/api/client';
+import { useState } from 'react';
+import Link from 'next/link';
+import { useListTeams, useCreateTeam, useDeleteTeam, type Team } from '@/hooks/useTeams';
 import { CreateTeamModal } from '@/components/teams/CreateTeamModal';
-import { TeamCard } from '@/components/teams/TeamCard';
 
 export default function TeamsPage() {
-  const [teams, setTeams] = useState<Team[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
 
-  const loadTeams = async () => {
-    try {
-      setLoading(true);
-      const teamsData = await api.listTeams();
-      setTeams(teamsData);
-      setError(null);
-    } catch (err) {
-      if (err instanceof APIError) {
-        setError(err.message);
-      } else {
-        setError('Failed to load teams');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadTeams();
-  }, []);
+  const { data: teams, isLoading, error } = useListTeams();
+  const createTeam = useCreateTeam();
+  const deleteTeam = useDeleteTeam();
 
   const handleCreateTeam = async (name: string, description: string) => {
-    try {
-      await api.createTeam({ name, description });
-      setShowCreateModal(false);
-      loadTeams(); // Reload teams
-    } catch (err) {
-      throw err; // Let modal handle the error
-    }
+    await createTeam.mutate({ name, description: description || undefined });
+    setShowCreateModal(false);
   };
 
   const handleDeleteTeam = async (teamId: string) => {
@@ -48,18 +23,14 @@ export default function TeamsPage() {
     }
 
     try {
-      await api.deleteTeam(teamId);
-      loadTeams(); // Reload teams
+      await deleteTeam.mutate(teamId);
     } catch (err) {
-      if (err instanceof APIError) {
-        alert(`Failed to delete team: ${err.message}`);
-      } else {
-        alert('Failed to delete team');
-      }
+      console.error('Failed to delete team:', err);
+      alert('Failed to delete team. Please try again.');
     }
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
@@ -96,7 +67,7 @@ export default function TeamsPage() {
       {/* Error Message */}
       {error && (
         <div className="rounded-md bg-red-50 p-4 mb-6">
-          <div className="text-sm text-red-700">{error}</div>
+          <div className="text-sm text-red-700">Failed to load teams. Please try refreshing the page.</div>
         </div>
       )}
 
@@ -150,6 +121,52 @@ export default function TeamsPage() {
           onCreate={handleCreateTeam}
         />
       )}
+    </div>
+  );
+}
+
+// Inline TeamCard component using proto types
+function TeamCard({ team, onDelete }: { team: Team; onDelete: () => void }) {
+  return (
+    <div className="bg-white overflow-hidden shadow rounded-lg hover:shadow-md transition-shadow">
+      <div className="px-4 py-5 sm:p-6">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-lg font-medium text-gray-900 truncate">
+            {team.name}
+          </h3>
+          <button
+            onClick={onDelete}
+            className="text-red-600 hover:text-red-800 text-sm font-medium"
+            title="Delete team"
+          >
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+          </button>
+        </div>
+
+        {team.description && (
+          <p className="text-sm text-gray-500 mb-4 line-clamp-2">
+            {team.description}
+          </p>
+        )}
+
+        <div className="mt-4 flex items-center justify-between">
+          <div className="flex items-center text-sm text-gray-500">
+            <svg className="flex-shrink-0 mr-1.5 h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+            </svg>
+            <span>View members</span>
+          </div>
+
+          <Link
+            href={`/teams/${team.id}`}
+            className="text-sm font-medium text-blue-600 hover:text-blue-800"
+          >
+            Manage
+          </Link>
+        </div>
+      </div>
     </div>
   );
 }

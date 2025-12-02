@@ -7,6 +7,7 @@ interface TargetAudienceCardProps {
   onSelect: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
+  onRestore?: () => void;
   isSelected?: boolean;
 }
 
@@ -18,27 +19,37 @@ const EXPERIENCE_LABELS: Record<number, { label: string; color: string }> = {
   4: { label: 'Expert', color: 'bg-amber-100 text-amber-800' },
 };
 
+const STATUS_LABELS: Record<number, { label: string; color: string }> = {
+  0: { label: 'Unknown', color: 'bg-gray-100 text-gray-600' },
+  1: { label: 'Active', color: 'bg-green-100 text-green-800' },
+  2: { label: 'Archived', color: 'bg-gray-200 text-gray-600' },
+};
+
 export function TargetAudienceCard({
   template,
   onSelect,
   onEdit,
   onDelete,
+  onRestore,
   isSelected = false,
 }: TargetAudienceCardProps) {
   const experience = EXPERIENCE_LABELS[template.experienceLevel] || EXPERIENCE_LABELS[0];
+  const status = STATUS_LABELS[template.status] || STATUS_LABELS[0];
+  const isArchived = template.status === 2; // TARGET_AUDIENCE_STATUS_ARCHIVED
 
   return (
     <div
       className={`bg-white overflow-hidden shadow rounded-lg hover:shadow-md transition-all cursor-pointer ${
         isSelected ? 'ring-2 ring-blue-500' : ''
-      }`}
+      } ${isArchived ? 'opacity-60' : ''}`}
       onClick={onSelect}
     >
       <div className="px-4 py-5 sm:p-6">
         <div className="flex items-center justify-between mb-2">
           <h3 className="text-lg font-medium text-gray-900 truncate">{template.name}</h3>
           <div className="flex items-center space-x-2">
-            {onEdit && (
+            {/* Edit button - only for non-archived */}
+            {onEdit && !isArchived && (
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -53,6 +64,26 @@ export function TargetAudienceCard({
                     strokeLinejoin="round"
                     strokeWidth={2}
                     d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                  />
+                </svg>
+              </button>
+            )}
+            {/* Restore button - only for archived */}
+            {onRestore && isArchived && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRestore();
+                }}
+                className="text-green-500 hover:text-green-700"
+                title="Restore"
+              >
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
                   />
                 </svg>
               </button>
@@ -84,6 +115,12 @@ export function TargetAudienceCard({
         )}
 
         <div className="flex flex-wrap gap-2 mb-3">
+          {/* Show archived badge prominently */}
+          {isArchived && (
+            <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium ${status.color}`}>
+              {status.label}
+            </span>
+          )}
           {template.role && (
             <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-indigo-100 text-indigo-800">
               {template.role}

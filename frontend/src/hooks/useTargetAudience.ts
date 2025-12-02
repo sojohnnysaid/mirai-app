@@ -1,4 +1,4 @@
-import { useQuery, useMutation } from '@connectrpc/connect-query';
+import { useQuery, useMutation, createConnectQueryKey } from '@connectrpc/connect-query';
 import { useQueryClient } from '@tanstack/react-query';
 import { create } from '@bufbuild/protobuf';
 import {
@@ -7,24 +7,33 @@ import {
   listTemplates,
   updateTemplate,
   deleteTemplate,
+  archiveTemplate,
+  restoreTemplate,
 } from '@/gen/mirai/v1/target_audience-TargetAudienceService_connectquery';
 import {
   ExperienceLevel,
+  TargetAudienceStatus,
   type TargetAudienceTemplate,
   CreateTemplateRequestSchema,
   UpdateTemplateRequestSchema,
   DeleteTemplateRequestSchema,
+  ArchiveTemplateRequestSchema,
+  RestoreTemplateRequestSchema,
+  ListTemplatesRequestSchema,
 } from '@/gen/mirai/v1/target_audience_pb';
 
 // Re-export types and enums
-export { ExperienceLevel };
+export { ExperienceLevel, TargetAudienceStatus };
 export type { TargetAudienceTemplate };
 
 /**
  * Hook to list all target audience templates.
  */
-export function useListTargetAudiences() {
-  const query = useQuery(listTemplates, {});
+export function useListTargetAudiences(options?: { includeArchived?: boolean }) {
+  const request = create(ListTemplatesRequestSchema, {
+    includeArchived: options?.includeArchived,
+  });
+  const query = useQuery(listTemplates, request);
 
   return {
     data: query.data?.templates ?? [],
@@ -86,11 +95,9 @@ export function useCreateTargetAudience() {
       });
 
       const result = await mutation.mutateAsync(request);
+      // Use type-safe cache invalidation
       await queryClient.invalidateQueries({
-        predicate: (query) =>
-          query.queryKey.some((k) =>
-            typeof k === 'string' && k.includes('listTemplates')
-          ),
+        queryKey: createConnectQueryKey({ schema: listTemplates, cardinality: undefined }),
       });
       return result;
     },
@@ -137,12 +144,11 @@ export function useUpdateTargetAudience() {
       });
 
       const result = await mutation.mutateAsync(request);
-      await queryClient.invalidateQueries({
-        predicate: (query) =>
-          query.queryKey.some((k) =>
-            typeof k === 'string' && (k.includes('listTemplates') || k.includes('getTemplate'))
-          ),
-      });
+      // Use type-safe cache invalidation for both list and individual queries
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: createConnectQueryKey({ schema: listTemplates, cardinality: undefined }) }),
+        queryClient.invalidateQueries({ queryKey: createConnectQueryKey({ schema: getTemplate, cardinality: undefined }) }),
+      ]);
       return result;
     },
     isLoading: mutation.isPending,
@@ -151,7 +157,7 @@ export function useUpdateTargetAudience() {
 }
 
 /**
- * Hook to delete a target audience template.
+ * Hook to delete (archive) a target audience template.
  */
 export function useDeleteTargetAudience() {
   const queryClient = useQueryClient();
@@ -161,12 +167,55 @@ export function useDeleteTargetAudience() {
     mutate: async (templateId: string) => {
       const request = create(DeleteTemplateRequestSchema, { templateId });
       const result = await mutation.mutateAsync(request);
+      // Use type-safe cache invalidation
       await queryClient.invalidateQueries({
-        predicate: (query) =>
-          query.queryKey.some((k) =>
-            typeof k === 'string' && k.includes('listTemplates')
-          ),
+        queryKey: createConnectQueryKey({ schema: listTemplates, cardinality: undefined }),
       });
+      return result;
+    },
+    isLoading: mutation.isPending,
+    error: mutation.error,
+  };
+}
+
+/**
+ * Hook to archive a target audience template.
+ */
+export function useArchiveTargetAudience() {
+  const queryClient = useQueryClient();
+  const mutation = useMutation(archiveTemplate);
+
+  return {
+    mutate: async (templateId: string) => {
+      const request = create(ArchiveTemplateRequestSchema, { templateId });
+      const result = await mutation.mutateAsync(request);
+      // Use type-safe cache invalidation
+      await queryClient.invalidateQueries({
+        queryKey: createConnectQueryKey({ schema: listTemplates, cardinality: undefined }),
+      });
+      return result;
+    },
+    isLoading: mutation.isPending,
+    error: mutation.error,
+  };
+}
+
+/**
+ * Hook to restore an archived target audience template.
+ */
+export function useRestoreTargetAudience() {
+  const queryClient = useQueryClient();
+  const mutation = useMutation(restoreTemplate);
+
+  return {
+    mutate: async (templateId: string) => {
+      const request = create(RestoreTemplateRequestSchema, { templateId });
+      const result = await mutation.mutateAsync(request);
+      // Use type-safe cache invalidation for both list and individual queries
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: createConnectQueryKey({ schema: listTemplates, cardinality: undefined }) }),
+        queryClient.invalidateQueries({ queryKey: createConnectQueryKey({ schema: getTemplate, cardinality: undefined }) }),
+      ]);
       return result;
     },
     isLoading: mutation.isPending,

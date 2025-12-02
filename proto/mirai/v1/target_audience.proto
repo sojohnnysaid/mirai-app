@@ -13,6 +13,13 @@ enum ExperienceLevel {
   EXPERIENCE_LEVEL_EXPERT = 4;
 }
 
+// TargetAudienceStatus represents the state of a target audience template.
+enum TargetAudienceStatus {
+  TARGET_AUDIENCE_STATUS_UNSPECIFIED = 0;
+  TARGET_AUDIENCE_STATUS_ACTIVE = 1;
+  TARGET_AUDIENCE_STATUS_ARCHIVED = 2;
+}
+
 // TargetAudienceTemplate represents a reusable learner profile template.
 message TargetAudienceTemplate {
   string id = 1;
@@ -36,6 +43,8 @@ message TargetAudienceTemplate {
   string created_by_user_id = 14;
   google.protobuf.Timestamp created_at = 15;
   google.protobuf.Timestamp updated_at = 16;
+
+  TargetAudienceStatus status = 17;
 }
 
 // TargetAudienceService handles target audience template operations.
@@ -52,8 +61,14 @@ service TargetAudienceService {
   // UpdateTemplate updates a template.
   rpc UpdateTemplate(UpdateTemplateRequest) returns (UpdateTemplateResponse);
 
-  // DeleteTemplate deletes a template.
+  // DeleteTemplate archives a template (soft delete).
   rpc DeleteTemplate(DeleteTemplateRequest) returns (DeleteTemplateResponse);
+
+  // ArchiveTemplate archives a template.
+  rpc ArchiveTemplate(ArchiveTemplateRequest) returns (ArchiveTemplateResponse);
+
+  // RestoreTemplate restores an archived template.
+  rpc RestoreTemplate(RestoreTemplateRequest) returns (RestoreTemplateResponse);
 }
 
 // CreateTemplateRequest contains data for a new template.
@@ -85,8 +100,10 @@ message GetTemplateResponse {
   TargetAudienceTemplate template = 1;
 }
 
-// ListTemplatesRequest is empty as company is identified by auth context.
-message ListTemplatesRequest {}
+// ListTemplatesRequest contains optional filters.
+message ListTemplatesRequest {
+  optional bool include_archived = 1;
+}
 
 // ListTemplatesResponse contains all templates.
 message ListTemplatesResponse {
@@ -120,3 +137,23 @@ message DeleteTemplateRequest {
 
 // DeleteTemplateResponse confirms deletion.
 message DeleteTemplateResponse {}
+
+// ArchiveTemplateRequest contains the template ID to archive.
+message ArchiveTemplateRequest {
+  string template_id = 1;
+}
+
+// ArchiveTemplateResponse confirms archival.
+message ArchiveTemplateResponse {
+  TargetAudienceTemplate template = 1;
+}
+
+// RestoreTemplateRequest contains the template ID to restore.
+message RestoreTemplateRequest {
+  string template_id = 1;
+}
+
+// RestoreTemplateResponse contains the restored template.
+message RestoreTemplateResponse {
+  TargetAudienceTemplate template = 1;
+}

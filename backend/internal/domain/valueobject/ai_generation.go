@@ -37,6 +37,7 @@ const (
 	GenerationJobTypeCourseOutline  GenerationJobType = "course_outline"
 	GenerationJobTypeLessonContent  GenerationJobType = "lesson_content"
 	GenerationJobTypeComponentRegen GenerationJobType = "component_regen"
+	GenerationJobTypeFullCourse     GenerationJobType = "full_course"
 )
 
 func (t GenerationJobType) String() string {
@@ -46,7 +47,8 @@ func (t GenerationJobType) String() string {
 func (t GenerationJobType) IsValid() bool {
 	switch t {
 	case GenerationJobTypeSMEIngestion, GenerationJobTypeCourseOutline,
-		GenerationJobTypeLessonContent, GenerationJobTypeComponentRegen:
+		GenerationJobTypeLessonContent, GenerationJobTypeComponentRegen,
+		GenerationJobTypeFullCourse:
 		return true
 	}
 	return false

@@ -15,22 +15,44 @@ import (
 	"github.com/sogos/mirai-backend/internal/domain/valueobject"
 )
 
+// AIProviderFactory creates AIProvider instances per-tenant.
+// Since Gemini clients require API keys at construction time and keys are per-tenant,
+// this factory creates a fresh client for each request using the tenant's decrypted API key.
+type AIProviderFactory interface {
+	GetProvider(ctx context.Context, tenantID uuid.UUID) (service.AIProvider, error)
+}
+
+// JobNotifier sends notifications about generation job status changes.
+type JobNotifier interface {
+	NotifyJobProgress(ctx context.Context, userID uuid.UUID, jobID uuid.UUID, jobType string, status string, progress int) error
+}
+
+// CourseCompletionNotifier sends notifications when full course generation completes.
+type CourseCompletionNotifier interface {
+	// NotifyCourseComplete sends notification when all lessons are generated.
+	NotifyCourseComplete(ctx context.Context, userID uuid.UUID, courseID uuid.UUID, courseTitle string) error
+	// NotifyCourseFailed sends notification when course generation fails.
+	NotifyCourseFailed(ctx context.Context, userID uuid.UUID, courseID uuid.UUID, courseTitle string, errorMsg string) error
+}
+
 // AIGenerationService handles AI-powered content generation.
 type AIGenerationService struct {
-	userRepo          repository.UserRepository
-	smeRepo           repository.SMERepository
-	smeKnowledgeRepo  repository.SMEKnowledgeRepository
-	audienceRepo      repository.TargetAudienceRepository
-	jobRepo           repository.GenerationJobRepository
-	outlineRepo       repository.CourseOutlineRepository
-	sectionRepo       repository.OutlineSectionRepository
-	lessonRepo        repository.OutlineLessonRepository
-	genLessonRepo     repository.GeneratedLessonRepository
-	componentRepo     repository.LessonComponentRepository
-	genInputRepo      repository.CourseGenerationInputRepository
-	aiSettingsRepo    repository.TenantAISettingsRepository
-	aiProvider        service.AIProvider
-	logger            service.Logger
+	userRepo            repository.UserRepository
+	smeRepo             repository.SMERepository
+	smeKnowledgeRepo    repository.SMEKnowledgeRepository
+	audienceRepo        repository.TargetAudienceRepository
+	jobRepo             repository.GenerationJobRepository
+	outlineRepo         repository.CourseOutlineRepository
+	sectionRepo         repository.OutlineSectionRepository
+	lessonRepo          repository.OutlineLessonRepository
+	genLessonRepo       repository.GeneratedLessonRepository
+	componentRepo       repository.LessonComponentRepository
+	genInputRepo        repository.CourseGenerationInputRepository
+	aiSettingsRepo      repository.TenantAISettingsRepository
+	aiProviderFactory   AIProviderFactory
+	notifier            JobNotifier
+	completionNotifier  CourseCompletionNotifier
+	logger              service.Logger
 }
 
 // NewAIGenerationService creates a new AI generation service.
@@ -47,24 +69,28 @@ func NewAIGenerationService(
 	componentRepo repository.LessonComponentRepository,
 	genInputRepo repository.CourseGenerationInputRepository,
 	aiSettingsRepo repository.TenantAISettingsRepository,
-	aiProvider service.AIProvider,
+	aiProviderFactory AIProviderFactory,
+	notifier JobNotifier,
+	completionNotifier CourseCompletionNotifier,
 	logger service.Logger,
 ) *AIGenerationService {
 	return &AIGenerationService{
-		userRepo:         userRepo,
-		smeRepo:          smeRepo,
-		smeKnowledgeRepo: smeKnowledgeRepo,
-		audienceRepo:     audienceRepo,
-		jobRepo:          jobRepo,
-		outlineRepo:      outlineRepo,
-		sectionRepo:      sectionRepo,
-		lessonRepo:       lessonRepo,
-		genLessonRepo:    genLessonRepo,
-		componentRepo:    componentRepo,
-		genInputRepo:     genInputRepo,
-		aiSettingsRepo:   aiSettingsRepo,
-		aiProvider:       aiProvider,
-		logger:           logger,
+		userRepo:            userRepo,
+		smeRepo:             smeRepo,
+		smeKnowledgeRepo:    smeKnowledgeRepo,
+		audienceRepo:        audienceRepo,
+		jobRepo:             jobRepo,
+		outlineRepo:         outlineRepo,
+		sectionRepo:         sectionRepo,
+		lessonRepo:          lessonRepo,
+		genLessonRepo:       genLessonRepo,
+		componentRepo:       componentRepo,
+		genInputRepo:        genInputRepo,
+		aiSettingsRepo:      aiSettingsRepo,
+		aiProviderFactory:   aiProviderFactory,
+		notifier:            notifier,
+		completionNotifier:  completionNotifier,
+		logger:              logger,
 	}
 }
 
@@ -254,7 +280,14 @@ func (s *AIGenerationService) ProcessOutlineGenerationJob(ctx context.Context, j
 		additionalContext = *genInput.AdditionalContext
 	}
 
-	outlineResult, err := s.aiProvider.GenerateCourseOutline(ctx, service.GenerateOutlineRequest{
+	// Get tenant-specific AI provider
+	aiProvider, err := s.aiProviderFactory.GetProvider(ctx, job.TenantID)
+	if err != nil {
+		log.Error("failed to get AI provider", "error", err)
+		return s.failJob(ctx, job, fmt.Sprintf("failed to get AI provider: %v", err))
+	}
+
+	outlineResult, err := aiProvider.GenerateCourseOutline(ctx, service.GenerateOutlineRequest{
 		CourseTitle:       "", // Will be fetched or passed
 		DesiredOutcome:    genInput.DesiredOutcome,
 		SMEKnowledge:      smeKnowledge,
@@ -339,6 +372,13 @@ func (s *AIGenerationService) ProcessOutlineGenerationJob(ctx context.Context, j
 	job.ProgressMessage = &progressMsg
 	if err := s.jobRepo.Update(ctx, job); err != nil {
 		log.Error("failed to mark job as completed", "error", err)
+	}
+
+	// Notify user of completion (tenant-isolated via user lookup)
+	if s.notifier != nil {
+		if err := s.notifier.NotifyJobProgress(ctx, job.CreatedByUserID, job.ID, "Course Outline", "completed", 100); err != nil {
+			log.Error("failed to send completion notification", "error", err)
+		}
 	}
 
 	log.Info("outline generation completed", "tokensUsed", outlineResult.TokensUsed)
@@ -433,6 +473,108 @@ func (s *AIGenerationService) RejectCourseOutline(ctx context.Context, kratosID 
 	}
 
 	log.Info("outline rejected", "reason", reason)
+	return outline, nil
+}
+
+// UpdateCourseOutlineSection represents a section in the update request.
+type UpdateCourseOutlineSection struct {
+	ID          uuid.UUID
+	Title       string
+	Description string
+	Order       int32
+	Lessons     []UpdateCourseOutlineLesson
+}
+
+// UpdateCourseOutlineLesson represents a lesson in the update request.
+type UpdateCourseOutlineLesson struct {
+	ID                       uuid.UUID
+	Title                    string
+	Description              string
+	Order                    int32
+	EstimatedDurationMinutes *int32
+	LearningObjectives       []string
+}
+
+// UpdateCourseOutline updates an existing outline before approval.
+func (s *AIGenerationService) UpdateCourseOutline(ctx context.Context, kratosID uuid.UUID, courseID, outlineID uuid.UUID, sections []UpdateCourseOutlineSection) (*entity.CourseOutline, error) {
+	log := s.logger.With("kratosID", kratosID, "outlineID", outlineID)
+
+	user, err := s.userRepo.GetByKratosID(ctx, kratosID)
+	if err != nil || user == nil {
+		return nil, domainerrors.ErrUserNotFound
+	}
+
+	outline, err := s.outlineRepo.GetByID(ctx, outlineID)
+	if err != nil || outline == nil {
+		return nil, domainerrors.ErrNotFound.WithMessage("outline not found")
+	}
+
+	// Only allow editing pending/revision-requested outlines
+	if outline.ApprovalStatus != valueobject.OutlineApprovalStatusPendingReview &&
+		outline.ApprovalStatus != valueobject.OutlineApprovalStatusRevisionRequested {
+		return nil, domainerrors.ErrForbidden.WithMessage("can only edit pending or revision-requested outlines")
+	}
+
+	// Update sections and lessons
+	for _, sectionReq := range sections {
+		section, err := s.sectionRepo.GetByID(ctx, sectionReq.ID)
+		if err != nil {
+			continue // Skip if not found
+		}
+
+		section.Title = sectionReq.Title
+		section.Description = sectionReq.Description
+		section.Position = sectionReq.Order
+
+		if err := s.sectionRepo.Update(ctx, section); err != nil {
+			log.Error("failed to update section", "sectionID", section.ID, "error", err)
+			return nil, domainerrors.ErrInternal.WithCause(err)
+		}
+
+		// Update lessons within the section
+		for _, lessonReq := range sectionReq.Lessons {
+			lesson, err := s.lessonRepo.GetByID(ctx, lessonReq.ID)
+			if err != nil {
+				continue // Skip if not found
+			}
+
+			lesson.Title = lessonReq.Title
+			lesson.Description = lessonReq.Description
+			lesson.Position = lessonReq.Order
+			lesson.EstimatedDurationMinutes = lessonReq.EstimatedDurationMinutes
+			lesson.LearningObjectives = lessonReq.LearningObjectives
+
+			if err := s.lessonRepo.Update(ctx, lesson); err != nil {
+				log.Error("failed to update lesson", "lessonID", lesson.ID, "error", err)
+				return nil, domainerrors.ErrInternal.WithCause(err)
+			}
+		}
+	}
+
+	// Reload the outline
+	outline, err = s.outlineRepo.GetByID(ctx, outlineID)
+	if err != nil {
+		return nil, domainerrors.ErrInternal.WithCause(err)
+	}
+
+	// Load sections for the outline
+	loadedSections, err := s.sectionRepo.ListByOutlineID(ctx, outlineID)
+	if err != nil {
+		return nil, domainerrors.ErrInternal.WithCause(err)
+	}
+
+	outline.Sections = make([]entity.OutlineSection, len(loadedSections))
+	for i, section := range loadedSections {
+		// Load lessons for each section
+		lessons, _ := s.lessonRepo.ListBySectionID(ctx, section.ID)
+		section.Lessons = make([]entity.OutlineLesson, len(lessons))
+		for j, lesson := range lessons {
+			section.Lessons[j] = *lesson
+		}
+		outline.Sections[i] = *section
+	}
+
+	log.Info("outline updated", "sectionsCount", len(sections))
 	return outline, nil
 }
 
@@ -575,8 +717,15 @@ func (s *AIGenerationService) ProcessLessonGenerationJob(ctx context.Context, jo
 	job.ProgressMessage = &progressMsg
 	_ = s.jobRepo.Update(ctx, job)
 
+	// Get tenant-specific AI provider
+	aiProvider, err := s.aiProviderFactory.GetProvider(ctx, job.TenantID)
+	if err != nil {
+		log.Error("failed to get AI provider", "error", err)
+		return s.failJob(ctx, job, fmt.Sprintf("failed to get AI provider: %v", err))
+	}
+
 	// Generate lesson content
-	lessonResult, err := s.aiProvider.GenerateLessonContent(ctx, service.GenerateLessonRequest{
+	lessonResult, err := aiProvider.GenerateLessonContent(ctx, service.GenerateLessonRequest{
 		CourseTitle:        "", // Could be fetched
 		SectionTitle:       section.Title,
 		LessonTitle:        outlineLesson.Title,
@@ -651,8 +800,301 @@ func (s *AIGenerationService) ProcessLessonGenerationJob(ctx context.Context, jo
 		log.Error("failed to mark job as completed", "error", err)
 	}
 
+	// Notify user of individual lesson completion (tenant-isolated via user lookup)
+	if s.notifier != nil {
+		if err := s.notifier.NotifyJobProgress(ctx, job.CreatedByUserID, job.ID, "Lesson Content", "completed", 100); err != nil {
+			log.Error("failed to send completion notification", "error", err)
+		}
+	}
+
 	log.Info("lesson generation completed", "tokensUsed", lessonResult.TokensUsed)
+
+	// Check if this job has a parent and if all siblings are complete
+	if job.ParentJobID != nil {
+		if err := s.checkAndCompleteParentJob(ctx, *job.ParentJobID); err != nil {
+			log.Error("failed to check parent job completion", "parentJobID", job.ParentJobID, "error", err)
+		}
+	}
+
 	return nil
+}
+
+// checkAndCompleteParentJob checks if all child jobs of a parent are complete
+// and marks the parent as complete, sending notification.
+func (s *AIGenerationService) checkAndCompleteParentJob(ctx context.Context, parentJobID uuid.UUID) error {
+	log := s.logger.With("parentJobID", parentJobID)
+
+	// Check if all children are complete
+	allComplete, err := s.jobRepo.CheckAllChildrenComplete(ctx, parentJobID)
+	if err != nil {
+		return fmt.Errorf("failed to check children completion: %w", err)
+	}
+
+	if !allComplete {
+		log.Debug("not all children complete yet")
+		return nil
+	}
+
+	// Get parent job
+	parentJob, err := s.jobRepo.GetByID(ctx, parentJobID)
+	if err != nil || parentJob == nil {
+		return fmt.Errorf("failed to get parent job: %w", err)
+	}
+
+	// Already completed?
+	if parentJob.Status == valueobject.GenerationJobStatusCompleted ||
+		parentJob.Status == valueobject.GenerationJobStatusFailed {
+		return nil
+	}
+
+	// Check if any children failed
+	children, err := s.jobRepo.ListByParentID(ctx, parentJobID)
+	if err != nil {
+		return fmt.Errorf("failed to list children: %w", err)
+	}
+
+	var failedCount int
+	var totalTokens int64
+	for _, child := range children {
+		if child.Status == valueobject.GenerationJobStatusFailed {
+			failedCount++
+		}
+		totalTokens += child.TokensUsed
+	}
+
+	// Mark parent as complete or failed
+	now := time.Now()
+	parentJob.CompletedAt = &now
+	parentJob.TokensUsed = totalTokens
+
+	// Get course title for notification
+	courseTitle := "Course"
+	if parentJob.CourseID != nil {
+		// We could fetch the course title here, but for now use a generic title
+		courseTitle = "Your Course"
+	}
+
+	if failedCount > 0 {
+		parentJob.Status = valueobject.GenerationJobStatusFailed
+		errMsg := fmt.Sprintf("%d lesson(s) failed to generate", failedCount)
+		parentJob.ErrorMessage = &errMsg
+		progressMsg := "Course generation failed"
+		parentJob.ProgressMessage = &progressMsg
+		parentJob.ProgressPercent = 100
+
+		if err := s.jobRepo.Update(ctx, parentJob); err != nil {
+			log.Error("failed to mark parent job as failed", "error", err)
+		}
+
+		// Send failure notification
+		if s.completionNotifier != nil && parentJob.CourseID != nil {
+			if err := s.completionNotifier.NotifyCourseFailed(ctx, parentJob.CreatedByUserID, *parentJob.CourseID, courseTitle, errMsg); err != nil {
+				log.Error("failed to send course failure notification", "error", err)
+			}
+		}
+
+		log.Info("parent job marked as failed", "failedCount", failedCount)
+	} else {
+		parentJob.Status = valueobject.GenerationJobStatusCompleted
+		progressMsg := "All lessons generated successfully"
+		parentJob.ProgressMessage = &progressMsg
+		parentJob.ProgressPercent = 100
+
+		if err := s.jobRepo.Update(ctx, parentJob); err != nil {
+			log.Error("failed to mark parent job as completed", "error", err)
+		}
+
+		// Send completion notification with email
+		if s.completionNotifier != nil && parentJob.CourseID != nil {
+			if err := s.completionNotifier.NotifyCourseComplete(ctx, parentJob.CreatedByUserID, *parentJob.CourseID, courseTitle); err != nil {
+				log.Error("failed to send course completion notification", "error", err)
+			}
+		}
+
+		log.Info("parent job marked as completed", "totalTokens", totalTokens, "lessonsGenerated", len(children))
+	}
+
+	return nil
+}
+
+// GenerateAllLessonsResult contains the created job.
+type GenerateAllLessonsResult struct {
+	Job *entity.GenerationJob
+}
+
+// GenerateAllLessons starts lesson content generation jobs for all lessons in the course.
+// Creates a FULL_COURSE parent job to track overall completion.
+func (s *AIGenerationService) GenerateAllLessons(ctx context.Context, kratosID uuid.UUID, courseID uuid.UUID) (*GenerateAllLessonsResult, error) {
+	log := s.logger.With("kratosID", kratosID, "courseID", courseID)
+
+	user, err := s.userRepo.GetByKratosID(ctx, kratosID)
+	if err != nil || user == nil {
+		return nil, domainerrors.ErrUserNotFound
+	}
+
+	if user.TenantID == nil {
+		return nil, domainerrors.ErrUserHasNoCompany
+	}
+
+	// Get the approved outline for the course
+	outline, err := s.outlineRepo.GetByCourseID(ctx, courseID)
+	if err != nil || outline == nil {
+		return nil, domainerrors.ErrNotFound.WithMessage("outline not found")
+	}
+
+	if outline.ApprovalStatus != valueobject.OutlineApprovalStatusApproved {
+		return nil, domainerrors.ErrForbidden.WithMessage("outline must be approved before generating lessons")
+	}
+
+	// Load sections with lessons
+	loadedSections, err := s.sectionRepo.ListByOutlineID(ctx, outline.ID)
+	if err != nil {
+		return nil, domainerrors.ErrInternal.WithCause(err)
+	}
+
+	outline.Sections = make([]entity.OutlineSection, len(loadedSections))
+	for i, section := range loadedSections {
+		lessons, _ := s.lessonRepo.ListBySectionID(ctx, section.ID)
+		section.Lessons = make([]entity.OutlineLesson, len(lessons))
+		for j, lesson := range lessons {
+			section.Lessons[j] = *lesson
+		}
+		outline.Sections[i] = *section
+	}
+
+	// Count total lessons
+	totalLessons := 0
+	for _, section := range outline.Sections {
+		totalLessons += len(section.Lessons)
+	}
+
+	if totalLessons == 0 {
+		return nil, domainerrors.ErrInvalidInput.WithMessage("no lessons in outline")
+	}
+
+	// Create a FULL_COURSE parent job to track overall completion
+	parentJob := &entity.GenerationJob{
+		ID:              uuid.New(),
+		TenantID:        *user.TenantID,
+		Type:            valueobject.GenerationJobTypeFullCourse,
+		Status:          valueobject.GenerationJobStatusProcessing, // Parent is processing while children are queued
+		CourseID:        &courseID,
+		ProgressPercent: 0,
+		MaxRetries:      0, // Parent job doesn't retry
+		CreatedByUserID: user.ID,
+		CreatedAt:       time.Now(),
+	}
+
+	now := time.Now()
+	parentJob.StartedAt = &now
+	progressMsg := fmt.Sprintf("Generating %d lessons...", totalLessons)
+	parentJob.ProgressMessage = &progressMsg
+
+	if err := s.jobRepo.Create(ctx, parentJob); err != nil {
+		log.Error("failed to create parent job", "error", err)
+		return nil, domainerrors.ErrInternal.WithCause(err)
+	}
+
+	// Queue individual lesson generation jobs with parent_job_id
+	for _, section := range outline.Sections {
+		for _, lesson := range section.Lessons {
+			lessonID := lesson.ID
+			job := &entity.GenerationJob{
+				ID:              uuid.New(),
+				TenantID:        *user.TenantID,
+				Type:            valueobject.GenerationJobTypeLessonContent,
+				Status:          valueobject.GenerationJobStatusQueued,
+				CourseID:        &courseID,
+				LessonID:        &lessonID,
+				ParentJobID:     &parentJob.ID, // Link to parent job
+				ProgressPercent: 0,
+				MaxRetries:      3,
+				CreatedByUserID: user.ID,
+				CreatedAt:       time.Now(),
+			}
+
+			if err := s.jobRepo.Create(ctx, job); err != nil {
+				log.Error("failed to create lesson job", "lessonID", lessonID, "error", err)
+				// Continue with other lessons
+			}
+		}
+	}
+
+	log.Info("queued all lesson generation jobs", "totalLessons", totalLessons, "parentJobID", parentJob.ID)
+	return &GenerateAllLessonsResult{Job: parentJob}, nil
+}
+
+// RegenerateComponentRequest contains inputs for component regeneration.
+type RegenerateComponentRequest struct {
+	CourseID           uuid.UUID
+	LessonID           uuid.UUID
+	ComponentID        uuid.UUID
+	ModificationPrompt string
+}
+
+// RegenerateComponentResult contains the created job.
+type RegenerateComponentResult struct {
+	Job *entity.GenerationJob
+}
+
+// RegenerateComponent starts a job to regenerate a single lesson component.
+func (s *AIGenerationService) RegenerateComponent(ctx context.Context, kratosID uuid.UUID, req RegenerateComponentRequest) (*RegenerateComponentResult, error) {
+	log := s.logger.With("kratosID", kratosID, "componentID", req.ComponentID)
+
+	user, err := s.userRepo.GetByKratosID(ctx, kratosID)
+	if err != nil || user == nil {
+		return nil, domainerrors.ErrUserNotFound
+	}
+
+	if user.TenantID == nil {
+		return nil, domainerrors.ErrUserHasNoCompany
+	}
+
+	// Verify the component exists
+	component, err := s.componentRepo.GetByID(ctx, req.ComponentID)
+	if err != nil || component == nil {
+		return nil, domainerrors.ErrNotFound.WithMessage("component not found")
+	}
+
+	// Verify the lesson exists
+	lesson, err := s.genLessonRepo.GetByID(ctx, req.LessonID)
+	if err != nil || lesson == nil {
+		return nil, domainerrors.ErrNotFound.WithMessage("lesson not found")
+	}
+
+	// Create the regeneration job
+	job := &entity.GenerationJob{
+		ID:              uuid.New(),
+		TenantID:        *user.TenantID,
+		Type:            valueobject.GenerationJobTypeComponentRegen,
+		Status:          valueobject.GenerationJobStatusQueued,
+		CourseID:        &req.CourseID,
+		LessonID:        &req.LessonID,
+		ProgressPercent: 0,
+		MaxRetries:      3,
+		CreatedByUserID: user.ID,
+		CreatedAt:       time.Now(),
+	}
+
+	// Store modification prompt as JSON in result path temporarily
+	// The worker will read this and use it for regeneration
+	inputData, _ := json.Marshal(map[string]string{
+		"component_id":        req.ComponentID.String(),
+		"modification_prompt": req.ModificationPrompt,
+	})
+	inputPath := string(inputData)
+	job.ResultPath = &inputPath
+
+	progressMsg := "Queued for component regeneration"
+	job.ProgressMessage = &progressMsg
+
+	if err := s.jobRepo.Create(ctx, job); err != nil {
+		log.Error("failed to create regeneration job", "error", err)
+		return nil, domainerrors.ErrInternal.WithCause(err)
+	}
+
+	log.Info("component regeneration job created", "jobID", job.ID, "componentID", req.ComponentID)
+	return &RegenerateComponentResult{Job: job}, nil
 }
 
 // GetJob retrieves a generation job by ID.
@@ -770,5 +1212,66 @@ func (s *AIGenerationService) failJob(ctx context.Context, job *entity.Generatio
 		s.logger.Error("failed to mark job as failed", "jobID", job.ID, "error", err)
 	}
 
+	// Notify user of failure (tenant-isolated via user lookup)
+	if s.notifier != nil {
+		jobType := "Generation"
+		switch job.Type {
+		case valueobject.GenerationJobTypeCourseOutline:
+			jobType = "Course Outline"
+		case valueobject.GenerationJobTypeLessonContent:
+			jobType = "Lesson Content"
+		case valueobject.GenerationJobTypeComponentRegen:
+			jobType = "Component Regeneration"
+		}
+		if err := s.notifier.NotifyJobProgress(ctx, job.CreatedByUserID, job.ID, jobType, "failed", 0); err != nil {
+			s.logger.Error("failed to send failure notification", "jobID", job.ID, "error", err)
+		}
+	}
+
 	return fmt.Errorf(errMsg)
+}
+
+// RunBackground starts the background job processing loop.
+// This polls for queued generation jobs and processes them.
+func (s *AIGenerationService) RunBackground(ctx context.Context, interval time.Duration) {
+	log := s.logger.With("job", "ai-generation-worker")
+	log.Info("starting AI generation background job", "interval", interval)
+
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			log.Info("AI generation background job stopped")
+			return
+		case <-ticker.C:
+			if err := s.processNextJob(ctx); err != nil {
+				log.Error("error processing generation job", "error", err)
+			}
+		}
+	}
+}
+
+// processNextJob processes the next queued generation job.
+func (s *AIGenerationService) processNextJob(ctx context.Context) error {
+	job, err := s.jobRepo.GetNextQueued(ctx)
+	if err != nil {
+		return err
+	}
+
+	if job == nil {
+		return nil // No jobs to process
+	}
+
+	// Only process outline and lesson generation jobs
+	switch job.Type {
+	case valueobject.GenerationJobTypeCourseOutline:
+		return s.ProcessOutlineGenerationJob(ctx, job)
+	case valueobject.GenerationJobTypeLessonContent:
+		return s.ProcessLessonGenerationJob(ctx, job)
+	default:
+		// Not a job type this service handles
+		return nil
+	}
 }

@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetMeRequest, GetMeResponse, GetUserRequest, GetUserResponse, UpdateUserRequest, UpdateUserResponse } from "./user_pb.js";
+import { GetMeRequest, GetMeResponse, GetUserRequest, GetUserResponse, ListCompanyUsersRequest, ListCompanyUsersResponse, UpdateUserRequest, UpdateUserResponse } from "./user_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -45,6 +45,17 @@ export const UserService = {
       name: "UpdateUser",
       I: UpdateUserRequest,
       O: UpdateUserResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * ListCompanyUsers returns all users in the current user's company.
+     *
+     * @generated from rpc mirai.v1.UserService.ListCompanyUsers
+     */
+    listCompanyUsers: {
+      name: "ListCompanyUsers",
+      I: ListCompanyUsersRequest,
+      O: ListCompanyUsersResponse,
       kind: MethodKind.Unary,
     },
   }

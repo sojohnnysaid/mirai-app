@@ -30,18 +30,33 @@ export function planToDisplayString(plan: Plan): string {
 
 /**
  * Convert Role enum to display string
- * LMS roles: Admin manages company, Instructor creates content, SME reviews.
+ * LMS roles: Owner has billing access, Admin manages company, Instructor creates content, SME reviews.
  */
 export function roleToDisplayString(role: Role): string {
   const map: Record<Role, string> = {
     [Role.UNSPECIFIED]: 'Unknown',
-    [Role.OWNER]: 'Admin',       // Deprecated: maps to Admin
+    [Role.OWNER]: 'Owner',       // Account owner with billing access
     [Role.ADMIN]: 'Admin',
-    [Role.MEMBER]: 'SME',        // Deprecated: maps to SME
+    [Role.MEMBER]: 'Member',     // Deprecated: basic member
     [Role.INSTRUCTOR]: 'Instructor',
     [Role.SME]: 'SME',
   };
   return map[role] ?? 'Unknown';
+}
+
+/**
+ * Get badge color classes for a role
+ */
+export function getRoleBadgeColor(role: Role): string {
+  const map: Record<Role, string> = {
+    [Role.UNSPECIFIED]: 'bg-slate-100 text-slate-600',
+    [Role.OWNER]: 'bg-purple-100 text-purple-700',
+    [Role.ADMIN]: 'bg-indigo-100 text-indigo-700',
+    [Role.MEMBER]: 'bg-slate-100 text-slate-600',
+    [Role.INSTRUCTOR]: 'bg-blue-100 text-blue-700',
+    [Role.SME]: 'bg-green-100 text-green-700',
+  };
+  return map[role] ?? 'bg-slate-100 text-slate-600';
 }
 
 /**

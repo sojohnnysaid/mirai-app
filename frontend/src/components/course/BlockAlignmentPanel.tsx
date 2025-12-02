@@ -12,6 +12,7 @@ interface BlockAlignmentPanelProps {
   onUpdate: (alignment: BlockAlignment) => void;
   onClose: () => void;
   onRegenerate: () => void;
+  isRegenerating?: boolean;
 }
 
 export default function BlockAlignmentPanel({
@@ -19,7 +20,8 @@ export default function BlockAlignmentPanel({
   alignment,
   onUpdate,
   onClose,
-  onRegenerate
+  onRegenerate,
+  isRegenerating = false,
 }: BlockAlignmentPanelProps) {
   const personas = useSelector((state: RootState) => state.course.currentCourse.personas || []);
   const objectives = useSelector((state: RootState) => state.course.currentCourse.learningObjectives || []);
@@ -158,10 +160,11 @@ export default function BlockAlignmentPanel({
       <div className="p-4 border-t border-gray-200">
         <button
           onClick={onRegenerate}
-          className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 text-white font-medium rounded-lg hover:bg-purple-700 transition-colors"
+          disabled={isRegenerating}
+          className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 text-white font-medium rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
-          <RefreshCw size={16} />
-          Regenerate Block
+          <RefreshCw size={16} className={isRegenerating ? 'animate-spin' : ''} />
+          {isRegenerating ? 'Regenerating...' : 'Regenerate Block'}
         </button>
       </div>
     </div>

@@ -24,8 +24,8 @@ func NewGenerationJobRepository(db *sql.DB) repository.GenerationJobRepository {
 // Create creates a new job.
 func (r *GenerationJobRepository) Create(ctx context.Context, job *entity.GenerationJob) error {
 	query := `
-		INSERT INTO generation_jobs (tenant_id, type, status, course_id, lesson_id, sme_task_id, submission_id, progress_percent, progress_message, result_path, error_message, tokens_used, retry_count, max_retries, created_by_user_id)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+		INSERT INTO generation_jobs (tenant_id, type, status, course_id, lesson_id, sme_task_id, submission_id, parent_job_id, progress_percent, progress_message, result_path, error_message, tokens_used, retry_count, max_retries, created_by_user_id)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
 		RETURNING id, created_at
 	`
 	return r.db.QueryRowContext(ctx, query,
@@ -36,6 +36,7 @@ func (r *GenerationJobRepository) Create(ctx context.Context, job *entity.Genera
 		job.LessonID,
 		job.SMETaskID,
 		job.SubmissionID,
+		job.ParentJobID,
 		job.ProgressPercent,
 		job.ProgressMessage,
 		job.ResultPath,
@@ -50,7 +51,7 @@ func (r *GenerationJobRepository) Create(ctx context.Context, job *entity.Genera
 // GetByID retrieves a job by its ID.
 func (r *GenerationJobRepository) GetByID(ctx context.Context, id uuid.UUID) (*entity.GenerationJob, error) {
 	query := `
-		SELECT id, tenant_id, type, status, course_id, lesson_id, sme_task_id, submission_id, progress_percent, progress_message, result_path, error_message, tokens_used, retry_count, max_retries, created_by_user_id, created_at, started_at, completed_at
+		SELECT id, tenant_id, type, status, course_id, lesson_id, sme_task_id, submission_id, parent_job_id, progress_percent, progress_message, result_path, error_message, tokens_used, retry_count, max_retries, created_by_user_id, created_at, started_at, completed_at
 		FROM generation_jobs
 		WHERE id = $1
 	`
@@ -65,6 +66,7 @@ func (r *GenerationJobRepository) GetByID(ctx context.Context, id uuid.UUID) (*e
 		&job.LessonID,
 		&job.SMETaskID,
 		&job.SubmissionID,
+		&job.ParentJobID,
 		&job.ProgressPercent,
 		&job.ProgressMessage,
 		&job.ResultPath,
@@ -91,7 +93,7 @@ func (r *GenerationJobRepository) GetByID(ctx context.Context, id uuid.UUID) (*e
 // List retrieves jobs with optional filtering.
 func (r *GenerationJobRepository) List(ctx context.Context, opts entity.GenerationJobListOptions) ([]*entity.GenerationJob, error) {
 	query := `
-		SELECT id, tenant_id, type, status, course_id, lesson_id, sme_task_id, submission_id, progress_percent, progress_message, result_path, error_message, tokens_used, retry_count, max_retries, created_by_user_id, created_at, started_at, completed_at
+		SELECT id, tenant_id, type, status, course_id, lesson_id, sme_task_id, submission_id, parent_job_id, progress_percent, progress_message, result_path, error_message, tokens_used, retry_count, max_retries, created_by_user_id, created_at, started_at, completed_at
 		FROM generation_jobs
 		WHERE 1=1
 	`
@@ -137,6 +139,7 @@ func (r *GenerationJobRepository) List(ctx context.Context, opts entity.Generati
 			&job.LessonID,
 			&job.SMETaskID,
 			&job.SubmissionID,
+			&job.ParentJobID,
 			&job.ProgressPercent,
 			&job.ProgressMessage,
 			&job.ResultPath,
@@ -183,7 +186,7 @@ func (r *GenerationJobRepository) Update(ctx context.Context, job *entity.Genera
 // GetNextQueued retrieves the next queued job for processing.
 func (r *GenerationJobRepository) GetNextQueued(ctx context.Context) (*entity.GenerationJob, error) {
 	query := `
-		SELECT id, tenant_id, type, status, course_id, lesson_id, sme_task_id, submission_id, progress_percent, progress_message, result_path, error_message, tokens_used, retry_count, max_retries, created_by_user_id, created_at, started_at, completed_at
+		SELECT id, tenant_id, type, status, course_id, lesson_id, sme_task_id, submission_id, parent_job_id, progress_percent, progress_message, result_path, error_message, tokens_used, retry_count, max_retries, created_by_user_id, created_at, started_at, completed_at
 		FROM generation_jobs
 		WHERE status = 'queued'
 		ORDER BY created_at ASC
@@ -201,6 +204,7 @@ func (r *GenerationJobRepository) GetNextQueued(ctx context.Context) (*entity.Ge
 		&job.LessonID,
 		&job.SMETaskID,
 		&job.SubmissionID,
+		&job.ParentJobID,
 		&job.ProgressPercent,
 		&job.ProgressMessage,
 		&job.ResultPath,
@@ -222,4 +226,69 @@ func (r *GenerationJobRepository) GetNextQueued(ctx context.Context) (*entity.Ge
 	job.Type, _ = valueobject.ParseGenerationJobType(typeStr)
 	job.Status, _ = valueobject.ParseGenerationJobStatus(statusStr)
 	return job, nil
+}
+
+// ListByParentID retrieves all child jobs for a parent job.
+func (r *GenerationJobRepository) ListByParentID(ctx context.Context, parentID uuid.UUID) ([]*entity.GenerationJob, error) {
+	query := `
+		SELECT id, tenant_id, type, status, course_id, lesson_id, sme_task_id, submission_id, parent_job_id, progress_percent, progress_message, result_path, error_message, tokens_used, retry_count, max_retries, created_by_user_id, created_at, started_at, completed_at
+		FROM generation_jobs
+		WHERE parent_job_id = $1
+		ORDER BY created_at ASC
+	`
+	rows, err := r.db.QueryContext(ctx, query, parentID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list child jobs: %w", err)
+	}
+	defer rows.Close()
+
+	var jobs []*entity.GenerationJob
+	for rows.Next() {
+		job := &entity.GenerationJob{}
+		var typeStr, statusStr string
+		if err := rows.Scan(
+			&job.ID,
+			&job.TenantID,
+			&typeStr,
+			&statusStr,
+			&job.CourseID,
+			&job.LessonID,
+			&job.SMETaskID,
+			&job.SubmissionID,
+			&job.ParentJobID,
+			&job.ProgressPercent,
+			&job.ProgressMessage,
+			&job.ResultPath,
+			&job.ErrorMessage,
+			&job.TokensUsed,
+			&job.RetryCount,
+			&job.MaxRetries,
+			&job.CreatedByUserID,
+			&job.CreatedAt,
+			&job.StartedAt,
+			&job.CompletedAt,
+		); err != nil {
+			return nil, fmt.Errorf("failed to scan child job: %w", err)
+		}
+		job.Type, _ = valueobject.ParseGenerationJobType(typeStr)
+		job.Status, _ = valueobject.ParseGenerationJobStatus(statusStr)
+		jobs = append(jobs, job)
+	}
+	return jobs, nil
+}
+
+// CheckAllChildrenComplete checks if all child jobs of a parent are completed.
+func (r *GenerationJobRepository) CheckAllChildrenComplete(ctx context.Context, parentID uuid.UUID) (bool, error) {
+	query := `
+		SELECT COUNT(*) = 0
+		FROM generation_jobs
+		WHERE parent_job_id = $1
+		  AND status NOT IN ('completed', 'failed', 'cancelled')
+	`
+	var allComplete bool
+	err := r.db.QueryRowContext(ctx, query, parentID).Scan(&allComplete)
+	if err != nil {
+		return false, fmt.Errorf("failed to check children completion: %w", err)
+	}
+	return allComplete, nil
 }

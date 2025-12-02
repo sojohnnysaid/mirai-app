@@ -14,6 +14,9 @@ service UserService {
 
   // UpdateUser updates user information.
   rpc UpdateUser(UpdateUserRequest) returns (UpdateUserResponse);
+
+  // ListCompanyUsers returns all users in the current user's company.
+  rpc ListCompanyUsers(ListCompanyUsersRequest) returns (ListCompanyUsersResponse);
 }
 
 // GetMeRequest is empty as user is identified by auth context.
@@ -44,4 +47,12 @@ message UpdateUserRequest {
 // UpdateUserResponse contains the updated user.
 message UpdateUserResponse {
   User user = 1;
+}
+
+// ListCompanyUsersRequest is empty as company is identified by auth context.
+message ListCompanyUsersRequest {}
+
+// ListCompanyUsersResponse contains all users in the company.
+message ListCompanyUsersResponse {
+  repeated User users = 1;
 }

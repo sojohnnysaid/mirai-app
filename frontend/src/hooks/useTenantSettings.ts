@@ -1,4 +1,4 @@
-import { useQuery, useMutation } from '@connectrpc/connect-query';
+import { useQuery, useMutation, createConnectQueryKey } from '@connectrpc/connect-query';
 import { useQueryClient } from '@tanstack/react-query';
 import { create } from '@bufbuild/protobuf';
 import {

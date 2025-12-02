@@ -33,8 +33,22 @@ export const listTemplates = TargetAudienceService.method.listTemplates;
 export const updateTemplate = TargetAudienceService.method.updateTemplate;
 
 /**
- * DeleteTemplate deletes a template.
+ * DeleteTemplate archives a template (soft delete).
  *
  * @generated from rpc mirai.v1.TargetAudienceService.DeleteTemplate
  */
 export const deleteTemplate = TargetAudienceService.method.deleteTemplate;
+
+/**
+ * ArchiveTemplate archives a template.
+ *
+ * @generated from rpc mirai.v1.TargetAudienceService.ArchiveTemplate
+ */
+export const archiveTemplate = TargetAudienceService.method.archiveTemplate;
+
+/**
+ * RestoreTemplate restores an archived template.
+ *
+ * @generated from rpc mirai.v1.TargetAudienceService.RestoreTemplate
+ */
+export const restoreTemplate = TargetAudienceService.method.restoreTemplate;

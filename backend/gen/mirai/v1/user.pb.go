@@ -299,6 +299,88 @@ func (x *UpdateUserResponse) GetUser() *User {
 	return nil
 }
 
+// ListCompanyUsersRequest is empty as company is identified by auth context.
+type ListCompanyUsersRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListCompanyUsersRequest) Reset() {
+	*x = ListCompanyUsersRequest{}
+	mi := &file_mirai_v1_user_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListCompanyUsersRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListCompanyUsersRequest) ProtoMessage() {}
+
+func (x *ListCompanyUsersRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_mirai_v1_user_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListCompanyUsersRequest.ProtoReflect.Descriptor instead.
+func (*ListCompanyUsersRequest) Descriptor() ([]byte, []int) {
+	return file_mirai_v1_user_proto_rawDescGZIP(), []int{6}
+}
+
+// ListCompanyUsersResponse contains all users in the company.
+type ListCompanyUsersResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Users         []*User                `protobuf:"bytes,1,rep,name=users,proto3" json:"users,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListCompanyUsersResponse) Reset() {
+	*x = ListCompanyUsersResponse{}
+	mi := &file_mirai_v1_user_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListCompanyUsersResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListCompanyUsersResponse) ProtoMessage() {}
+
+func (x *ListCompanyUsersResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_mirai_v1_user_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListCompanyUsersResponse.ProtoReflect.Descriptor instead.
+func (*ListCompanyUsersResponse) Descriptor() ([]byte, []int) {
+	return file_mirai_v1_user_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *ListCompanyUsersResponse) GetUsers() []*User {
+	if x != nil {
+		return x.Users
+	}
+	return nil
+}
+
 var File_mirai_v1_user_proto protoreflect.FileDescriptor
 
 const file_mirai_v1_user_proto_rawDesc = "" +
@@ -319,12 +401,16 @@ const file_mirai_v1_user_proto_rawDesc = "" +
 	"\x04role\x18\x02 \x01(\x0e2\x0e.mirai.v1.RoleH\x00R\x04role\x88\x01\x01B\a\n" +
 	"\x05_role\"8\n" +
 	"\x12UpdateUserResponse\x12\"\n" +
-	"\x04user\x18\x01 \x01(\v2\x0e.mirai.v1.UserR\x04user2\xd0\x01\n" +
+	"\x04user\x18\x01 \x01(\v2\x0e.mirai.v1.UserR\x04user\"\x19\n" +
+	"\x17ListCompanyUsersRequest\"@\n" +
+	"\x18ListCompanyUsersResponse\x12$\n" +
+	"\x05users\x18\x01 \x03(\v2\x0e.mirai.v1.UserR\x05users2\xab\x02\n" +
 	"\vUserService\x128\n" +
 	"\x05GetMe\x12\x16.mirai.v1.GetMeRequest\x1a\x17.mirai.v1.GetMeResponse\x12>\n" +
 	"\aGetUser\x12\x18.mirai.v1.GetUserRequest\x1a\x19.mirai.v1.GetUserResponse\x12G\n" +
 	"\n" +
-	"UpdateUser\x12\x1b.mirai.v1.UpdateUserRequest\x1a\x1c.mirai.v1.UpdateUserResponseB\x8f\x01\n" +
+	"UpdateUser\x12\x1b.mirai.v1.UpdateUserRequest\x1a\x1c.mirai.v1.UpdateUserResponse\x12Y\n" +
+	"\x10ListCompanyUsers\x12!.mirai.v1.ListCompanyUsersRequest\x1a\".mirai.v1.ListCompanyUsersResponseB\x8f\x01\n" +
 	"\fcom.mirai.v1B\tUserProtoP\x01Z3github.com/sogos/mirai-backend/gen/mirai/v1;miraiv1\xa2\x02\x03MXX\xaa\x02\bMirai.V1\xca\x02\bMirai\\V1\xe2\x02\x14Mirai\\V1\\GPBMetadata\xea\x02\tMirai::V1b\x06proto3"
 
 var (
@@ -339,35 +425,40 @@ func file_mirai_v1_user_proto_rawDescGZIP() []byte {
 	return file_mirai_v1_user_proto_rawDescData
 }
 
-var file_mirai_v1_user_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_mirai_v1_user_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_mirai_v1_user_proto_goTypes = []any{
-	(*GetMeRequest)(nil),       // 0: mirai.v1.GetMeRequest
-	(*GetMeResponse)(nil),      // 1: mirai.v1.GetMeResponse
-	(*GetUserRequest)(nil),     // 2: mirai.v1.GetUserRequest
-	(*GetUserResponse)(nil),    // 3: mirai.v1.GetUserResponse
-	(*UpdateUserRequest)(nil),  // 4: mirai.v1.UpdateUserRequest
-	(*UpdateUserResponse)(nil), // 5: mirai.v1.UpdateUserResponse
-	(*User)(nil),               // 6: mirai.v1.User
-	(*Company)(nil),            // 7: mirai.v1.Company
-	(Role)(0),                  // 8: mirai.v1.Role
+	(*GetMeRequest)(nil),             // 0: mirai.v1.GetMeRequest
+	(*GetMeResponse)(nil),            // 1: mirai.v1.GetMeResponse
+	(*GetUserRequest)(nil),           // 2: mirai.v1.GetUserRequest
+	(*GetUserResponse)(nil),          // 3: mirai.v1.GetUserResponse
+	(*UpdateUserRequest)(nil),        // 4: mirai.v1.UpdateUserRequest
+	(*UpdateUserResponse)(nil),       // 5: mirai.v1.UpdateUserResponse
+	(*ListCompanyUsersRequest)(nil),  // 6: mirai.v1.ListCompanyUsersRequest
+	(*ListCompanyUsersResponse)(nil), // 7: mirai.v1.ListCompanyUsersResponse
+	(*User)(nil),                     // 8: mirai.v1.User
+	(*Company)(nil),                  // 9: mirai.v1.Company
+	(Role)(0),                        // 10: mirai.v1.Role
 }
 var file_mirai_v1_user_proto_depIdxs = []int32{
-	6, // 0: mirai.v1.GetMeResponse.user:type_name -> mirai.v1.User
-	7, // 1: mirai.v1.GetMeResponse.company:type_name -> mirai.v1.Company
-	6, // 2: mirai.v1.GetUserResponse.user:type_name -> mirai.v1.User
-	8, // 3: mirai.v1.UpdateUserRequest.role:type_name -> mirai.v1.Role
-	6, // 4: mirai.v1.UpdateUserResponse.user:type_name -> mirai.v1.User
-	0, // 5: mirai.v1.UserService.GetMe:input_type -> mirai.v1.GetMeRequest
-	2, // 6: mirai.v1.UserService.GetUser:input_type -> mirai.v1.GetUserRequest
-	4, // 7: mirai.v1.UserService.UpdateUser:input_type -> mirai.v1.UpdateUserRequest
-	1, // 8: mirai.v1.UserService.GetMe:output_type -> mirai.v1.GetMeResponse
-	3, // 9: mirai.v1.UserService.GetUser:output_type -> mirai.v1.GetUserResponse
-	5, // 10: mirai.v1.UserService.UpdateUser:output_type -> mirai.v1.UpdateUserResponse
-	8, // [8:11] is the sub-list for method output_type
-	5, // [5:8] is the sub-list for method input_type
-	5, // [5:5] is the sub-list for extension type_name
-	5, // [5:5] is the sub-list for extension extendee
-	0, // [0:5] is the sub-list for field type_name
+	8,  // 0: mirai.v1.GetMeResponse.user:type_name -> mirai.v1.User
+	9,  // 1: mirai.v1.GetMeResponse.company:type_name -> mirai.v1.Company
+	8,  // 2: mirai.v1.GetUserResponse.user:type_name -> mirai.v1.User
+	10, // 3: mirai.v1.UpdateUserRequest.role:type_name -> mirai.v1.Role
+	8,  // 4: mirai.v1.UpdateUserResponse.user:type_name -> mirai.v1.User
+	8,  // 5: mirai.v1.ListCompanyUsersResponse.users:type_name -> mirai.v1.User
+	0,  // 6: mirai.v1.UserService.GetMe:input_type -> mirai.v1.GetMeRequest
+	2,  // 7: mirai.v1.UserService.GetUser:input_type -> mirai.v1.GetUserRequest
+	4,  // 8: mirai.v1.UserService.UpdateUser:input_type -> mirai.v1.UpdateUserRequest
+	6,  // 9: mirai.v1.UserService.ListCompanyUsers:input_type -> mirai.v1.ListCompanyUsersRequest
+	1,  // 10: mirai.v1.UserService.GetMe:output_type -> mirai.v1.GetMeResponse
+	3,  // 11: mirai.v1.UserService.GetUser:output_type -> mirai.v1.GetUserResponse
+	5,  // 12: mirai.v1.UserService.UpdateUser:output_type -> mirai.v1.UpdateUserResponse
+	7,  // 13: mirai.v1.UserService.ListCompanyUsers:output_type -> mirai.v1.ListCompanyUsersResponse
+	10, // [10:14] is the sub-list for method output_type
+	6,  // [6:10] is the sub-list for method input_type
+	6,  // [6:6] is the sub-list for extension type_name
+	6,  // [6:6] is the sub-list for extension extendee
+	0,  // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_mirai_v1_user_proto_init() }
@@ -384,7 +475,7 @@ func file_mirai_v1_user_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_mirai_v1_user_proto_rawDesc), len(file_mirai_v1_user_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   6,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

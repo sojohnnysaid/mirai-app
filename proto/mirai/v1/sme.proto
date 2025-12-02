@@ -140,8 +140,11 @@ service SMEService {
   // UpdateSME updates an SME entity.
   rpc UpdateSME(UpdateSMERequest) returns (UpdateSMEResponse);
 
-  // DeleteSME deletes an SME entity.
+  // DeleteSME archives an SME entity (soft delete).
   rpc DeleteSME(DeleteSMERequest) returns (DeleteSMEResponse);
+
+  // RestoreSME restores an archived SME entity.
+  rpc RestoreSME(RestoreSMERequest) returns (RestoreSMEResponse);
 
   // CreateTask creates a delegated task for content submission.
   rpc CreateTask(CreateTaskRequest) returns (CreateTaskResponse);
@@ -203,6 +206,7 @@ message ListSMEsRequest {
   optional SMEScope scope = 1;
   optional SMEStatus status = 2;
   optional string team_id = 3;    // Filter by team access
+  optional bool include_archived = 4;
 }
 
 // ListSMEsResponse contains SMEs matching the filters.
@@ -233,6 +237,16 @@ message DeleteSMERequest {
 
 // DeleteSMEResponse confirms deletion.
 message DeleteSMEResponse {}
+
+// RestoreSMERequest contains the SME ID to restore.
+message RestoreSMERequest {
+  string sme_id = 1;
+}
+
+// RestoreSMEResponse contains the restored SME.
+message RestoreSMEResponse {
+  SubjectMatterExpert sme = 1;
+}
 
 // CreateTaskRequest contains data for a new task.
 message CreateTaskRequest {

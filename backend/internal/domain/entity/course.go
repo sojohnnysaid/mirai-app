@@ -10,9 +10,9 @@ import (
 type CourseStatus string
 
 const (
-	CourseStatusDraft     CourseStatus = "DRAFT"
-	CourseStatusPublished CourseStatus = "PUBLISHED"
-	CourseStatusGenerated CourseStatus = "GENERATED"
+	CourseStatusDraft     CourseStatus = "draft"
+	CourseStatusPublished CourseStatus = "published"
+	CourseStatusGenerated CourseStatus = "generated"
 )
 
 // String returns the string representation of the course status.
@@ -23,11 +23,11 @@ func (s CourseStatus) String() string {
 // ParseCourseStatus parses a string into a CourseStatus.
 func ParseCourseStatus(s string) CourseStatus {
 	switch s {
-	case "DRAFT":
+	case "draft":
 		return CourseStatusDraft
-	case "PUBLISHED":
+	case "published":
 		return CourseStatusPublished
-	case "GENERATED":
+	case "generated":
 		return CourseStatusGenerated
 	default:
 		return CourseStatusDraft

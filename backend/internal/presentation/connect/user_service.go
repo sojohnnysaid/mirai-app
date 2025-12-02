@@ -104,3 +104,33 @@ func (s *UserServiceServer) UpdateUser(
 		User: userToProto(user.User),
 	}), nil
 }
+
+// ListCompanyUsers returns all users in the current user's company.
+func (s *UserServiceServer) ListCompanyUsers(
+	ctx context.Context,
+	req *connect.Request[v1.ListCompanyUsersRequest],
+) (*connect.Response[v1.ListCompanyUsersResponse], error) {
+	kratosIDStr, ok := ctx.Value(kratosIDKey{}).(string)
+	if !ok {
+		return nil, connect.NewError(connect.CodeUnauthenticated, errUnauthenticated)
+	}
+
+	kratosID, err := parseUUID(kratosIDStr)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
+	users, err := s.userService.ListUsersByCompany(ctx, kratosID)
+	if err != nil {
+		return nil, toConnectError(err)
+	}
+
+	protoUsers := make([]*v1.User, len(users))
+	for i, u := range users {
+		protoUsers[i] = userToProto(u)
+	}
+
+	return connect.NewResponse(&v1.ListCompanyUsersResponse{
+		Users: protoUsers,
+	}), nil
+}

@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -17,6 +18,11 @@ type TenantStorageAdapter interface {
 	GenerateUploadURL(ctx context.Context, tenantID uuid.UUID, subpath string, expiry time.Duration) (string, error)
 }
 
+// TaskNotifier interface for sending notifications about task events.
+type TaskNotifier interface {
+	CreateNotification(ctx context.Context, req CreateNotificationRequest) (*entity.Notification, error)
+}
+
 // SMEService handles Subject Matter Expert related business logic.
 type SMEService struct {
 	userRepo       repository.UserRepository
@@ -27,6 +33,7 @@ type SMEService struct {
 	submissionRepo repository.SMESubmissionRepository
 	knowledgeRepo  repository.SMEKnowledgeRepository
 	storage        TenantStorageAdapter
+	notifier       TaskNotifier
 	logger         service.Logger
 }
 
@@ -40,6 +47,7 @@ func NewSMEService(
 	submissionRepo repository.SMESubmissionRepository,
 	knowledgeRepo repository.SMEKnowledgeRepository,
 	storage TenantStorageAdapter,
+	notifier TaskNotifier,
 	logger service.Logger,
 ) *SMEService {
 	return &SMEService{
@@ -51,6 +59,7 @@ func NewSMEService(
 		submissionRepo: submissionRepo,
 		knowledgeRepo:  knowledgeRepo,
 		storage:        storage,
+		notifier:       notifier,
 		logger:         logger,
 	}
 }
@@ -136,8 +145,13 @@ func (s *SMEService) GetSME(ctx context.Context, kratosID uuid.UUID, smeID uuid.
 	return sme, nil
 }
 
+// ListSMEsOptions contains options for listing SMEs.
+type ListSMEsOptions struct {
+	IncludeArchived bool
+}
+
 // ListSMEs retrieves all SMEs accessible to the user.
-func (s *SMEService) ListSMEs(ctx context.Context, kratosID uuid.UUID) ([]*entity.SubjectMatterExpert, error) {
+func (s *SMEService) ListSMEs(ctx context.Context, kratosID uuid.UUID, opts *ListSMEsOptions) ([]*entity.SubjectMatterExpert, error) {
 	user, err := s.userRepo.GetByKratosID(ctx, kratosID)
 	if err != nil || user == nil {
 		return nil, domainerrors.ErrUserNotFound
@@ -147,17 +161,24 @@ func (s *SMEService) ListSMEs(ctx context.Context, kratosID uuid.UUID) ([]*entit
 		return nil, domainerrors.ErrUserHasNoCompany
 	}
 
-	opts := entity.SMEListOptions{}
-	smes, err := s.smeRepo.List(ctx, opts)
+	listOpts := entity.SMEListOptions{}
+	if opts != nil {
+		listOpts.IncludeArchived = opts.IncludeArchived
+	}
+	smes, err := s.smeRepo.List(ctx, listOpts)
 	if err != nil {
 		s.logger.Error("failed to list SMEs", "error", err)
 		return nil, domainerrors.ErrInternal.WithCause(err)
 	}
 
-	// Filter by access
+	// Filter by access and archived status
 	accessible := make([]*entity.SubjectMatterExpert, 0, len(smes))
 	for _, sme := range smes {
 		if s.userHasSMEAccess(ctx, user, sme) {
+			// Filter out archived unless requested
+			if sme.Status == valueobject.SMEStatusArchived && (opts == nil || !opts.IncludeArchived) {
+				continue
+			}
 			accessible = append(accessible, sme)
 		}
 	}
@@ -244,6 +265,39 @@ func (s *SMEService) DeleteSME(ctx context.Context, kratosID uuid.UUID, smeID uu
 	return nil
 }
 
+// RestoreSME restores an archived SME entity.
+func (s *SMEService) RestoreSME(ctx context.Context, kratosID uuid.UUID, smeID uuid.UUID) (*entity.SubjectMatterExpert, error) {
+	log := s.logger.With("kratosID", kratosID, "smeID", smeID)
+
+	user, err := s.userRepo.GetByKratosID(ctx, kratosID)
+	if err != nil || user == nil {
+		return nil, domainerrors.ErrUserNotFound
+	}
+
+	if !user.CanManageSME() {
+		return nil, domainerrors.ErrForbidden.WithMessage("insufficient permissions to restore SME")
+	}
+
+	sme, err := s.smeRepo.GetByID(ctx, smeID)
+	if err != nil || sme == nil {
+		return nil, domainerrors.ErrSMENotFound
+	}
+
+	if sme.Status != valueobject.SMEStatusArchived {
+		return nil, domainerrors.ErrBadRequest.WithMessage("SME is not archived")
+	}
+
+	// Restore to Draft status
+	sme.Status = valueobject.SMEStatusDraft
+	if err := s.smeRepo.Update(ctx, sme); err != nil {
+		log.Error("failed to restore SME", "error", err)
+		return nil, domainerrors.ErrInternal.WithCause(err)
+	}
+
+	log.Info("SME restored")
+	return sme, nil
+}
+
 // CreateTaskRequest contains the parameters for creating a task.
 type CreateTaskRequest struct {
 	SMEID               uuid.UUID
@@ -293,6 +347,23 @@ func (s *SMEService) CreateTask(ctx context.Context, kratosID uuid.UUID, req Cre
 	if err := s.taskRepo.Create(ctx, task); err != nil {
 		log.Error("failed to create task", "error", err)
 		return nil, domainerrors.ErrInternal.WithCause(err)
+	}
+
+	// Send notification to assigned user
+	if s.notifier != nil {
+		_, err := s.notifier.CreateNotification(ctx, CreateNotificationRequest{
+			UserID:   task.AssignedToUserID,
+			Type:     valueobject.NotificationTypeTaskAssigned,
+			Priority: valueobject.NotificationPriorityNormal,
+			Title:    "New Task Assigned",
+			Message:  fmt.Sprintf("You've been assigned a task: %s", task.Title),
+			TaskID:   &task.ID,
+			SMEID:    &task.SMEID,
+		})
+		if err != nil {
+			log.Error("failed to send task notification", "error", err)
+			// Don't fail the task creation if notification fails
+		}
 	}
 
 	log.Info("task created", "taskID", task.ID)

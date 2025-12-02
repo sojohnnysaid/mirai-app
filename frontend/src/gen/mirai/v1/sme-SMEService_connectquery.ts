@@ -33,11 +33,18 @@ export const listSMEs = SMEService.method.listSMEs;
 export const updateSME = SMEService.method.updateSME;
 
 /**
- * DeleteSME deletes an SME entity.
+ * DeleteSME archives an SME entity (soft delete).
  *
  * @generated from rpc mirai.v1.SMEService.DeleteSME
  */
 export const deleteSME = SMEService.method.deleteSME;
+
+/**
+ * RestoreSME restores an archived SME entity.
+ *
+ * @generated from rpc mirai.v1.SMEService.RestoreSME
+ */
+export const restoreSME = SMEService.method.restoreSME;
 
 /**
  * CreateTask creates a delegated task for content submission.

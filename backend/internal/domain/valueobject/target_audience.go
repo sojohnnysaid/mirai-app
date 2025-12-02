@@ -12,6 +12,14 @@ const (
 	ExperienceLevelExpert       ExperienceLevel = "expert"
 )
 
+// TargetAudienceStatus represents the state of a target audience template.
+type TargetAudienceStatus string
+
+const (
+	TargetAudienceStatusActive   TargetAudienceStatus = "active"
+	TargetAudienceStatusArchived TargetAudienceStatus = "archived"
+)
+
 func (e ExperienceLevel) String() string {
 	return string(e)
 }
@@ -31,4 +39,24 @@ func ParseExperienceLevel(str string) (ExperienceLevel, error) {
 		return "", fmt.Errorf("invalid experience level: %s", str)
 	}
 	return e, nil
+}
+
+func (s TargetAudienceStatus) String() string {
+	return string(s)
+}
+
+func (s TargetAudienceStatus) IsValid() bool {
+	switch s {
+	case TargetAudienceStatusActive, TargetAudienceStatusArchived:
+		return true
+	}
+	return false
+}
+
+func ParseTargetAudienceStatus(str string) (TargetAudienceStatus, error) {
+	s := TargetAudienceStatus(str)
+	if !s.IsValid() {
+		return "", fmt.Errorf("invalid target audience status: %s", str)
+	}
+	return s, nil
 }

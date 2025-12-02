@@ -214,6 +214,43 @@ func (c *Client) CreateIdentityWithHash(ctx context.Context, req service.CreateI
 	}, nil
 }
 
+// GetIdentity retrieves an identity by its ID using the Kratos admin API.
+func (c *Client) GetIdentity(ctx context.Context, identityID string) (*service.Identity, error) {
+	url := fmt.Sprintf("%s/admin/identities/%s", c.adminURL, identityID)
+
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to call Kratos: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, nil
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("Kratos returned status %d: %s", resp.StatusCode, string(body))
+	}
+
+	var identity kratosIdentityResponse
+	if err := json.NewDecoder(resp.Body).Decode(&identity); err != nil {
+		return nil, fmt.Errorf("failed to parse identity: %w", err)
+	}
+
+	return &service.Identity{
+		ID:        identity.ID,
+		Email:     identity.Traits.Email,
+		FirstName: identity.Traits.Name.First,
+		LastName:  identity.Traits.Name.Last,
+	}, nil
+}
+
 // CheckEmailExists checks if an email is already registered.
 func (c *Client) CheckEmailExists(ctx context.Context, email string) (bool, error) {
 	url := fmt.Sprintf("%s/admin/identities?credentials_identifier=%s", c.adminURL, email)

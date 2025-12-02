@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/google/uuid"
 	"github.com/sogos/mirai-backend/internal/domain/entity"
@@ -15,6 +16,9 @@ import (
 type NotificationService struct {
 	userRepo         repository.UserRepository
 	notificationRepo repository.NotificationRepository
+	identityProvider service.IdentityProvider
+	emailProvider    service.EmailProvider
+	baseURL          string
 	logger           service.Logger
 }
 
@@ -22,11 +26,17 @@ type NotificationService struct {
 func NewNotificationService(
 	userRepo repository.UserRepository,
 	notificationRepo repository.NotificationRepository,
+	identityProvider service.IdentityProvider,
+	emailProvider service.EmailProvider,
+	baseURL string,
 	logger service.Logger,
 ) *NotificationService {
 	return &NotificationService{
 		userRepo:         userRepo,
 		notificationRepo: notificationRepo,
+		identityProvider: identityProvider,
+		emailProvider:    emailProvider,
+		baseURL:          baseURL,
 		logger:           logger,
 	}
 }
@@ -250,4 +260,216 @@ func (s *NotificationService) NotifyJobProgress(ctx context.Context, userID uuid
 
 	_, err := s.CreateNotification(ctx, req)
 	return err
+}
+
+// SendNotification creates and saves a notification.
+// Implements NotificationSender interface for SMEIngestionService.
+func (s *NotificationService) SendNotification(ctx context.Context, notification *entity.Notification) error {
+	if err := s.notificationRepo.Create(ctx, notification); err != nil {
+		s.logger.Error("failed to send notification", "error", err)
+		return domainerrors.ErrInternal.WithCause(err)
+	}
+	return nil
+}
+
+// SendEmail sends an email notification.
+// Implements NotificationSender interface for SMEIngestionService.
+// Note: Email sending is not implemented yet - logs and returns nil.
+func (s *NotificationService) SendEmail(ctx context.Context, to, subject, body string) error {
+	// TODO: Implement email sending via SMTP or email provider
+	s.logger.Info("email notification (not yet implemented)", "to", to, "subject", subject)
+	return nil
+}
+
+// NotifyGenerationCompleteRequest contains parameters for course generation completion notification.
+type NotifyGenerationCompleteRequest struct {
+	UserID      uuid.UUID
+	UserEmail   string // Email for sending notification
+	UserName    string // First name for email personalization
+	CourseID    uuid.UUID
+	CourseTitle string
+	ActionURL   string // Relative URL like /courses/{id}/preview
+	SendEmail   bool
+}
+
+// NotifyGenerationComplete creates an in-app notification and optionally sends an email
+// when course generation is complete.
+func (s *NotificationService) NotifyGenerationComplete(ctx context.Context, req NotifyGenerationCompleteRequest) error {
+	log := s.logger.With("userID", req.UserID, "courseID", req.CourseID)
+
+	// 1. Create in-app notification
+	actionURL := req.ActionURL
+	notifReq := CreateNotificationRequest{
+		UserID:    req.UserID,
+		Type:      valueobject.NotificationTypeGenerationComplete,
+		Priority:  valueobject.NotificationPriorityNormal,
+		Title:     "Course Ready: " + req.CourseTitle,
+		Message:   "Your AI-generated course is ready for review.",
+		ActionURL: &actionURL,
+		CourseID:  &req.CourseID,
+	}
+
+	_, err := s.CreateNotification(ctx, notifReq)
+	if err != nil {
+		log.Error("failed to create in-app notification", "error", err)
+		// Continue to try email even if in-app fails
+	} else {
+		log.Info("in-app notification created for course completion")
+	}
+
+	// 2. Send email if requested
+	if req.SendEmail && s.emailProvider != nil && req.UserEmail != "" {
+		emailReq := service.SendGenerationCompleteRequest{
+			To:          req.UserEmail,
+			UserName:    req.UserName,
+			CourseTitle: req.CourseTitle,
+			ContentType: "course",
+			CourseURL:   s.baseURL + req.ActionURL,
+		}
+
+		if err := s.emailProvider.SendGenerationComplete(ctx, emailReq); err != nil {
+			log.Error("failed to send completion email", "error", err)
+			// Don't fail the whole operation if email fails
+		} else {
+			log.Info("completion email sent", "to", req.UserEmail)
+		}
+	}
+
+	return nil
+}
+
+// NotifyGenerationFailedRequest contains parameters for course generation failure notification.
+type NotifyGenerationFailedRequest struct {
+	UserID       uuid.UUID
+	UserEmail    string // Email for sending notification
+	UserName     string // First name for email personalization
+	CourseID     uuid.UUID
+	CourseTitle  string
+	ErrorMessage string
+	ActionURL    string // Relative URL like /courses/{id}
+	SendEmail    bool
+}
+
+// NotifyGenerationFailed creates an in-app notification and optionally sends an email
+// when course generation fails.
+func (s *NotificationService) NotifyGenerationFailed(ctx context.Context, req NotifyGenerationFailedRequest) error {
+	log := s.logger.With("userID", req.UserID, "courseID", req.CourseID)
+
+	// 1. Create in-app notification
+	actionURL := req.ActionURL
+	notifReq := CreateNotificationRequest{
+		UserID:    req.UserID,
+		Type:      valueobject.NotificationTypeGenerationFailed,
+		Priority:  valueobject.NotificationPriorityHigh,
+		Title:     "Generation Failed: " + req.CourseTitle,
+		Message:   req.ErrorMessage,
+		ActionURL: &actionURL,
+		CourseID:  &req.CourseID,
+	}
+
+	_, err := s.CreateNotification(ctx, notifReq)
+	if err != nil {
+		log.Error("failed to create in-app notification", "error", err)
+	} else {
+		log.Info("in-app notification created for course generation failure")
+	}
+
+	// 2. Send email if requested
+	if req.SendEmail && s.emailProvider != nil && req.UserEmail != "" {
+		emailReq := service.SendGenerationFailedRequest{
+			To:           req.UserEmail,
+			UserName:     req.UserName,
+			CourseTitle:  req.CourseTitle,
+			ContentType:  "course",
+			ErrorMessage: req.ErrorMessage,
+			CourseURL:    s.baseURL + req.ActionURL,
+		}
+
+		if err := s.emailProvider.SendGenerationFailed(ctx, emailReq); err != nil {
+			log.Error("failed to send failure email", "error", err)
+		} else {
+			log.Info("failure email sent", "to", req.UserEmail)
+		}
+	}
+
+	return nil
+}
+
+// NotifyCourseComplete sends both in-app notification and email when all lessons are generated.
+// This method looks up the user's email from Kratos using their KratosID.
+// Implements CourseCompletionNotifier interface for AIGenerationService.
+func (s *NotificationService) NotifyCourseComplete(ctx context.Context, userID uuid.UUID, courseID uuid.UUID, courseTitle string) error {
+	log := s.logger.With("userID", userID, "courseID", courseID)
+
+	// Look up user to get KratosID
+	user, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil || user == nil {
+		log.Error("failed to get user for completion notification", "error", err)
+		return domainerrors.ErrUserNotFound
+	}
+
+	// Look up identity from Kratos to get email
+	var userEmail, userName string
+	if s.identityProvider != nil {
+		identity, err := s.identityProvider.GetIdentity(ctx, user.KratosID.String())
+		if err != nil {
+			log.Warn("failed to get identity for email", "error", err)
+		} else if identity != nil {
+			userEmail = identity.Email
+			userName = identity.FirstName
+		}
+	}
+
+	actionURL := fmt.Sprintf("/courses/%s/preview", courseID.String())
+
+	// Send notification with email if we have it
+	return s.NotifyGenerationComplete(ctx, NotifyGenerationCompleteRequest{
+		UserID:      userID,
+		UserEmail:   userEmail,
+		UserName:    userName,
+		CourseID:    courseID,
+		CourseTitle: courseTitle,
+		ActionURL:   actionURL,
+		SendEmail:   userEmail != "",
+	})
+}
+
+// NotifyCourseFailed sends both in-app notification and email when course generation fails.
+// This method looks up the user's email from Kratos using their KratosID.
+// Implements CourseCompletionNotifier interface for AIGenerationService.
+func (s *NotificationService) NotifyCourseFailed(ctx context.Context, userID uuid.UUID, courseID uuid.UUID, courseTitle string, errorMsg string) error {
+	log := s.logger.With("userID", userID, "courseID", courseID)
+
+	// Look up user to get KratosID
+	user, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil || user == nil {
+		log.Error("failed to get user for failure notification", "error", err)
+		return domainerrors.ErrUserNotFound
+	}
+
+	// Look up identity from Kratos to get email
+	var userEmail, userName string
+	if s.identityProvider != nil {
+		identity, err := s.identityProvider.GetIdentity(ctx, user.KratosID.String())
+		if err != nil {
+			log.Warn("failed to get identity for email", "error", err)
+		} else if identity != nil {
+			userEmail = identity.Email
+			userName = identity.FirstName
+		}
+	}
+
+	actionURL := fmt.Sprintf("/courses/%s", courseID.String())
+
+	// Send notification with email if we have it
+	return s.NotifyGenerationFailed(ctx, NotifyGenerationFailedRequest{
+		UserID:       userID,
+		UserEmail:    userEmail,
+		UserName:     userName,
+		CourseID:     courseID,
+		CourseTitle:  courseTitle,
+		ErrorMessage: errorMsg,
+		ActionURL:    actionURL,
+		SendEmail:    userEmail != "",
+	})
 }

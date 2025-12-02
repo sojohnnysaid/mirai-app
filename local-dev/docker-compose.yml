@@ -152,6 +152,34 @@ services:
     networks:
       - mirai-local
 
+  # Dozzle - Real-time Docker log viewer
+  dozzle:
+    image: amir20/dozzle:latest
+    container_name: mirai-dozzle
+    ports:
+      - "9999:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      DOZZLE_FILTER: "name=mirai-*"
+    networks:
+      - mirai-local
+
+  # Adminer - Database browser
+  adminer:
+    image: adminer:latest
+    container_name: mirai-adminer
+    ports:
+      - "8081:8080"
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+      ADMINER_DESIGN: dracula
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - mirai-local
+
 volumes:
   postgres_data:
   redis_data:

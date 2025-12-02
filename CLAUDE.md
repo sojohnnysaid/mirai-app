@@ -16,3 +16,4 @@ Telemetry Hooks: Emit analytics events (FLOW_STARTED, FLOW_FAILED, SESSION_ESTAB
 
 Testability: Export state machines separately from components. Cover all transitions and side effects in unit tests using @xstate/test.
 - everything needs to go through proto and we should try to be using a proto contract always whenever possible
+- remember we use proto to respect contracts, react redux toolkit, and react query

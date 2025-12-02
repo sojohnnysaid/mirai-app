@@ -35,6 +35,12 @@ type GenerationJobRepository interface {
 
 	// GetNextQueued retrieves the next queued job for processing.
 	GetNextQueued(ctx context.Context) (*entity.GenerationJob, error)
+
+	// ListByParentID retrieves all child jobs for a parent job.
+	ListByParentID(ctx context.Context, parentID uuid.UUID) ([]*entity.GenerationJob, error)
+
+	// CheckAllChildrenComplete checks if all child jobs of a parent are completed.
+	CheckAllChildrenComplete(ctx context.Context, parentID uuid.UUID) (bool, error)
 }
 
 // CourseOutlineRepository defines the interface for course outline data access.

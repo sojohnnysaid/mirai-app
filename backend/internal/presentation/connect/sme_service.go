@@ -111,7 +111,12 @@ func (s *SMEServiceServer) ListSMEs(
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 
-	smes, err := s.smeService.ListSMEs(ctx, kratosID)
+	opts := &service.ListSMEsOptions{}
+	if req.Msg.IncludeArchived != nil && *req.Msg.IncludeArchived {
+		opts.IncludeArchived = true
+	}
+
+	smes, err := s.smeService.ListSMEs(ctx, kratosID, opts)
 	if err != nil {
 		return nil, toConnectError(err)
 	}
@@ -192,6 +197,36 @@ func (s *SMEServiceServer) DeleteSME(
 	}
 
 	return connect.NewResponse(&v1.DeleteSMEResponse{}), nil
+}
+
+// RestoreSME restores an archived SME entity.
+func (s *SMEServiceServer) RestoreSME(
+	ctx context.Context,
+	req *connect.Request[v1.RestoreSMERequest],
+) (*connect.Response[v1.RestoreSMEResponse], error) {
+	kratosIDStr, ok := ctx.Value(kratosIDKey{}).(string)
+	if !ok {
+		return nil, connect.NewError(connect.CodeUnauthenticated, errUnauthenticated)
+	}
+
+	kratosID, err := parseUUID(kratosIDStr)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
+	smeID, err := parseUUID(req.Msg.SmeId)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+
+	sme, err := s.smeService.RestoreSME(ctx, kratosID, smeID)
+	if err != nil {
+		return nil, toConnectError(err)
+	}
+
+	return connect.NewResponse(&v1.RestoreSMEResponse{
+		Sme: smeToProto(sme),
+	}), nil
 }
 
 // CreateTask creates a delegated task for content submission.

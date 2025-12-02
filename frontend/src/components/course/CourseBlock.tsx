@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   GripVertical,
   Trash2,
@@ -12,9 +12,18 @@ import {
   Sparkles
 } from 'lucide-react';
 import { CourseBlock as CourseBlockType } from '@/types';
+import {
+  useRegenerateComponent,
+  useGetJob,
+  useGetGeneratedLesson,
+  GenerationJobStatus,
+} from '@/hooks/useAIGeneration';
+import { transformRegeneratedComponent } from '@/lib/contentTransform';
 
 interface CourseBlockProps {
   block: CourseBlockType;
+  courseId?: string;
+  lessonId?: string;
   onUpdate: (block: CourseBlockType) => void;
   onDelete: (blockId: string) => void;
   onAlignmentClick: (blockId: string) => void;
@@ -23,6 +32,8 @@ interface CourseBlockProps {
 
 export default function CourseBlock({
   block,
+  courseId,
+  lessonId,
   onUpdate,
   onDelete,
   onAlignmentClick,
@@ -30,6 +41,37 @@ export default function CourseBlock({
 }: CourseBlockProps) {
   const [promptValue, setPromptValue] = useState('');
   const [isRegenerating, setIsRegenerating] = useState(false);
+  const [currentJobId, setCurrentJobId] = useState<string | null>(null);
+  const [regenerationError, setRegenerationError] = useState<string | null>(null);
+
+  // Regeneration hooks
+  const regenerateHook = useRegenerateComponent();
+  const { data: currentJob } = useGetJob(currentJobId || undefined);
+  const { data: lesson, refetch: refetchLesson } = useGetGeneratedLesson(lessonId);
+
+  // Watch for job completion
+  useEffect(() => {
+    if (!currentJob || !currentJobId) return;
+
+    if (currentJob.status === GenerationJobStatus.COMPLETED) {
+      // Job completed - fetch updated lesson to get new component
+      refetchLesson().then(() => {
+        const updatedComponent = lesson?.components.find((c) => c.id === block.id);
+        if (updatedComponent) {
+          // Transform and update the block
+          const newBlock = transformRegeneratedComponent(updatedComponent, block);
+          onUpdate(newBlock);
+        }
+        setIsRegenerating(false);
+        setCurrentJobId(null);
+        setPromptValue('');
+      });
+    } else if (currentJob.status === GenerationJobStatus.FAILED) {
+      setRegenerationError(currentJob.errorMessage || 'Regeneration failed');
+      setIsRegenerating(false);
+      setCurrentJobId(null);
+    }
+  }, [currentJob, currentJobId, lesson, block, onUpdate, refetchLesson]);
 
   const getBlockIcon = () => {
     switch (block.type) {
@@ -64,19 +106,42 @@ export default function CourseBlock({
   const handlePromptSubmit = async () => {
     if (!promptValue.trim()) return;
 
+    // If no courseId/lessonId, fall back to mock behavior
+    if (!courseId || !lessonId) {
+      setIsRegenerating(true);
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      onUpdate({
+        ...block,
+        content: block.content + '\n\n[AI Updated: ' + promptValue + ']',
+        prompt: promptValue
+      });
+      setPromptValue('');
+      setIsRegenerating(false);
+      return;
+    }
+
     setIsRegenerating(true);
-    // Simulate AI regeneration
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    setRegenerationError(null);
 
-    // In a real app, this would call an AI service
-    onUpdate({
-      ...block,
-      content: block.content + '\n\n[AI Updated: ' + promptValue + ']',
-      prompt: promptValue
-    });
+    try {
+      const result = await regenerateHook.mutate({
+        courseId,
+        lessonId,
+        componentId: block.id,
+        modificationPrompt: promptValue,
+      });
 
-    setPromptValue('');
-    setIsRegenerating(false);
+      if (result.job) {
+        // Set job ID to start polling
+        setCurrentJobId(result.job.id);
+      } else {
+        throw new Error('No job returned from regeneration');
+      }
+    } catch (error) {
+      console.error('Regeneration failed:', error);
+      setRegenerationError(error instanceof Error ? error.message : 'Regeneration failed');
+      setIsRegenerating(false);
+    }
   };
 
   return (
@@ -186,6 +251,17 @@ export default function CourseBlock({
 
       {/* AI Prompt Bar */}
       <div className="border-t border-gray-100 p-3 bg-gradient-to-r from-purple-50 to-purple-100">
+        {regenerationError && (
+          <div className="mb-2 px-3 py-1.5 text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg flex items-center justify-between">
+            <span>{regenerationError}</span>
+            <button
+              onClick={() => setRegenerationError(null)}
+              className="text-red-500 hover:text-red-700"
+            >
+              ×
+            </button>
+          </div>
+        )}
         <div className="flex items-center gap-2">
           <Sparkles size={16} className="text-purple-600" />
           <input

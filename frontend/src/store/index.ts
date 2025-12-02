@@ -7,6 +7,7 @@ import smeReducer from './slices/smeSlice';
 import targetAudienceReducer from './slices/targetAudienceSlice';
 import notificationReducer from './slices/notificationSlice';
 import tenantSettingsReducer from './slices/tenantSettingsSlice';
+import teamReducer from './slices/teamSlice';
 import { persistenceMiddleware, restoreFromLocalStorage } from './middleware/persistenceMiddleware';
 import { api } from './api/apiSlice';
 
@@ -76,6 +77,7 @@ export const store = configureStore({
     targetAudience: targetAudienceReducer,
     notification: notificationReducer,
     tenantSettings: tenantSettingsReducer,
+    team: teamReducer,
     [api.reducerPath]: api.reducer, // Add RTK Query reducer
   },
   middleware: (getDefaultMiddleware) =>
