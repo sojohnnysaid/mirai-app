@@ -1,5 +1,12 @@
 # PostgreSQL deployment for Mirai Application Database
 # Uses static PV pointing to pre-created NFS directory with no_root_squash enabled
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: mirai-postgres
+provisioner: kubernetes.io/no-provisioner
+volumeBindingMode: WaitForFirstConsumer
+---
 apiVersion: v1
 kind: PersistentVolume
 metadata:
@@ -12,6 +19,7 @@ spec:
   accessModes:
     - ReadWriteOnce
   persistentVolumeReclaimPolicy: Retain
+  storageClassName: mirai-postgres
   nfs:
     server: 192.168.1.226
     path: /mnt/user/k8s-nfs/postgres-mirai
@@ -24,6 +32,7 @@ metadata:
 spec:
   accessModes:
     - ReadWriteOnce
+  storageClassName: mirai-postgres
   resources:
     requests:
       storage: 10Gi
