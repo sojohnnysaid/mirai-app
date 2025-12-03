@@ -184,3 +184,34 @@ When adding new features:
 Anything that does not fit these categories must be reconsidered.
 
 ---
+- ### Background Job & Concurrency Rules
+
+**Context:** Mirai runs in a High-Availability Kubernetes cluster with 3+ replicas.
+**Core Principle:** NEVER use in-memory concurrency (`go func`, `sync.WaitGroup`, `time.Ticker`) for business logic or scheduled tasks.
+
+#### 1. The Tool: Asynq (Redis)
+All background work must be routed through `github.com/hibiken/asynq`.
+- **Queue:** Redis (Namespace: `redis`).
+- **Persistence:** Jobs persist even if pods restart.
+
+#### 2. Pattern: Producer/Consumer
+When implementing a long-running task (e.g., AI Generation, Emailing, Third-party Sync):
+1.  **Define Payload:** Create a JSON-serializable struct in `internal/domain/worker/tasks.go`.
+2.  **Producer:** In the Service or Handler, use `worker.Client` to enqueue the task.
+    - *Constraint:* Pass IDs, not full objects. Fetch fresh data in the worker.
+3.  **Consumer:** Implement the handler in `internal/infrastructure/worker/handlers.go`.
+
+#### 3. Scheduled Tasks (Cron Replacement)
+**NEVER** use `time.Ticker` or `cron` libraries inside `main.go`.
+- *Reason:* With 3 replicas, a `Ticker` will run the job 3 times simultaneously (Race Condition).
+- *Solution:* Register the task in the Asynq **Scheduler** (`internal/infrastructure/worker/server.go`). Asynq guarantees only one instance runs the schedule.
+
+#### 4. Error Handling & Retries
+- **Transient Errors (Network/DB):** Return a non-nil `error`. Asynq will automatically retry with exponential backoff.
+- **Fatal Errors (Bad Data):** Return `asynq.SkipRetry` or log error and return `nil` to stop the retry loop.
+
+#### 5. Idempotency is Mandatory
+Assume every task handler might run twice for the same payload.
+- *Check:* Query the DB state at the start of the handler.
+- *Act:* Perform the operation.
+- *Save:* Update the DB state immediately.
