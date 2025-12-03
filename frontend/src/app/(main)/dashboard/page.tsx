@@ -53,10 +53,11 @@ export default function Dashboard() {
     }, 200);
   }, []);
 
-  // Handle checkout success and welcome banners (auth_token handled by layout)
+  // Handle checkout success, welcome banners, and edit param (auth_token handled by layout)
   useEffect(() => {
     const isCheckoutSuccess = searchParams.get('checkout') === 'success';
     const isWelcome = searchParams.get('welcome') === 'true';
+    const editCourseId = searchParams.get('edit');
 
     if (isCheckoutSuccess) {
       setShowSuccessBanner(true);
@@ -68,6 +69,14 @@ export default function Dashboard() {
     if (isWelcome) {
       setShowWelcomeModal(true);
       fireConfetti();
+      // Clean up URL
+      router.replace('/dashboard', { scroll: false });
+    }
+
+    // Auto-open edit modal if edit param is present (from email links)
+    if (editCourseId) {
+      setEditingCourseId(editCourseId);
+      setIsAIModalOpen(true);
       // Clean up URL
       router.replace('/dashboard', { scroll: false });
     }
