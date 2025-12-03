@@ -41,6 +41,27 @@ type GenerationJobRepository interface {
 
 	// CheckAllChildrenComplete checks if all child jobs of a parent are completed.
 	CheckAllChildrenComplete(ctx context.Context, parentID uuid.UUID) (bool, error)
+
+	// TryFinalizeParentJob atomically checks if all children are complete and finalizes the parent job.
+	// Returns the finalization result (completed count, failed count, total tokens) or nil if parent was already finalized.
+	// Uses SELECT FOR UPDATE to prevent race conditions when multiple children complete simultaneously.
+	TryFinalizeParentJob(ctx context.Context, parentID uuid.UUID) (*ParentJobFinalizationResult, error)
+}
+
+// ParentJobFinalizationResult contains the result of trying to finalize a parent job.
+type ParentJobFinalizationResult struct {
+	// WasFinalized indicates if this call successfully finalized the job (false if already finalized or not ready)
+	WasFinalized bool
+	// AllComplete indicates if all children are complete (regardless of who finalized)
+	AllComplete bool
+	// CompletedCount is the number of successfully completed children
+	CompletedCount int
+	// FailedCount is the number of failed children
+	FailedCount int
+	// TotalCount is the total number of children
+	TotalCount int
+	// TotalTokens is the sum of tokens used by all children
+	TotalTokens int64
 }
 
 // CourseOutlineRepository defines the interface for course outline data access.

@@ -407,3 +407,32 @@ export function useListGeneratedLessons(courseId: string | undefined) {
     refetch: query.refetch,
   };
 }
+
+/**
+ * Hook to get active generation jobs (queued or processing).
+ * Polls every 30 seconds to check for active jobs.
+ * Useful for showing "generation in progress" banners on dashboard.
+ */
+export function useActiveGenerationJobs() {
+  // Fetch jobs that are queued or processing
+  // We query without a specific status filter and filter client-side
+  // because the backend may not support querying multiple statuses at once
+  const query = useQuery(listJobs, {}, {
+    // Poll every 30 seconds to stay updated
+    refetchInterval: 30000,
+  });
+
+  const activeJobs = (query.data?.jobs ?? []).filter(
+    (job: GenerationJob) =>
+      job.status === GenerationJobStatus.QUEUED ||
+      job.status === GenerationJobStatus.PROCESSING
+  );
+
+  return {
+    data: activeJobs,
+    hasActiveJobs: activeJobs.length > 0,
+    isLoading: query.isLoading,
+    error: query.error,
+    refetch: query.refetch,
+  };
+}

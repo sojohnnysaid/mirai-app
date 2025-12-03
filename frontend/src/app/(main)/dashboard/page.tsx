@@ -2,8 +2,9 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, Clock, FileText, CheckCircle, Edit2, Trash2, X, PartyPopper } from 'lucide-react';
-import { AIGenerationFlowModal } from '@/components/ai-generation';
+import { AIGenerationFlowModal, ActiveJobsBanner } from '@/components/ai-generation';
 import { useListCourses, useDeleteCourse, type LibraryEntry } from '@/hooks/useCourses';
+import { useActiveGenerationJobs } from '@/hooks/useAIGeneration';
 import { CourseStatus } from '@/gen/mirai/v1/course_pb';
 import { useRouter, useSearchParams } from 'next/navigation';
 import confetti from 'canvas-confetti';
@@ -86,6 +87,15 @@ export default function Dashboard() {
   // Connect-Query - automatically fetches and caches
   const { data: courses, isLoading } = useListCourses();
   const deleteCourseMutation = useDeleteCourse();
+  const { data: activeJobs, hasActiveJobs } = useActiveGenerationJobs();
+
+  // Handle clicking on active job banner to open modal with that course
+  const handleViewJobProgress = useCallback((job: { courseId?: string }) => {
+    if (job.courseId) {
+      setEditingCourseId(job.courseId);
+      setIsAIModalOpen(true);
+    }
+  }, []);
 
   // Filter courses based on active tab - handle undefined courses array
   const filteredCourses = (courses || []).filter((course: LibraryEntry) => {
@@ -169,6 +179,14 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Active Generation Jobs Banner */}
+      {hasActiveJobs && (
+        <ActiveJobsBanner
+          jobs={activeJobs}
+          onViewProgress={handleViewJobProgress}
+        />
       )}
 
       {/* Hero Section with Create Button */}

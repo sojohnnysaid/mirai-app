@@ -12,6 +12,7 @@ import (
 	domainerrors "github.com/sogos/mirai-backend/internal/domain/errors"
 	"github.com/sogos/mirai-backend/internal/domain/repository"
 	"github.com/sogos/mirai-backend/internal/domain/service"
+	"github.com/sogos/mirai-backend/internal/domain/tenant"
 	"github.com/sogos/mirai-backend/internal/domain/valueobject"
 )
 
@@ -881,74 +882,60 @@ func (s *AIGenerationService) ProcessLessonGenerationJob(ctx context.Context, jo
 }
 
 // checkAndCompleteParentJob checks child job progress and updates the parent job.
-// Updates progress incrementally as children complete, and marks parent complete when all done.
+// Uses atomic locking to prevent race conditions when multiple children complete simultaneously.
 func (s *AIGenerationService) checkAndCompleteParentJob(ctx context.Context, parentJobID uuid.UUID) error {
 	log := s.logger.With("parentJobID", parentJobID)
 
-	// Get parent job first
+	// Use atomic method to check completion and get stats with proper locking
+	// This prevents race conditions when multiple children complete simultaneously
+	result, err := s.jobRepo.TryFinalizeParentJob(ctx, parentJobID)
+	if err != nil {
+		return fmt.Errorf("failed to check parent job status: %w", err)
+	}
+
+	if result == nil {
+		return nil // Parent job not found
+	}
+
+	// If another worker already finalized, nothing to do
+	if !result.WasFinalized && result.AllComplete {
+		log.Info("parent job already finalized by another worker")
+		return nil
+	}
+
+	// Calculate progress percentage (10% reserved for initial queuing, 90% for lesson generation)
+	doneCount := result.CompletedCount + result.FailedCount
+	progressPercent := int32(10)
+	if result.TotalCount > 0 {
+		progressPercent = int32(10 + (90 * doneCount / result.TotalCount))
+	}
+
+	// Get parent job for update
 	parentJob, err := s.jobRepo.GetByID(ctx, parentJobID)
 	if err != nil || parentJob == nil {
 		return fmt.Errorf("failed to get parent job: %w", err)
 	}
 
-	// Already completed?
-	if parentJob.Status == valueobject.GenerationJobStatusCompleted ||
-		parentJob.Status == valueobject.GenerationJobStatusFailed {
-		return nil
-	}
+	progressMsg := fmt.Sprintf("Generated %d of %d lessons...", result.CompletedCount, result.TotalCount)
 
-	// Get all children to calculate progress
-	children, err := s.jobRepo.ListByParentID(ctx, parentJobID)
-	if err != nil {
-		return fmt.Errorf("failed to list children: %w", err)
-	}
-
-	if len(children) == 0 {
-		return nil
-	}
-
-	// Count completed and failed children
-	var completedCount, failedCount int
-	var totalTokens int64
-	for _, child := range children {
-		switch child.Status {
-		case valueobject.GenerationJobStatusCompleted:
-			completedCount++
-			totalTokens += child.TokensUsed
-		case valueobject.GenerationJobStatusFailed:
-			failedCount++
-			completedCount++ // Failed also counts as "done"
-		}
-	}
-
-	totalChildren := len(children)
-	doneCount := completedCount // includes failed
-	allComplete := doneCount == totalChildren
-
-	// Calculate progress percentage (10% reserved for initial queuing, 90% for lesson generation)
-	// Progress goes from 10% to 100%
-	progressPercent := int32(10 + (90 * doneCount / totalChildren))
-	progressMsg := fmt.Sprintf("Generated %d of %d lessons...", completedCount-failedCount, totalChildren)
-
-	// Update parent progress incrementally
+	// Update parent progress
 	parentJob.ProgressPercent = progressPercent
 	parentJob.ProgressMessage = &progressMsg
-	parentJob.TokensUsed = totalTokens
+	parentJob.TokensUsed = result.TotalTokens
 
-	if !allComplete {
-		// Just update progress, not status
+	// If not all complete, just update progress
+	if !result.AllComplete {
 		if err := s.jobRepo.Update(ctx, parentJob); err != nil {
 			log.Error("failed to update parent job progress", "progress", progressPercent, "error", err)
 		} else {
-			log.Info("parent job progress updated", "progress", progressPercent, "completed", completedCount-failedCount, "total", totalChildren)
+			log.Info("parent job progress updated", "progress", progressPercent, "completed", result.CompletedCount, "total", result.TotalCount)
 		}
 		return nil
 	}
 
-	// All children complete - finalize parent job
-	log.Info("all children complete, finalizing parent job", "completed", completedCount-failedCount, "failed", failedCount)
+	// We won the race - finalize the parent job
+	log.Info("all children complete, finalizing parent job", "completed", result.CompletedCount, "failed", result.FailedCount)
 
-	// Mark parent as complete or failed
 	now := time.Now()
 	parentJob.CompletedAt = &now
 
@@ -958,9 +945,9 @@ func (s *AIGenerationService) checkAndCompleteParentJob(ctx context.Context, par
 		courseTitle = "Your Course"
 	}
 
-	if failedCount > 0 {
+	if result.FailedCount > 0 {
 		parentJob.Status = valueobject.GenerationJobStatusFailed
-		errMsg := fmt.Sprintf("%d lesson(s) failed to generate", failedCount)
+		errMsg := fmt.Sprintf("%d lesson(s) failed to generate", result.FailedCount)
 		parentJob.ErrorMessage = &errMsg
 		finalMsg := "Course generation failed"
 		parentJob.ProgressMessage = &finalMsg
@@ -977,7 +964,7 @@ func (s *AIGenerationService) checkAndCompleteParentJob(ctx context.Context, par
 			}
 		}
 
-		log.Info("parent job marked as failed", "failedCount", failedCount)
+		log.Info("parent job marked as failed", "failedCount", result.FailedCount)
 	} else {
 		parentJob.Status = valueobject.GenerationJobStatusCompleted
 		finalMsg := "All lessons generated successfully"
@@ -995,7 +982,7 @@ func (s *AIGenerationService) checkAndCompleteParentJob(ctx context.Context, par
 			}
 		}
 
-		log.Info("parent job marked as completed", "totalTokens", totalTokens, "lessonsGenerated", len(children))
+		log.Info("parent job marked as completed", "totalTokens", result.TotalTokens, "lessonsGenerated", result.TotalCount)
 	}
 
 	return nil
@@ -1417,8 +1404,12 @@ func (s *AIGenerationService) ProcessNextQueuedJob(ctx context.Context) error {
 }
 
 // processNextJob processes the next queued generation job.
+// Sets up tenant context from the job for proper RLS isolation.
 func (s *AIGenerationService) processNextJob(ctx context.Context) error {
-	job, err := s.jobRepo.GetNextQueued(ctx)
+	// GetNextQueued uses FOR UPDATE SKIP LOCKED and runs with superadmin context
+	// to allow picking up jobs from any tenant
+	adminCtx := tenant.WithSuperAdmin(ctx, true)
+	job, err := s.jobRepo.GetNextQueued(adminCtx)
 	if err != nil {
 		return err
 	}
@@ -1427,12 +1418,16 @@ func (s *AIGenerationService) processNextJob(ctx context.Context) error {
 		return nil // No jobs to process
 	}
 
+	// Set up tenant context from the job for RLS isolation
+	// All subsequent operations will be scoped to this tenant
+	tenantCtx := tenant.WithTenantID(ctx, job.TenantID)
+
 	// Only process outline and lesson generation jobs
 	switch job.Type {
 	case valueobject.GenerationJobTypeCourseOutline:
-		return s.ProcessOutlineGenerationJob(ctx, job)
+		return s.ProcessOutlineGenerationJob(tenantCtx, job)
 	case valueobject.GenerationJobTypeLessonContent:
-		return s.ProcessLessonGenerationJob(ctx, job)
+		return s.ProcessLessonGenerationJob(tenantCtx, job)
 	default:
 		// Not a job type this service handles
 		return nil
@@ -1441,6 +1436,7 @@ func (s *AIGenerationService) processNextJob(ctx context.Context) error {
 
 // ProcessJobByID processes a specific generation job by its ID.
 // This is used by the Asynq worker to process a specific job.
+// Sets up tenant context from the job for proper RLS isolation.
 func (s *AIGenerationService) ProcessJobByID(ctx context.Context, jobID string) error {
 	log := s.logger.With("jobID", jobID)
 
@@ -1450,7 +1446,9 @@ func (s *AIGenerationService) ProcessJobByID(ctx context.Context, jobID string) 
 		return fmt.Errorf("invalid job ID: %w", err)
 	}
 
-	job, err := s.jobRepo.GetByID(ctx, id)
+	// Use superadmin context to fetch the job (before we know its tenant)
+	adminCtx := tenant.WithSuperAdmin(ctx, true)
+	job, err := s.jobRepo.GetByID(adminCtx, id)
 	if err != nil {
 		log.Error("failed to get generation job", "error", err)
 		return err
@@ -1467,12 +1465,16 @@ func (s *AIGenerationService) ProcessJobByID(ctx context.Context, jobID string) 
 		return nil
 	}
 
+	// Set up tenant context from the job for RLS isolation
+	// All subsequent operations will be scoped to this tenant
+	tenantCtx := tenant.WithTenantID(ctx, job.TenantID)
+
 	// Process based on job type
 	switch job.Type {
 	case valueobject.GenerationJobTypeCourseOutline:
-		return s.ProcessOutlineGenerationJob(ctx, job)
+		return s.ProcessOutlineGenerationJob(tenantCtx, job)
 	case valueobject.GenerationJobTypeLessonContent:
-		return s.ProcessLessonGenerationJob(ctx, job)
+		return s.ProcessLessonGenerationJob(tenantCtx, job)
 	default:
 		log.Warn("unknown job type", "type", job.Type)
 		return nil
