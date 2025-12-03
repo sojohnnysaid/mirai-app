@@ -1542,6 +1542,8 @@ type ListCoursesRequest struct {
 	Status        *CourseStatus          `protobuf:"varint,1,opt,name=status,proto3,enum=mirai.v1.CourseStatus,oneof" json:"status,omitempty"`
 	Folder        *string                `protobuf:"bytes,2,opt,name=folder,proto3,oneof" json:"folder,omitempty"`
 	Tags          []string               `protobuf:"bytes,3,rep,name=tags,proto3" json:"tags,omitempty"`
+	Limit         int32                  `protobuf:"varint,4,opt,name=limit,proto3" json:"limit,omitempty"`   // Max results per page (default 20, max 100)
+	Offset        int32                  `protobuf:"varint,5,opt,name=offset,proto3" json:"offset,omitempty"` // Number of results to skip for pagination
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1597,10 +1599,26 @@ func (x *ListCoursesRequest) GetTags() []string {
 	return nil
 }
 
+func (x *ListCoursesRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+func (x *ListCoursesRequest) GetOffset() int32 {
+	if x != nil {
+		return x.Offset
+	}
+	return 0
+}
+
 // ListCoursesResponse contains the list of matching courses.
 type ListCoursesResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Courses       []*LibraryEntry        `protobuf:"bytes,1,rep,name=courses,proto3" json:"courses,omitempty"`
+	TotalCount    int32                  `protobuf:"varint,2,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"` // Total number of matching courses (for pagination)
+	HasMore       bool                   `protobuf:"varint,3,opt,name=has_more,json=hasMore,proto3" json:"has_more,omitempty"`          // Whether there are more results beyond this page
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1640,6 +1658,20 @@ func (x *ListCoursesResponse) GetCourses() []*LibraryEntry {
 		return x.Courses
 	}
 	return nil
+}
+
+func (x *ListCoursesResponse) GetTotalCount() int32 {
+	if x != nil {
+		return x.TotalCount
+	}
+	return 0
+}
+
+func (x *ListCoursesResponse) GetHasMore() bool {
+	if x != nil {
+		return x.HasMore
+	}
+	return false
 }
 
 // GetCourseRequest contains the course ID to retrieve.
@@ -2994,15 +3026,20 @@ const file_mirai_v1_course_proto_rawDesc = "" +
 	"\aversion\x18\x01 \x01(\tR\aversion\x12=\n" +
 	"\flast_updated\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\vlastUpdated\x120\n" +
 	"\acourses\x18\x03 \x03(\v2\x16.mirai.v1.LibraryEntryR\acourses\x12*\n" +
-	"\afolders\x18\x04 \x03(\v2\x10.mirai.v1.FolderR\afolders\"\x90\x01\n" +
+	"\afolders\x18\x04 \x03(\v2\x10.mirai.v1.FolderR\afolders\"\xbe\x01\n" +
 	"\x12ListCoursesRequest\x123\n" +
 	"\x06status\x18\x01 \x01(\x0e2\x16.mirai.v1.CourseStatusH\x00R\x06status\x88\x01\x01\x12\x1b\n" +
 	"\x06folder\x18\x02 \x01(\tH\x01R\x06folder\x88\x01\x01\x12\x12\n" +
-	"\x04tags\x18\x03 \x03(\tR\x04tagsB\t\n" +
+	"\x04tags\x18\x03 \x03(\tR\x04tags\x12\x14\n" +
+	"\x05limit\x18\x04 \x01(\x05R\x05limit\x12\x16\n" +
+	"\x06offset\x18\x05 \x01(\x05R\x06offsetB\t\n" +
 	"\a_statusB\t\n" +
-	"\a_folder\"G\n" +
+	"\a_folder\"\x83\x01\n" +
 	"\x13ListCoursesResponse\x120\n" +
-	"\acourses\x18\x01 \x03(\v2\x16.mirai.v1.LibraryEntryR\acourses\"\"\n" +
+	"\acourses\x18\x01 \x03(\v2\x16.mirai.v1.LibraryEntryR\acourses\x12\x1f\n" +
+	"\vtotal_count\x18\x02 \x01(\x05R\n" +
+	"totalCount\x12\x19\n" +
+	"\bhas_more\x18\x03 \x01(\bR\ahasMore\"\"\n" +
 	"\x10GetCourseRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"=\n" +
 	"\x11GetCourseResponse\x12(\n" +

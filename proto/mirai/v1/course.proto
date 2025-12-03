@@ -242,11 +242,15 @@ message ListCoursesRequest {
   optional CourseStatus status = 1;
   optional string folder = 2;
   repeated string tags = 3;
+  int32 limit = 4;   // Max results per page (default 20, max 100)
+  int32 offset = 5;  // Number of results to skip for pagination
 }
 
 // ListCoursesResponse contains the list of matching courses.
 message ListCoursesResponse {
   repeated LibraryEntry courses = 1;
+  int32 total_count = 2;  // Total number of matching courses (for pagination)
+  bool has_more = 3;      // Whether there are more results beyond this page
 }
 
 // GetCourseRequest contains the course ID to retrieve.

@@ -39,21 +39,27 @@ export { CourseStatus, FolderType };
 export type { Course, LibraryEntry, Folder, Library };
 
 /**
- * Hook to list courses with optional filters.
+ * Hook to list courses with optional filters and pagination.
  */
-export function useListCourses(filters?: {
+export function useListCourses(options?: {
   status?: CourseStatus;
   folder?: string;
   tags?: string[];
+  limit?: number;
+  offset?: number;
 }) {
   const query = useQuery(listCourses, {
-    status: filters?.status,
-    folder: filters?.folder,
-    tags: filters?.tags ?? [],
+    status: options?.status,
+    folder: options?.folder,
+    tags: options?.tags ?? [],
+    limit: options?.limit ?? 20,
+    offset: options?.offset ?? 0,
   });
 
   return {
     data: query.data?.courses ?? [],
+    totalCount: query.data?.totalCount ?? 0,
+    hasMore: query.data?.hasMore ?? false,
     isLoading: query.isLoading,
     error: query.error,
     refetch: query.refetch,

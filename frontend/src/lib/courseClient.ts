@@ -76,24 +76,66 @@ async function callMethod<I, O>(
 }
 
 /**
- * List courses with optional filters
+ * List courses result with pagination info
  */
-export async function listCourses(filters?: {
+export interface ListCoursesResult {
+  courses: LibraryEntry[];
+  totalCount: number;
+  hasMore: boolean;
+}
+
+/**
+ * List courses with optional filters and pagination
+ */
+export async function listCourses(options?: {
   status?: CourseStatus;
   folder?: string;
   tags?: string[];
+  limit?: number;
+  offset?: number;
 }): Promise<LibraryEntry[]> {
   const request = {
-    status: filters?.status,
-    folder: filters?.folder,
-    tags: filters?.tags ?? [],
+    status: options?.status,
+    folder: options?.folder,
+    tags: options?.tags ?? [],
+    limit: options?.limit ?? 20,
+    offset: options?.offset ?? 0,
   };
-  const response = await callMethod<any, { courses: LibraryEntry[] }>(
+  const response = await callMethod<any, { courses: LibraryEntry[]; totalCount: number; hasMore: boolean }>(
     'mirai.v1.CourseService',
     'ListCourses',
     request
   );
   return response.courses || [];
+}
+
+/**
+ * List courses with pagination info returned
+ */
+export async function listCoursesWithPagination(options?: {
+  status?: CourseStatus;
+  folder?: string;
+  tags?: string[];
+  limit?: number;
+  offset?: number;
+}): Promise<ListCoursesResult> {
+  const request = {
+    status: options?.status,
+    folder: options?.folder,
+    tags: options?.tags ?? [],
+    limit: options?.limit ?? 20,
+    offset: options?.offset ?? 0,
+  };
+  const response = await callMethod<any, { courses: LibraryEntry[]; totalCount: number; hasMore: boolean }>(
+    'mirai.v1.CourseService',
+    'ListCourses',
+    request
+  );
+  return {
+    courses: response.courses || [],
+    totalCount: response.totalCount || 0,
+    hasMore: response.hasMore || false,
+  };
 }
 
 /**

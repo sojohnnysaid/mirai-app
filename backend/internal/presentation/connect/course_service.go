@@ -38,7 +38,10 @@ func (s *CourseServiceServer) ListCourses(
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 
-	filter := service.ListCoursesFilter{}
+	filter := service.ListCoursesFilter{
+		Limit:  int(req.Msg.Limit),
+		Offset: int(req.Msg.Offset),
+	}
 
 	if req.Msg.Status != nil && *req.Msg.Status != v1.CourseStatus_COURSE_STATUS_UNSPECIFIED {
 		status := courseStatusFromProto(*req.Msg.Status)
@@ -51,15 +54,17 @@ func (s *CourseServiceServer) ListCourses(
 		filter.Tags = req.Msg.Tags
 	}
 
-	courses, err := s.courseService.ListCourses(ctx, kratosID, filter)
+	result, err := s.courseService.ListCourses(ctx, kratosID, filter)
 	if err != nil {
 		return nil, toConnectError(err)
 	}
 
 	resp := &v1.ListCoursesResponse{
-		Courses: make([]*v1.LibraryEntry, len(courses)),
+		Courses:    make([]*v1.LibraryEntry, len(result.Courses)),
+		TotalCount: int32(result.TotalCount),
+		HasMore:    result.HasMore,
 	}
-	for i, c := range courses {
+	for i, c := range result.Courses {
 		resp.Courses[i] = libraryEntryToProto(&c)
 	}
 

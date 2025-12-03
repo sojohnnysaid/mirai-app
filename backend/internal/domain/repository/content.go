@@ -25,6 +25,9 @@ type CourseRepository interface {
 	// List retrieves courses with optional filtering.
 	List(ctx context.Context, opts entity.CourseListOptions) ([]*entity.Course, error)
 
+	// Count returns the total count of courses matching the filter options.
+	Count(ctx context.Context, opts entity.CourseListOptions) (int, error)
+
 	// CountByFolder counts courses in a folder.
 	CountByFolder(ctx context.Context, folderID uuid.UUID) (int, error)
 }

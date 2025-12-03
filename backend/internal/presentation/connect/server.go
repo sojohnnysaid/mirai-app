@@ -8,6 +8,7 @@ import (
 	"github.com/sogos/mirai-backend/internal/application/service"
 	"github.com/sogos/mirai-backend/internal/domain/repository"
 	domainservice "github.com/sogos/mirai-backend/internal/domain/service"
+	"github.com/sogos/mirai-backend/internal/infrastructure/cache"
 	"github.com/sogos/mirai-backend/internal/infrastructure/worker"
 )
 
@@ -28,6 +29,7 @@ type ServerConfig struct {
 
 	PendingRegRepo repository.PendingRegistrationRepository
 	UserRepo       repository.UserRepository // For tenant context in auth interceptor
+	Cache          cache.Cache               // For caching user tenant mappings
 	Identity       domainservice.IdentityProvider
 	Payments       domainservice.PaymentProvider
 	WorkerClient   *worker.Client // For enqueueing background tasks
@@ -41,7 +43,7 @@ func NewServeMux(cfg ServerConfig) *http.ServeMux {
 	// Create interceptors
 	interceptors := connect.WithInterceptors(
 		NewLoggingInterceptor(cfg.Logger),
-		NewAuthInterceptor(cfg.Identity, cfg.UserRepo, cfg.Logger),
+		NewAuthInterceptor(cfg.Identity, cfg.UserRepo, cfg.Cache, cfg.Logger),
 	)
 
 	mux := http.NewServeMux()

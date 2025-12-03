@@ -4,27 +4,37 @@ import (
 	"context"
 	"net/http"
 	"strings"
+	"time"
 
 	"connectrpc.com/connect"
+	"github.com/google/uuid"
 	"github.com/sogos/mirai-backend/internal/domain/repository"
 	"github.com/sogos/mirai-backend/internal/domain/service"
 	"github.com/sogos/mirai-backend/internal/domain/tenant"
+	"github.com/sogos/mirai-backend/internal/infrastructure/cache"
 )
 
 // AuthInterceptor provides authentication for Connect handlers.
 type AuthInterceptor struct {
 	identity service.IdentityProvider
 	userRepo repository.UserRepository
+	cache    cache.Cache
 	logger   service.Logger
 	// Procedures that don't require authentication
 	publicProcedures map[string]bool
 }
 
+// userTenantMapping caches the kratos ID to tenant ID mapping.
+type userTenantMapping struct {
+	TenantID string `json:"tenant_id"`
+}
+
 // NewAuthInterceptor creates a new auth interceptor.
-func NewAuthInterceptor(identity service.IdentityProvider, userRepo repository.UserRepository, logger service.Logger) *AuthInterceptor {
+func NewAuthInterceptor(identity service.IdentityProvider, userRepo repository.UserRepository, cache cache.Cache, logger service.Logger) *AuthInterceptor {
 	return &AuthInterceptor{
 		identity: identity,
 		userRepo: userRepo,
+		cache:    cache,
 		logger:   logger,
 		publicProcedures: map[string]bool{
 			"/mirai.v1.AuthService/CheckEmail":                 true,
@@ -80,14 +90,45 @@ func (i *AuthInterceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc {
 		ctx = context.WithValue(ctx, emailKey{}, email)
 
 		// Look up user to get tenant ID for RLS
-		// Use superadmin context to bypass RLS for this lookup
+		// First check cache, then fall back to database lookup
 		if i.userRepo != nil {
-			adminCtx := tenant.WithSuperAdmin(ctx, true)
-			user, err := i.userRepo.GetByKratosID(adminCtx, session.IdentityID)
-			if err != nil {
-				i.logger.Debug("failed to lookup user for tenant context", "error", err)
-			} else if user != nil && user.TenantID != nil {
-				ctx = tenant.WithTenantID(ctx, *user.TenantID)
+			cacheKey := "user:tenant:" + kratosID
+			var tenantID uuid.UUID
+			var found bool
+
+			// Try cache first
+			if i.cache != nil {
+				var mapping userTenantMapping
+				if entry, err := i.cache.Get(ctx, cacheKey, &mapping); err == nil && entry != nil {
+					if parsedID, err := uuid.Parse(mapping.TenantID); err == nil {
+						tenantID = parsedID
+						found = true
+					}
+				}
+			}
+
+			// Fall back to database if not cached
+			if !found {
+				adminCtx := tenant.WithSuperAdmin(ctx, true)
+				user, err := i.userRepo.GetByKratosID(adminCtx, session.IdentityID)
+				if err != nil {
+					i.logger.Debug("failed to lookup user for tenant context", "error", err)
+				} else if user != nil && user.TenantID != nil {
+					tenantID = *user.TenantID
+					found = true
+
+					// Cache the mapping for 1 hour
+					if i.cache != nil {
+						mapping := userTenantMapping{TenantID: tenantID.String()}
+						if _, err := i.cache.Set(ctx, cacheKey, &mapping, "", time.Hour); err != nil {
+							i.logger.Debug("failed to cache user tenant mapping", "error", err)
+						}
+					}
+				}
+			}
+
+			if found {
+				ctx = tenant.WithTenantID(ctx, tenantID)
 			}
 		}
 

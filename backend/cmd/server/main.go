@@ -133,8 +133,25 @@ func main() {
 	// Wrap storage with tenant-aware path prefixing
 	tenantStorage := storage.NewTenantAwareStorage(baseStorage)
 
-	// Initialize cache for CourseService
-	courseCache := cache.NewNoOpCache() // Use NoOpCache for local dev (Redis in production)
+	// Initialize Redis cache for CourseService and auth interceptor
+	// Use actual Redis cache for better performance
+	var appCache cache.Cache
+	if cfg.RedisURL != "" {
+		redisCache, err := cache.NewRedisCache(cache.RedisConfig{
+			URL:        cfg.RedisURL,
+			DefaultTTL: 5 * time.Minute,
+		})
+		if err != nil {
+			logger.Warn("failed to initialize Redis cache, falling back to no-op cache", "error", err)
+			appCache = cache.NewNoOpCache()
+		} else {
+			appCache = redisCache
+			logger.Info("Redis cache initialized")
+		}
+	} else {
+		appCache = cache.NewNoOpCache()
+		logger.Warn("Redis URL not configured, using no-op cache")
+	}
 
 	// Initialize encryptor for API key encryption (optional for development)
 	var encryptor *crypto.Encryptor
@@ -157,7 +174,7 @@ func main() {
 	companyService := service.NewCompanyService(userRepo, companyRepo, logger)
 	teamService := service.NewTeamService(userRepo, companyRepo, teamRepo, folderRepo, kratosClient, logger)
 	invitationService := service.NewInvitationService(userRepo, companyRepo, invitationRepo, stripeClient, emailClient, logger, cfg.FrontendURL)
-	courseService := service.NewCourseService(courseRepo, folderRepo, userRepo, tenantStorage, courseCache, logger)
+	courseService := service.NewCourseService(courseRepo, folderRepo, userRepo, tenantStorage, appCache, logger)
 
 	// Notification service (created first for dependency injection)
 	notificationService := service.NewNotificationService(userRepo, notificationRepo, kratosClient, emailClient, cfg.FrontendURL, logger)
@@ -242,7 +259,8 @@ func main() {
 		NotificationService:   notificationService,
 		AIGenerationService:   aiGenerationService,
 		PendingRegRepo:        pendingRegRepo,
-		UserRepo:              userRepo, // For tenant context in auth interceptor
+		UserRepo:              userRepo,    // For tenant context in auth interceptor
+		Cache:                 appCache,    // For caching user tenant mappings
 		Identity:              kratosClient,
 		Payments:              stripeClient,
 		WorkerClient:          workerClient, // For enqueueing background tasks

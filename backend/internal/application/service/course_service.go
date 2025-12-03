@@ -138,17 +138,40 @@ type ListCoursesFilter struct {
 	Status *CourseStatus
 	Folder *string
 	Tags   []string
+	Limit  int
+	Offset int
 }
 
-// ListCourses returns courses matching the filter.
-func (s *CourseService) ListCourses(ctx context.Context, kratosID uuid.UUID, filter ListCoursesFilter) ([]LibraryEntry, error) {
+// ListCoursesResult contains the result of listing courses with pagination info.
+type ListCoursesResult struct {
+	Courses    []LibraryEntry
+	TotalCount int
+	HasMore    bool
+}
+
+// ListCourses returns courses matching the filter with pagination support.
+func (s *CourseService) ListCourses(ctx context.Context, kratosID uuid.UUID, filter ListCoursesFilter) (ListCoursesResult, error) {
 	user, err := s.userRepo.GetByKratosID(ctx, kratosID)
 	if err != nil || user == nil {
-		return nil, domainerrors.ErrUserNotFound
+		return ListCoursesResult{}, domainerrors.ErrUserNotFound
+	}
+
+	// Apply pagination defaults and limits
+	limit := filter.Limit
+	if limit <= 0 {
+		limit = 20 // Default page size
+	}
+	if limit > 100 {
+		limit = 100 // Max page size
+	}
+	offset := filter.Offset
+	if offset < 0 {
+		offset = 0
 	}
 
 	opts := entity.CourseListOptions{
-		Limit: 100, // Default limit
+		Limit:  limit,
+		Offset: offset,
 	}
 
 	if filter.Status != nil {
@@ -167,10 +190,17 @@ func (s *CourseService) ListCourses(ctx context.Context, kratosID uuid.UUID, fil
 		opts.Tags = filter.Tags
 	}
 
+	// Get total count for pagination
+	totalCount, err := s.courseRepo.Count(ctx, opts)
+	if err != nil {
+		s.logger.Error("failed to count courses", "error", err)
+		return ListCoursesResult{}, domainerrors.ErrInternal.WithCause(err)
+	}
+
 	courses, err := s.courseRepo.List(ctx, opts)
 	if err != nil {
 		s.logger.Error("failed to list courses", "error", err)
-		return nil, domainerrors.ErrInternal.WithCause(err)
+		return ListCoursesResult{}, domainerrors.ErrInternal.WithCause(err)
 	}
 
 	entries := make([]LibraryEntry, 0, len(courses))
@@ -197,7 +227,11 @@ func (s *CourseService) ListCourses(ctx context.Context, kratosID uuid.UUID, fil
 		})
 	}
 
-	return entries, nil
+	return ListCoursesResult{
+		Courses:    entries,
+		TotalCount: totalCount,
+		HasMore:    offset+len(entries) < totalCount,
+	}, nil
 }
 
 // GetCourse retrieves a course by ID.
