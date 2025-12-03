@@ -223,6 +223,7 @@ STRIPE_PRO_PRICE_ID="${STRIPE_PRO_PRICE_ID:-}" \
 SMTP_HOST="localhost" \
 SMTP_PORT="1025" \
 SMTP_FROM="noreply@mirai.local" \
+REDIS_URL="localhost:6379" \
 S3_ENDPOINT="http://localhost:9000" \
 S3_REGION="us-east-1" \
 S3_BUCKET="mirai" \
