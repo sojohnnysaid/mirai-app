@@ -51,6 +51,7 @@ type Config struct {
 	SMTPFrom     string
 	SMTPUsername string
 	SMTPPassword string
+	AdminEmail   string // Email address for system alerts (e.g., orphaned payments)
 
 	// Encryption
 	EncryptionKey string // 32-byte hex-encoded key for AES-256-GCM (API keys, etc.)
@@ -94,6 +95,7 @@ func Load() (*Config, error) {
 		SMTPFrom:     getEnv("SMTP_FROM", "noreply@mirai.sogos.io"),
 		SMTPUsername: getEnv("SMTP_USERNAME", ""),
 		SMTPPassword: getEnv("SMTP_PASSWORD", ""),
+		AdminEmail:   getEnv("ADMIN_EMAIL", "devops@sogos.io"),
 		// Encryption
 		EncryptionKey: getEnv("ENCRYPTION_KEY", ""),
 	}, nil

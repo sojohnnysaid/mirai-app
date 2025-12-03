@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/sogos/mirai-backend/internal/domain/entity"
@@ -141,6 +142,10 @@ type PendingRegistrationRepository interface {
 
 	// ListByStatus retrieves all pending registrations with a given status.
 	ListByStatus(ctx context.Context, status valueobject.PendingRegistrationStatus) ([]*entity.PendingRegistration, error)
+
+	// FindStuckPaid finds registrations that are stuck in "paid" status for longer than the given duration.
+	// These are registrations where payment was received but provisioning hasn't completed.
+	FindStuckPaid(ctx context.Context, olderThan time.Duration) ([]*entity.PendingRegistration, error)
 
 	// Update updates a pending registration.
 	Update(ctx context.Context, pr *entity.PendingRegistration) error

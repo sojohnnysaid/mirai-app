@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/sogos/mirai-backend/internal/domain/entity"
@@ -118,6 +119,39 @@ func (r *PendingRegistrationRepository) ListByStatus(ctx context.Context, status
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("error iterating pending registrations: %w", err)
+	}
+	return results, nil
+}
+
+// FindStuckPaid finds registrations that are stuck in "paid" status for longer than the given duration.
+// These are registrations where payment was received but provisioning hasn't completed.
+func (r *PendingRegistrationRepository) FindStuckPaid(ctx context.Context, olderThan time.Duration) ([]*entity.PendingRegistration, error) {
+	cutoff := time.Now().Add(-olderThan)
+	query := `
+		SELECT id, checkout_session_id, email, password_hash, first_name, last_name,
+			company_name, industry, team_size, plan, seat_count, status,
+			stripe_customer_id, stripe_subscription_id, error_message,
+			created_at, expires_at, updated_at
+		FROM pending_registrations
+		WHERE status = 'paid' AND updated_at < $1
+		ORDER BY updated_at ASC
+	`
+	rows, err := r.db.QueryContext(ctx, query, cutoff)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find stuck paid registrations: %w", err)
+	}
+	defer rows.Close()
+
+	var results []*entity.PendingRegistration
+	for rows.Next() {
+		pr, err := r.scanRow(rows)
+		if err != nil {
+			return nil, err
+		}
+		results = append(results, pr)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating stuck paid registrations: %w", err)
 	}
 	return results, nil
 }

@@ -18,6 +18,7 @@ type Handlers struct {
 	cleanupService      *appservice.CleanupService
 	aiGenService        *appservice.AIGenerationService
 	smeIngestionService *appservice.SMEIngestionService
+	workerClient        *Client
 	logger              domainservice.Logger
 }
 
@@ -27,6 +28,7 @@ func NewHandlers(
 	cleanupService *appservice.CleanupService,
 	aiGenService *appservice.AIGenerationService,
 	smeIngestionService *appservice.SMEIngestionService,
+	workerClient *Client,
 	logger domainservice.Logger,
 ) *Handlers {
 	return &Handlers{
@@ -34,6 +36,7 @@ func NewHandlers(
 		cleanupService:      cleanupService,
 		aiGenService:        aiGenService,
 		smeIngestionService: smeIngestionService,
+		workerClient:        workerClient,
 		logger:              logger,
 	}
 }
@@ -61,6 +64,60 @@ func (h *Handlers) HandleStripeProvision(ctx context.Context, t *asynq.Task) err
 	}
 
 	log.Info("successfully provisioned account")
+	return nil
+}
+
+// HandleStripeReconcile processes stuck paid registrations.
+// This is called periodically by the scheduler to catch orphaned payments.
+func (h *Handlers) HandleStripeReconcile(ctx context.Context, t *asynq.Task) error {
+	log := h.logger.With("task", worker.TypeStripeReconcile)
+	log.Info("processing stripe reconciliation task")
+
+	// Find stuck registrations and get critical ones for alerting
+	result, err := h.provisioningService.ReconcileStuckProvisioning(ctx)
+	if err != nil {
+		log.Error("failed to reconcile stuck provisioning", "error", err)
+		return err
+	}
+
+	// Re-enqueue stuck registrations for processing
+	for _, reg := range result.Stuck {
+		if h.workerClient != nil {
+			customerID := ""
+			subscriptionID := ""
+			if reg.StripeCustomerID != nil {
+				customerID = *reg.StripeCustomerID
+			}
+			if reg.StripeSubscriptionID != nil {
+				subscriptionID = *reg.StripeSubscriptionID
+			}
+			if err := h.workerClient.EnqueueStripeProvision(reg.CheckoutSessionID, customerID, subscriptionID); err != nil {
+				log.Warn("failed to re-enqueue stuck registration",
+					"checkoutSessionID", reg.CheckoutSessionID,
+					"email", reg.Email,
+					"error", err,
+				)
+			} else {
+				log.Info("re-enqueued stuck registration",
+					"checkoutSessionID", reg.CheckoutSessionID,
+					"email", reg.Email,
+				)
+			}
+		}
+	}
+
+	// Send alert for critically stuck registrations (>1 hour)
+	if len(result.Critical) > 0 {
+		if err := h.provisioningService.SendReconciliationAlert(ctx, result.Critical); err != nil {
+			log.Error("failed to send reconciliation alert", "error", err)
+			// Don't fail the task - alerting is best-effort
+		}
+	}
+
+	log.Info("reconciliation completed",
+		"stuck", len(result.Stuck),
+		"critical", len(result.Critical),
+	)
 	return nil
 }
 

@@ -9,6 +9,7 @@ import (
 	"github.com/sogos/mirai-backend/internal/application/service"
 	"github.com/sogos/mirai-backend/internal/domain/repository"
 	domainservice "github.com/sogos/mirai-backend/internal/domain/service"
+	"github.com/sogos/mirai-backend/internal/domain/valueobject"
 	"github.com/sogos/mirai-backend/internal/infrastructure/worker"
 	"github.com/stripe/stripe-go/v76"
 )
@@ -138,7 +139,14 @@ func (h *WebhookHandler) handlePendingRegistrationPayment(ctx context.Context, c
 		return
 	}
 
-	log = log.With("email", pending.Email, "company", pending.CompanyName)
+	log = log.With("email", pending.Email, "company", pending.CompanyName, "status", pending.Status)
+
+	// Idempotency check: skip if not in "pending" status
+	// This prevents duplicate processing if Stripe sends the webhook multiple times
+	if pending.Status != valueobject.PendingRegistrationStatusPending {
+		log.Info("registration already processed, skipping (idempotent)")
+		return
+	}
 
 	// Get seat count from subscription (if available)
 	seatCount := 0

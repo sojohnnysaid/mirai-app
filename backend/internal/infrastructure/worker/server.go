@@ -26,6 +26,7 @@ func NewServer(
 	cleanupService *appservice.CleanupService,
 	aiGenService *appservice.AIGenerationService,
 	smeIngestionService *appservice.SMEIngestionService,
+	workerClient *Client,
 	logger domainservice.Logger,
 ) *Server {
 	// Configure the Asynq server
@@ -64,12 +65,14 @@ func NewServer(
 		cleanupService,
 		aiGenService,
 		smeIngestionService,
+		workerClient,
 		logger,
 	)
 
 	// Create and configure the mux
 	mux := asynq.NewServeMux()
 	mux.HandleFunc(worker.TypeStripeProvision, handlers.HandleStripeProvision)
+	mux.HandleFunc(worker.TypeStripeReconcile, handlers.HandleStripeReconcile)
 	mux.HandleFunc(worker.TypeCleanupExpired, handlers.HandleCleanupExpired)
 	mux.HandleFunc(worker.TypeAIGeneration, handlers.HandleAIGeneration)
 	mux.HandleFunc(worker.TypeSMEIngestion, handlers.HandleSMEIngestion)
@@ -92,8 +95,16 @@ func (s *Server) Run() error {
 
 	// Register scheduled tasks
 
+	// Stripe reconciliation every 15 minutes (catches orphaned payments)
+	_, err := s.scheduler.Register("@every 15m", worker.NewStripeReconcileTask())
+	if err != nil {
+		s.logger.Error("failed to register stripe reconciliation task", "error", err)
+		return err
+	}
+	s.logger.Info("registered stripe reconciliation task", "schedule", "@every 15m")
+
 	// Cleanup every 1 hour
-	_, err := s.scheduler.Register("@every 1h", worker.NewCleanupExpiredTask())
+	_, err = s.scheduler.Register("@every 1h", worker.NewCleanupExpiredTask())
 	if err != nil {
 		s.logger.Error("failed to register cleanup scheduled task", "error", err)
 		return err

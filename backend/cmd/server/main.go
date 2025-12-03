@@ -101,8 +101,8 @@ func main() {
 	// Initialize SMTP email client (only if configured)
 	var emailClient domainservice.EmailProvider
 	if cfg.SMTPHost != "" {
-		emailClient = smtp.NewClient(cfg.SMTPHost, cfg.SMTPPort, cfg.SMTPFrom, cfg.SMTPUsername, cfg.SMTPPassword)
-		logger.Info("email provider configured", "host", cfg.SMTPHost)
+		emailClient = smtp.NewClient(cfg.SMTPHost, cfg.SMTPPort, cfg.SMTPFrom, cfg.SMTPUsername, cfg.SMTPPassword, cfg.AdminEmail)
+		logger.Info("email provider configured", "host", cfg.SMTPHost, "adminEmail", cfg.AdminEmail)
 	} else {
 		logger.Warn("email provider not configured, invitations will not send emails")
 	}
@@ -270,6 +270,7 @@ func main() {
 		cleanupService,
 		aiGenerationService,
 		smeIngestionService,
+		workerClient,
 		logger,
 	)
 

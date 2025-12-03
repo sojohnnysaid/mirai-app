@@ -228,6 +228,9 @@ type EmailProvider interface {
 
 	// SendCourseComplete sends a notification when full course generation is complete.
 	SendCourseComplete(ctx context.Context, req SendCourseCompleteRequest) error
+
+	// SendAlert sends an administrative alert email (e.g., for orphaned payments).
+	SendAlert(ctx context.Context, req SendAlertRequest) error
 }
 
 // SendInvitationRequest contains data for sending an invitation email.
@@ -315,6 +318,12 @@ type SendCourseCompleteRequest struct {
 	LessonCount          int
 	TotalDurationMinutes int
 	CourseURL            string
+}
+
+// SendAlertRequest contains data for administrative alert emails.
+type SendAlertRequest struct {
+	Subject string
+	Body    string
 }
 
 // AIProvider abstracts AI generation operations (Gemini, OpenAI, etc.).

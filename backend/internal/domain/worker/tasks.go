@@ -8,12 +8,13 @@ import (
 
 // Task type constants
 const (
-	TypeStripeProvision   = "stripe:provision"
-	TypeCleanupExpired    = "cleanup:expired"
-	TypeAIGeneration      = "ai:generation"
-	TypeSMEIngestion      = "sme:ingestion"
-	TypeAIGenerationPoll  = "ai:generation:poll"  // Scheduled polling task
-	TypeSMEIngestionPoll  = "sme:ingestion:poll"  // Scheduled polling task
+	TypeStripeProvision  = "stripe:provision"
+	TypeStripeReconcile  = "stripe:reconcile" // Scheduled reconciliation for orphaned payments
+	TypeCleanupExpired   = "cleanup:expired"
+	TypeAIGeneration     = "ai:generation"
+	TypeSMEIngestion     = "sme:ingestion"
+	TypeAIGenerationPoll = "ai:generation:poll" // Scheduled polling task
+	TypeSMEIngestionPoll = "sme:ingestion:poll" // Scheduled polling task
 )
 
 // Queue names for priority handling
@@ -52,6 +53,11 @@ func NewStripeProvisionTask(sessionID, customer, subscriptionID string) (*asynq.
 		return nil, err
 	}
 	return asynq.NewTask(TypeStripeProvision, payload, asynq.Queue(QueueCritical), asynq.MaxRetry(10)), nil
+}
+
+// NewStripeReconcileTask creates a new Stripe reconciliation task (scheduled)
+func NewStripeReconcileTask() *asynq.Task {
+	return asynq.NewTask(TypeStripeReconcile, nil, asynq.Queue(QueueCritical), asynq.MaxRetry(1))
 }
 
 // NewAIGenerationTask creates a new AI generation task

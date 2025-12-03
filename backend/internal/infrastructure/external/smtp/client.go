@@ -12,21 +12,23 @@ import (
 
 // Client implements service.EmailProvider using SMTP.
 type Client struct {
-	host     string
-	port     string
-	from     string
-	username string
-	password string
+	host       string
+	port       string
+	from       string
+	username   string
+	password   string
+	adminEmail string
 }
 
 // NewClient creates a new SMTP client.
-func NewClient(host, port, from, username, password string) service.EmailProvider {
+func NewClient(host, port, from, username, password, adminEmail string) service.EmailProvider {
 	return &Client{
-		host:     host,
-		port:     port,
-		from:     from,
-		username: username,
-		password: password,
+		host:       host,
+		port:       port,
+		from:       from,
+		username:   username,
+		password:   password,
+		adminEmail: adminEmail,
 	}
 }
 
@@ -805,4 +807,57 @@ func (c *Client) renderCourseCompleteEmail(req service.SendCourseCompleteRequest
 	}
 
 	return buf.String(), nil
+}
+
+// SendAlert sends an administrative alert email to the configured admin address.
+func (c *Client) SendAlert(ctx context.Context, req service.SendAlertRequest) error {
+	if c.adminEmail == "" {
+		return fmt.Errorf("admin email not configured")
+	}
+
+	body := c.renderAlertEmail(req)
+	return c.sendEmail(c.adminEmail, req.Subject, body)
+}
+
+// renderAlertEmail renders the alert email HTML template.
+func (c *Client) renderAlertEmail(req service.SendAlertRequest) string {
+	// Simple HTML template for alerts - no need for template parsing since body is plain text
+	return fmt.Sprintf(`<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>%s</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif; background-color: #f5f5f5;">
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%%" style="background-color: #f5f5f5;">
+        <tr>
+            <td style="padding: 40px 20px;">
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%%" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                    <tr>
+                        <td style="padding: 40px 40px 20px 40px; text-align: center;">
+                            <h1 style="margin: 0; color: #dc2626; font-size: 28px; font-weight: 700;">Mirai Alert</h1>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 20px 40px;">
+                            <h2 style="margin: 0 0 20px 0; color: #1f2937; font-size: 20px; font-weight: 600;">%s</h2>
+                            <div style="background-color: #fef2f2; padding: 20px; border-radius: 8px; border-left: 4px solid #dc2626; margin: 20px 0;">
+                                <pre style="margin: 0; color: #991b1b; font-size: 14px; white-space: pre-wrap; font-family: monospace;">%s</pre>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 20px 40px 40px 40px; border-top: 1px solid #e5e7eb;">
+                            <p style="margin: 0; color: #9ca3af; font-size: 12px; text-align: center;">
+                                This is an automated system alert from Mirai.
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>`, req.Subject, req.Subject, req.Body)
 }

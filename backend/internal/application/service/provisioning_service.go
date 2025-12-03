@@ -126,6 +126,85 @@ func (s *ProvisioningService) ProvisionByCheckoutSession(ctx context.Context, ch
 	return nil
 }
 
+// ReconciliationResult contains the result of a reconciliation run.
+type ReconciliationResult struct {
+	// Stuck contains registrations stuck in "paid" status that need re-processing.
+	Stuck []*entity.PendingRegistration
+	// Critical contains registrations stuck for over 1 hour that need alerting.
+	Critical []*entity.PendingRegistration
+}
+
+// ReconcileStuckProvisioning finds registrations that are stuck in "paid" status
+// and should have been provisioned. Returns stuck registrations for re-enqueueing
+// and critically stuck ones (>1 hour) for alerting.
+func (s *ProvisioningService) ReconcileStuckProvisioning(ctx context.Context) (*ReconciliationResult, error) {
+	log := s.logger.With("job", "reconciliation")
+
+	// Find registrations stuck for more than 5 minutes
+	stuck, err := s.pendingRegRepo.FindStuckPaid(ctx, 5*time.Minute)
+	if err != nil {
+		log.Error("failed to find stuck paid registrations", "error", err)
+		return nil, err
+	}
+
+	// Find critically stuck registrations (more than 1 hour)
+	critical, err := s.pendingRegRepo.FindStuckPaid(ctx, 1*time.Hour)
+	if err != nil {
+		log.Error("failed to find critically stuck registrations", "error", err)
+		return nil, err
+	}
+
+	if len(stuck) > 0 {
+		log.Warn("found stuck paid registrations", "count", len(stuck))
+	}
+	if len(critical) > 0 {
+		log.Error("found critically stuck registrations (>1hr)", "count", len(critical))
+	}
+
+	return &ReconciliationResult{
+		Stuck:    stuck,
+		Critical: critical,
+	}, nil
+}
+
+// SendReconciliationAlert sends an email alert about critically stuck registrations.
+func (s *ProvisioningService) SendReconciliationAlert(ctx context.Context, critical []*entity.PendingRegistration) error {
+	if s.email == nil {
+		s.logger.Warn("email provider not configured, cannot send reconciliation alert")
+		return nil
+	}
+
+	if len(critical) == 0 {
+		return nil
+	}
+
+	log := s.logger.With("job", "reconciliation-alert", "count", len(critical))
+	log.Info("sending reconciliation alert")
+
+	// Build alert details
+	var details []string
+	for _, reg := range critical {
+		details = append(details, "- "+reg.Email+" ("+reg.CompanyName+") - stuck since "+reg.UpdatedAt.Format(time.RFC3339))
+	}
+
+	// Send alert email to admin
+	err := s.email.SendAlert(ctx, service.SendAlertRequest{
+		Subject: "[CRITICAL] Mirai: Orphaned Payments Detected",
+		Body: "The following paid registrations have been stuck for over 1 hour:\n\n" +
+			strings.Join(details, "\n") +
+			"\n\nThese users have been charged but do not have accounts. " +
+			"Please investigate immediately.\n\n" +
+			"The system will continue attempting to provision these accounts automatically.",
+	})
+	if err != nil {
+		log.Error("failed to send reconciliation alert", "error", err)
+		return err
+	}
+
+	log.Info("reconciliation alert sent")
+	return nil
+}
+
 // provisionAccount creates the full account (identity, company, user) for a paid registration.
 func (s *ProvisioningService) provisionAccount(ctx context.Context, reg *entity.PendingRegistration) error {
 	log := s.logger.With(
