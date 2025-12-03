@@ -95,7 +95,7 @@ func Load() (*Config, error) {
 		SMTPFrom:     getEnv("SMTP_FROM", "noreply@mirai.sogos.io"),
 		SMTPUsername: getEnv("SMTP_USERNAME", ""),
 		SMTPPassword: getEnv("SMTP_PASSWORD", ""),
-		AdminEmail:   getEnv("ADMIN_EMAIL", "devops@sogos.io"),
+		AdminEmail:   getEnv("ADMIN_EMAIL", "john@sogos.io"),
 		// Encryption
 		EncryptionKey: getEnv("ENCRYPTION_KEY", ""),
 	}, nil

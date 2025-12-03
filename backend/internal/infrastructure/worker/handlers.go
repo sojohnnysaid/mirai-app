@@ -106,16 +106,25 @@ func (h *Handlers) HandleStripeReconcile(ctx context.Context, t *asynq.Task) err
 		}
 	}
 
-	// Send alert for critically stuck registrations (>1 hour)
+	// Send warning alert for registrations stuck >15 minutes
+	if len(result.Warning) > 0 {
+		if err := h.provisioningService.SendWarningAlert(ctx, result.Warning); err != nil {
+			log.Error("failed to send warning alert", "error", err)
+			// Don't fail the task - alerting is best-effort
+		}
+	}
+
+	// Send critical alert for registrations stuck >30 minutes
 	if len(result.Critical) > 0 {
-		if err := h.provisioningService.SendReconciliationAlert(ctx, result.Critical); err != nil {
-			log.Error("failed to send reconciliation alert", "error", err)
+		if err := h.provisioningService.SendCriticalAlert(ctx, result.Critical); err != nil {
+			log.Error("failed to send critical alert", "error", err)
 			// Don't fail the task - alerting is best-effort
 		}
 	}
 
 	log.Info("reconciliation completed",
 		"stuck", len(result.Stuck),
+		"warning", len(result.Warning),
 		"critical", len(result.Critical),
 	)
 	return nil
