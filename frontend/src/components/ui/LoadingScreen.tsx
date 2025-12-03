@@ -25,16 +25,16 @@ interface LoadingScreenProps {
 
 /**
  * Full-page loading screen with friendly messages.
- * Works great with RTK Query isLoading states or auth initialization.
+ * Works great with Connect-Query loading states or auth initialization.
  *
  * @example
- * // With RTK Query
- * const { isLoading } = useGetCoursesQuery();
+ * // With Connect-Query
+ * const { data, isLoading } = useGetCourses();
  * if (isLoading) return <LoadingScreen />;
  *
  * @example
  * // With auth initialization
- * const isInitialized = useSelector(selectIsAuthInitialized);
+ * const { isInitialized } = useAuth();
  * if (!isInitialized) return <LoadingScreen message="Signing you in..." />;
  */
 export default function LoadingScreen({
