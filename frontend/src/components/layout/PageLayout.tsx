@@ -1,8 +1,7 @@
 'use client';
 
 import React from 'react';
-import { useSelector } from 'react-redux';
-import { RootState } from '@/store';
+import { useUIStore } from '@/store/zustand';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import BottomTabNav from './BottomTabNav';
@@ -23,7 +22,7 @@ export default function PageLayout({
   noPadding = false,
   sidebarSlot,
 }: PageLayoutProps) {
-  const { sidebarOpen } = useSelector((state: RootState) => state.ui);
+  const sidebarOpen = useUIStore((s) => s.sidebarOpen);
 
   const maxWidthClasses = {
     sm: 'max-w-sm',

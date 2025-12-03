@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useSelector, useDispatch } from 'react-redux';
-import { RootState, AppDispatch } from '@/store';
+import { useCourseEditorStore } from '@/store/zustand/courseEditorStore';
+import { useGetCourse, useUpdateCourse } from '@/hooks/useCourses';
 import {
   Plus,
   Type,
@@ -16,41 +16,44 @@ import {
   Save,
   Home,
   Menu,
-  X
 } from 'lucide-react';
 import CourseBlock from './CourseBlock';
 import BlockAlignmentPanel from './BlockAlignmentPanel';
 import DropdownMenu from '@/components/ui/DropdownMenu';
-import { docOMaticCourseBlocks, docOMaticCourseSections } from '@/lib/docOMaticMockData';
 import {
   useRegenerateComponent,
   useGetJob,
   useGetGeneratedLesson,
   GenerationJobStatus,
 } from '@/hooks/useAIGeneration';
-import { transformRegeneratedComponent } from '@/lib/contentTransform';
-import {
-  addCourseBlock,
-  updateCourseBlock,
-  removeCourseBlock,
-  setActiveBlockId,
-  reorderCourseBlocks,
-  setCurrentStep,
-  saveCourse
-} from '@/store/slices/courseSlice';
-import { CourseBlock as CourseBlockType, BlockType } from '@/types';
+import type { CourseBlock as CourseBlockType } from '@/gen/mirai/v1/course_pb';
+import { BlockType } from '@/gen/mirai/v1/course_pb';
 import { useRouter } from 'next/navigation';
 import { useIsMobile } from '@/hooks/useBreakpoint';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 
-export default function CourseEditor() {
-  const dispatch = useDispatch<AppDispatch>();
+interface CourseEditorProps {
+  courseId: string;
+  onPreview: () => void;
+}
+
+export default function CourseEditor({ courseId, onPreview }: CourseEditorProps) {
   const router = useRouter();
   const isMobile = useIsMobile();
-  const course = useSelector((state: RootState) => state.course.currentCourse);
-  const courseBlocks = useSelector((state: RootState) => state.course.courseBlocks);
-  const activeBlockId = useSelector((state: RootState) => state.course.activeBlockId);
 
+  // Connect-Query: fetch course data
+  const { data: course, isLoading } = useGetCourse(courseId);
+  const updateCourseMutation = useUpdateCourse();
+
+  // Zustand: UI state only
+  const activeBlockId = useCourseEditorStore((s) => s.activeBlockId);
+  const setActiveBlockId = useCourseEditorStore((s) => s.setActiveBlockId);
+  const markDirty = useCourseEditorStore((s) => s.markDirty);
+  const markClean = useCourseEditorStore((s) => s.markClean);
+  const setSaving = useCourseEditorStore((s) => s.setSaving);
+
+  // Local state for editing blocks (derived from course data)
+  const [localBlocks, setLocalBlocks] = useState<CourseBlockType[]>([]);
   const [showAlignmentPanel, setShowAlignmentPanel] = useState(false);
   const [selectedSection, setSelectedSection] = useState('section-1');
   const [showAddBlockMenu, setShowAddBlockMenu] = useState(false);
@@ -64,21 +67,45 @@ export default function CourseEditor() {
   // Regeneration hooks
   const regenerateHook = useRegenerateComponent();
   const { data: currentJob } = useGetJob(regenerationJobId || undefined);
-  const activeBlock = courseBlocks.find(b => b.id === activeBlockId);
-  const { data: lesson, refetch: refetchLesson } = useGetGeneratedLesson(activeBlock?.lessonId);
+  const activeBlock = localBlocks.find(b => b.id === activeBlockId);
+
+  // Find lessonId for active block by searching through course sections/lessons
+  const findLessonIdForBlock = (blockId: string): string | undefined => {
+    const sections = course?.content?.sections || [];
+    for (const section of sections) {
+      for (const lesson of section.lessons || []) {
+        const hasBlock = (lesson.blocks || []).some(b => b.id === blockId);
+        if (hasBlock) return lesson.id;
+      }
+    }
+    return undefined;
+  };
+
+  const activeBlockLessonId = activeBlockId ? findLessonIdForBlock(activeBlockId) : undefined;
+  const { data: lesson, refetch: refetchLesson } = useGetGeneratedLesson(activeBlockLessonId);
+
+  // Initialize local blocks from course data
+  useEffect(() => {
+    if (course?.content?.courseBlocks && course.content.courseBlocks.length > 0) {
+      setLocalBlocks([...course.content.courseBlocks]);
+    }
+  }, [course?.content?.courseBlocks]);
 
   // Watch for regeneration job completion
   useEffect(() => {
     if (!currentJob || !regenerationJobId || !regeneratingBlockId) return;
 
     if (currentJob.status === GenerationJobStatus.COMPLETED) {
-      // Job completed - fetch updated lesson
       refetchLesson().then(() => {
-        const block = courseBlocks.find(b => b.id === regeneratingBlockId);
+        const block = localBlocks.find(b => b.id === regeneratingBlockId);
         const updatedComponent = lesson?.components.find((c) => c.id === regeneratingBlockId);
         if (updatedComponent && block) {
-          const newBlock = transformRegeneratedComponent(updatedComponent, block);
-          dispatch(updateCourseBlock({ id: block.id, block: newBlock }));
+          // Update block with regenerated content, preserving order and alignment
+          const newBlock: CourseBlockType = {
+            ...block,
+            content: updatedComponent.contentJson, // contentJson holds the JSON string content
+          };
+          handleBlockUpdate(newBlock);
         }
         setRegeneratingBlockId(null);
         setRegenerationJobId(null);
@@ -88,11 +115,11 @@ export default function CourseEditor() {
       setRegeneratingBlockId(null);
       setRegenerationJobId(null);
     }
-  }, [currentJob, regenerationJobId, regeneratingBlockId, lesson, courseBlocks, dispatch, refetchLesson]);
+  }, [currentJob, regenerationJobId, regeneratingBlockId, lesson, localBlocks, refetchLesson]);
 
   // Handle regeneration from BlockAlignmentPanel
   const handleBlockRegenerate = useCallback(async () => {
-    if (!activeBlock || !course.id || !activeBlock.lessonId) {
+    if (!activeBlock || !courseId || !activeBlockLessonId) {
       console.warn('Cannot regenerate: missing courseId or lessonId');
       return;
     }
@@ -100,8 +127,8 @@ export default function CourseEditor() {
     setRegeneratingBlockId(activeBlock.id);
     try {
       const result = await regenerateHook.mutate({
-        courseId: course.id,
-        lessonId: activeBlock.lessonId,
+        courseId: courseId,
+        lessonId: activeBlockLessonId,
         componentId: activeBlock.id,
         modificationPrompt: 'Regenerate this content with the current alignment settings',
       });
@@ -113,49 +140,41 @@ export default function CourseEditor() {
       console.error('Failed to start regeneration:', error);
       setRegeneratingBlockId(null);
     }
-  }, [activeBlock, course.id, regenerateHook]);
+  }, [activeBlock, activeBlockLessonId, courseId, regenerateHook]);
 
-  // Initialize course blocks from saved course data
-  useEffect(() => {
-    // Only add mock data if there are no blocks AND no saved content
-    if (courseBlocks.length === 0) {
-      // Check if course has saved content blocks
-      if (course.content?.courseBlocks && course.content.courseBlocks.length > 0) {
-        // Load the saved course blocks
-        course.content.courseBlocks.forEach((block: CourseBlockType) => {
-          dispatch(addCourseBlock(block));
-        });
-      } else {
-        // Fallback to mock data only if no saved content exists
-        docOMaticCourseBlocks.forEach(block => {
-          dispatch(addCourseBlock(block));
-        });
-      }
-    }
-  }, [course.content]);
-
-  const handleBlockUpdate = (block: CourseBlockType) => {
-    dispatch(updateCourseBlock({ id: block.id, block }));
+  const handleBlockUpdate = (updatedBlock: CourseBlockType) => {
+    setLocalBlocks(blocks =>
+      blocks.map(b => b.id === updatedBlock.id ? updatedBlock : b)
+    );
+    markDirty();
   };
 
   const handleBlockDelete = (blockId: string) => {
-    dispatch(removeCourseBlock(blockId));
+    setLocalBlocks(blocks => blocks.filter(b => b.id !== blockId));
     if (activeBlockId === blockId) {
-      dispatch(setActiveBlockId(null));
+      setActiveBlockId(null);
       setShowAlignmentPanel(false);
     }
+    markDirty();
   };
 
   const handleAlignmentClick = (blockId: string) => {
-    dispatch(setActiveBlockId(blockId));
+    setActiveBlockId(blockId);
     setShowAlignmentPanel(true);
   };
 
-  const handleAlignmentUpdate = (alignment: any) => {
+  const handleAlignmentUpdate = (alignment: Partial<{ personas: string[]; learningObjectives: string[]; kpis: string[] }>) => {
     if (activeBlockId) {
-      const block = courseBlocks.find(b => b.id === activeBlockId);
+      const block = localBlocks.find(b => b.id === activeBlockId);
       if (block) {
-        handleBlockUpdate({ ...block, alignment });
+        // Merge with existing alignment, providing defaults for any missing arrays
+        const currentAlignment = block.alignment || { personas: [], learningObjectives: [], kpis: [] };
+        const updatedAlignment = {
+          personas: alignment.personas ?? currentAlignment.personas ?? [],
+          learningObjectives: alignment.learningObjectives ?? currentAlignment.learningObjectives ?? [],
+          kpis: alignment.kpis ?? currentAlignment.kpis ?? [],
+        };
+        handleBlockUpdate({ ...block, alignment: updatedAlignment } as CourseBlockType);
       }
     }
   };
@@ -165,31 +184,51 @@ export default function CourseEditor() {
       id: `block-${Date.now()}`,
       type,
       content: getDefaultContent(type),
-      order: courseBlocks.length,
-    };
-    dispatch(addCourseBlock(newBlock));
+      order: localBlocks.length,
+    } as CourseBlockType;
+    setLocalBlocks(blocks => [...blocks, newBlock]);
     setShowAddBlockMenu(false);
+    markDirty();
   };
 
   const getDefaultContent = (type: BlockType) => {
     switch (type) {
-      case 'heading':
+      case BlockType.HEADING:
         return 'New Section Heading';
-      case 'text':
+      case BlockType.TEXT:
         return 'Enter your content here. This text block can contain detailed explanations, examples, and supporting information for your learners.';
-      case 'interactive':
+      case BlockType.INTERACTIVE:
         return 'Interactive exercise: Learners will engage with this content through activities, simulations, or practice scenarios.';
-      case 'knowledgeCheck':
+      case BlockType.KNOWLEDGE_CHECK:
         return 'Test your understanding: Complete this knowledge check to reinforce your learning.';
       default:
         return '';
     }
   };
 
-  // Course structure sidebar content (reused in both desktop sidebar and mobile sheet)
+  // Save course content
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await updateCourseMutation.mutate(courseId, {
+        content: {
+          sections: course?.content?.sections || [],
+          courseBlocks: localBlocks,
+        },
+      });
+      markClean();
+    } catch (error) {
+      console.error('Failed to save course:', error);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Course structure sidebar content
+  const sections = course?.content?.sections || [];
   const courseStructureContent = (
     <div className="space-y-2">
-      {docOMaticCourseSections.map((section) => (
+      {sections.map((section) => (
         <div key={section.id}>
           <button
             onClick={() => {
@@ -204,7 +243,7 @@ export default function CourseEditor() {
           >
             {section.name}
           </button>
-          {selectedSection === section.id && (
+          {selectedSection === section.id && section.lessons && (
             <div className="ml-4 mt-1 space-y-1">
               {section.lessons.map((lesson) => (
                 <div
@@ -220,6 +259,18 @@ export default function CourseEditor() {
       ))}
     </div>
   );
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+      </div>
+    );
+  }
+
+  const settings = course?.settings;
+  const personas = course?.personas || [];
+  const learningObjectives = course?.learningObjectives || [];
 
   return (
     <div className="flex flex-col lg:flex-row h-full">
@@ -264,16 +315,16 @@ export default function CourseEditor() {
               >
                 <div className="text-left">
                   <div className="flex items-center gap-3">
-                    <h2 className="text-lg font-semibold text-gray-900">{course.title || 'Untitled Course'}</h2>
+                    <h2 className="text-lg font-semibold text-gray-900">{settings?.title || 'Untitled Course'}</h2>
                     <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                      Step 4 of 5: Edit Content
+                      Step 6 of 7: Edit Content
                     </span>
                   </div>
                   {!collapsedSummary && (
                     <div className="mt-2 space-y-1 text-sm text-gray-600">
-                      <p><strong>Outcome:</strong> {course.desiredOutcome}</p>
-                      <p><strong>Objectives:</strong> {course.learningObjectives?.length || 0} defined</p>
-                      <p><strong>Personas:</strong> {course.personas?.map(p => p.role).join(', ')}</p>
+                      <p><strong>Outcome:</strong> {settings?.desiredOutcome}</p>
+                      <p><strong>Objectives:</strong> {learningObjectives.length} defined</p>
+                      <p><strong>Personas:</strong> {personas.map(p => p.role).join(', ')}</p>
                     </div>
                   )}
                 </div>
@@ -292,44 +343,10 @@ export default function CourseEditor() {
                   align="right"
                   items={[
                     {
-                      label: 'Back to Review',
-                      icon: <ArrowLeft className="w-4 h-4" />,
-                      onClick: () => dispatch(setCurrentStep(3)),
-                    },
-                    {
-                      label: '',
-                      divider: true,
-                    },
-                    {
-                      label: 'Edit Course Settings',
-                      icon: <Settings className="w-4 h-4" />,
-                      onClick: () => dispatch(setCurrentStep(1)),
-                    },
-                    {
-                      label: 'Edit Learning Objectives',
-                      icon: <FileText className="w-4 h-4" />,
-                      onClick: () => dispatch(setCurrentStep(2)),
-                    },
-                    {
-                      label: '',
-                      divider: true,
-                    },
-                    {
                       label: 'Save & Exit',
                       icon: <Save className="w-4 h-4" />,
                       onClick: async () => {
-                        if (course.id) {
-                          await dispatch(saveCourse({
-                            id: course.id,
-                            courseData: {
-                              ...course,
-                              content: {
-                                sections: course.sections || [],
-                                courseBlocks: courseBlocks || [],
-                              },
-                            },
-                          }));
-                        }
+                        await handleSave();
                         router.push('/dashboard');
                       },
                     },
@@ -347,12 +364,12 @@ export default function CourseEditor() {
 
         {/* Blocks Container */}
         <div className="p-6 space-y-4 relative">
-          {courseBlocks.map((block) => (
+          {localBlocks.map((block) => (
             <CourseBlock
               key={block.id}
               block={block}
-              courseId={course.id}
-              lessonId={block.lessonId}
+              courseId={courseId}
+              lessonId={findLessonIdForBlock(block.id)}
               onUpdate={handleBlockUpdate}
               onDelete={handleBlockDelete}
               onAlignmentClick={handleAlignmentClick}
@@ -374,7 +391,7 @@ export default function CourseEditor() {
             {showAddBlockMenu && (
               <div className="absolute top-full mt-2 left-1/2 transform -translate-x-1/2 bg-white border border-gray-200 rounded-lg shadow-xl p-2 z-20">
                 <button
-                  onClick={() => handleAddBlock('heading')}
+                  onClick={() => handleAddBlock(BlockType.HEADING)}
                   className="w-full flex items-center gap-3 px-4 py-2 hover:bg-gray-50 rounded text-left"
                 >
                   <Type size={18} className="text-gray-600" />
@@ -384,7 +401,7 @@ export default function CourseEditor() {
                   </div>
                 </button>
                 <button
-                  onClick={() => handleAddBlock('text')}
+                  onClick={() => handleAddBlock(BlockType.TEXT)}
                   className="w-full flex items-center gap-3 px-4 py-2 hover:bg-gray-50 rounded text-left"
                 >
                   <FileText size={18} className="text-gray-600" />
@@ -394,7 +411,7 @@ export default function CourseEditor() {
                   </div>
                 </button>
                 <button
-                  onClick={() => handleAddBlock('interactive')}
+                  onClick={() => handleAddBlock(BlockType.INTERACTIVE)}
                   className="w-full flex items-center gap-3 px-4 py-2 hover:bg-gray-50 rounded text-left"
                 >
                   <MousePointer size={18} className="text-gray-600" />
@@ -404,7 +421,7 @@ export default function CourseEditor() {
                   </div>
                 </button>
                 <button
-                  onClick={() => handleAddBlock('knowledgeCheck')}
+                  onClick={() => handleAddBlock(BlockType.KNOWLEDGE_CHECK)}
                   className="w-full flex items-center gap-3 px-4 py-2 hover:bg-gray-50 rounded text-left"
                 >
                   <CheckCircle size={18} className="text-gray-600" />
@@ -423,10 +440,12 @@ export default function CourseEditor() {
               <BlockAlignmentPanel
                 blockId={activeBlock.id}
                 alignment={activeBlock.alignment}
+                personas={course?.personas || []}
+                objectives={course?.learningObjectives || []}
                 onUpdate={handleAlignmentUpdate}
                 onClose={() => {
                   setShowAlignmentPanel(false);
-                  dispatch(setActiveBlockId(null));
+                  setActiveBlockId(null);
                 }}
                 onRegenerate={handleBlockRegenerate}
                 isRegenerating={regeneratingBlockId === activeBlock.id}
@@ -442,7 +461,7 @@ export default function CourseEditor() {
           isOpen={showAlignmentPanel && !!activeBlock}
           onClose={() => {
             setShowAlignmentPanel(false);
-            dispatch(setActiveBlockId(null));
+            setActiveBlockId(null);
           }}
           title="Block Alignment"
           height="half"
@@ -451,10 +470,12 @@ export default function CourseEditor() {
             <BlockAlignmentPanel
               blockId={activeBlock.id}
               alignment={activeBlock.alignment}
+              personas={course?.personas || []}
+              objectives={course?.learningObjectives || []}
               onUpdate={handleAlignmentUpdate}
               onClose={() => {
                 setShowAlignmentPanel(false);
-                dispatch(setActiveBlockId(null));
+                setActiveBlockId(null);
               }}
               onRegenerate={handleBlockRegenerate}
               isRegenerating={regeneratingBlockId === activeBlock.id}
@@ -472,7 +493,7 @@ export default function CourseEditor() {
             : 'bottom-6 right-6 px-6 py-3 rounded-lg'
           }
         `}
-        onClick={() => dispatch(setCurrentStep(5))}
+        onClick={onPreview}
       >
         <Eye size={20} />
         Preview Course

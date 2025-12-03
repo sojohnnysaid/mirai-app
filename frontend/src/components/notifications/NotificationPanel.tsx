@@ -1,13 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { useSelector, useDispatch } from 'react-redux';
-import {
-  closePanel,
-  setShowUnreadOnly,
-  markLocallyRead,
-} from '@/store/slices/notificationSlice';
-import type { RootState } from '@/store';
+import { useUIStore } from '@/store/zustand';
 import type { Notification } from '@/gen/mirai/v1/notification_pb';
 import { NotificationItem } from './NotificationItem';
 
@@ -30,12 +24,12 @@ export function NotificationPanel({
   onMarkAllAsRead,
   onDelete,
 }: NotificationPanelProps) {
-  const dispatch = useDispatch();
   const panelRef = useRef<HTMLDivElement>(null);
 
-  const { isPanelOpen, showUnreadOnly, locallyReadIds } = useSelector(
-    (state: RootState) => state.notification
-  );
+  const { isPanelOpen, showUnreadOnly, locallyReadIds } = useUIStore((s) => s.notification);
+  const closeNotificationPanel = useUIStore((s) => s.closeNotificationPanel);
+  const setShowUnreadOnly = useUIStore((s) => s.setShowUnreadOnly);
+  const markLocallyRead = useUIStore((s) => s.markLocallyRead);
 
   // Close panel when clicking outside
   useEffect(() => {
@@ -44,7 +38,7 @@ export function NotificationPanel({
         // Check if click was on the bell button
         const bellButton = (event.target as Element).closest('[aria-label*="Notifications"]');
         if (!bellButton) {
-          dispatch(closePanel());
+          closeNotificationPanel();
         }
       }
     };
@@ -56,7 +50,7 @@ export function NotificationPanel({
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [isPanelOpen, dispatch]);
+  }, [isPanelOpen, closeNotificationPanel]);
 
   // Filter notifications
   const filteredNotifications = showUnreadOnly
@@ -68,7 +62,7 @@ export function NotificationPanel({
   ).length;
 
   const handleMarkAsRead = (id: string) => {
-    dispatch(markLocallyRead([id]));
+    markLocallyRead([id]);
     onMarkAsRead?.([id]);
   };
 
@@ -76,7 +70,7 @@ export function NotificationPanel({
     const unreadIds = notifications
       .filter((n) => !n.read && !locallyReadIds.includes(n.id))
       .map((n) => n.id);
-    dispatch(markLocallyRead(unreadIds));
+    markLocallyRead(unreadIds);
     onMarkAllAsRead?.();
   };
 
@@ -92,7 +86,7 @@ export function NotificationPanel({
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold text-gray-900">Notifications</h3>
           <button
-            onClick={() => dispatch(closePanel())}
+            onClick={closeNotificationPanel}
             className="p-1 text-gray-400 hover:text-gray-600 rounded"
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -107,7 +101,7 @@ export function NotificationPanel({
             <input
               type="checkbox"
               checked={showUnreadOnly}
-              onChange={(e) => dispatch(setShowUnreadOnly(e.target.checked))}
+              onChange={(e) => setShowUnreadOnly(e.target.checked)}
               className="mr-2 h-4 w-4 text-blue-600 rounded focus:ring-blue-500"
             />
             Unread only
@@ -180,7 +174,7 @@ export function NotificationPanel({
         <div className="px-4 py-3 border-t border-gray-200 bg-gray-50">
           <button
             onClick={() => {
-              dispatch(closePanel());
+              closeNotificationPanel();
               // Navigate to notifications page if it exists
             }}
             className="w-full text-center text-sm text-blue-600 hover:text-blue-800"

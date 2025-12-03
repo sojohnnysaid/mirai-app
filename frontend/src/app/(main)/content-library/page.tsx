@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronDown, ChevronRight, Folder, FolderOpen, Search, FileText, Users, User, Edit2, Eye, Filter, X, Plus, Check, Trash2, MoreVertical } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useGetFoldersQuery, useGetCoursesQuery, type LibraryEntry, type FolderNode } from '@/store/api/apiSlice';
+import { useGetFolderHierarchy, useListCourses, FolderType, type LibraryEntry, type Folder as FolderNode } from '@/hooks/useCourses';
 import { useIsMobile } from '@/hooks/useBreakpoint';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { AIGenerationFlowModal } from '@/components/ai-generation';
@@ -18,9 +18,9 @@ export default function ContentLibrary() {
   const [isAIModalOpen, setIsAIModalOpen] = useState(false);
   const [editingCourseId, setEditingCourseId] = useState<string | undefined>(undefined);
 
-  // Connect-query based hooks (wrapped in apiSlice)
-  const { data: folders = [], isLoading: foldersLoading, refetch: refetchFolders } = useGetFoldersQuery(true);
-  const { data: courses = [], isLoading: coursesLoading } = useGetCoursesQuery();
+  // Connect-query hooks
+  const { data: folders, isLoading: foldersLoading, refetch: refetchFolders } = useGetFolderHierarchy(true);
+  const { data: courses, isLoading: coursesLoading } = useListCourses();
 
   // Local UI state only
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
@@ -36,7 +36,7 @@ export default function ContentLibrary() {
   const [createError, setCreateError] = useState<string | null>(null);
 
   // Folder delete state
-  const [folderToDelete, setFolderToDelete] = useState<{ id: string; name: string; type: string } | null>(null);
+  const [folderToDelete, setFolderToDelete] = useState<{ id: string; name: string; type: FolderType | string } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [showFolderMenu, setShowFolderMenu] = useState<string | null>(null);
@@ -61,23 +61,9 @@ export default function ContentLibrary() {
       }
 
       try {
-        // Use listCourses with folder filter
+        // Use listCourses with folder filter - returns LibraryEntry[] directly
         const result = await courseClient.listCourses({ folder: selectedFolderId });
-        // Convert proto response to frontend LibraryEntry type
-        const statusMap: Record<number, 'draft' | 'published'> = {
-          0: 'draft', 1: 'draft', 2: 'published', 3: 'draft',
-        };
-        setFolderFilteredCourses(result.map((entry: any): LibraryEntry => ({
-          id: entry.id,
-          title: entry.title || '',
-          status: statusMap[entry.status as number] || 'draft',
-          folder: entry.folder || '',
-          tags: entry.tags || [],
-          createdAt: entry.createdAt || new Date().toISOString(),
-          modifiedAt: entry.modifiedAt || new Date().toISOString(),
-          createdBy: entry.createdBy,
-          thumbnailPath: entry.thumbnailPath,
-        })));
+        setFolderFilteredCourses(result);
       } catch (error) {
         console.error('Failed to load folder courses:', error);
       }
@@ -194,7 +180,7 @@ export default function ContentLibrary() {
   // Check if folder can be deleted (only user-created folders, not system folders)
   const canDeleteFolder = (folder: FolderNode): boolean => {
     // Can't delete system folders (Shared, Private, Team root folders)
-    if (folder.type === 'library' || folder.type === 'personal' || folder.type === 'team') {
+    if (folder.type === FolderType.LIBRARY || folder.type === FolderType.PERSONAL || folder.type === FolderType.TEAM) {
       return false;
     }
     return true;
@@ -221,9 +207,9 @@ export default function ContentLibrary() {
     const isCreatingHere = creatingFolderIn === folder.id;
 
     const getIcon = () => {
-      if (folder.type === 'library') return <FolderOpen className="w-5 h-5 text-purple-600" />;
-      if (folder.type === 'team') return <Users className="w-5 h-5 text-blue-600" />;
-      if (folder.type === 'personal') return <User className="w-5 h-5 text-green-600" />;
+      if (folder.type === FolderType.LIBRARY) return <FolderOpen className="w-5 h-5 text-purple-600" />;
+      if (folder.type === FolderType.TEAM) return <Users className="w-5 h-5 text-blue-600" />;
+      if (folder.type === FolderType.PERSONAL) return <User className="w-5 h-5 text-green-600" />;
       if (isExpanded) return <FolderOpen className="w-5 h-5 text-yellow-600" />;
       return <Folder className="w-5 h-5 text-gray-600" />;
     };
@@ -515,7 +501,9 @@ export default function ContentLibrary() {
                   )}
 
                   <div className="text-xs text-gray-500">
-                    Modified {new Date(course.modifiedAt).toLocaleDateString()}
+                    Modified {course.modifiedAt?.seconds
+                      ? new Date(Number(course.modifiedAt.seconds) * 1000).toLocaleDateString()
+                      : 'N/A'}
                   </div>
 
                   <div className="flex gap-2 mt-3 pt-3 border-t border-gray-100">

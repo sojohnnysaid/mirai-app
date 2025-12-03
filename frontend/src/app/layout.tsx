@@ -1,8 +1,7 @@
 'use client';
 
 import './globals.css';
-import { Provider } from 'react-redux';
-import { store } from '@/store';
+import { AuthProvider } from '@/contexts';
 import { ConnectProvider } from '@/components/providers';
 import BuildInfo from '@/components/BuildInfo';
 
@@ -14,12 +13,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <Provider store={store}>
-          <ConnectProvider>
+        <ConnectProvider>
+          <AuthProvider>
             {children}
             <BuildInfo />
-          </ConnectProvider>
-        </Provider>
+          </AuthProvider>
+        </ConnectProvider>
       </body>
     </html>
   );

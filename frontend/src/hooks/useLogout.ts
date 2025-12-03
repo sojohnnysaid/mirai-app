@@ -4,7 +4,7 @@
  * React hook that wraps the logout state machine.
  * Handles:
  * - Triggering logout
- * - Clearing Redux state
+ * - Clearing auth state via AuthContext
  * - Redirecting to landing page
  */
 
@@ -12,11 +12,9 @@
 
 import { useCallback, useEffect } from 'react';
 import { useMachine } from '@xstate/react';
-import { useDispatch } from 'react-redux';
 import { useQueryClient } from '@tanstack/react-query';
 import { logoutMachine, getLogoutRedirectUrl } from '@/machines/logoutMachine';
-import { clearAuth } from '@/store/slices/authSlice';
-import type { AppDispatch } from '@/store';
+import { useAuth } from '@/contexts';
 
 // =============================================================================
 // Types
@@ -45,7 +43,7 @@ export interface UseLogoutReturn {
 // =============================================================================
 
 export function useLogout(): UseLogoutReturn {
-  const dispatch = useDispatch<AppDispatch>();
+  const { clearAuth } = useAuth();
   const queryClient = useQueryClient();
   const [state, send] = useMachine(logoutMachine);
   const context = state.context;
@@ -68,8 +66,8 @@ export function useLogout(): UseLogoutReturn {
 
   useEffect(() => {
     if (isRedirecting) {
-      // Clear Redux auth state
-      dispatch(clearAuth());
+      // Clear auth state via context
+      clearAuth();
 
       // Clear React Query cache to prevent stale data on re-login
       queryClient.clear();
@@ -78,7 +76,7 @@ export function useLogout(): UseLogoutReturn {
       const landingUrl = getLogoutRedirectUrl();
       window.location.href = landingUrl;
     }
-  }, [isRedirecting, dispatch, queryClient]);
+  }, [isRedirecting, clearAuth, queryClient]);
 
   // --------------------------------------------------------
   // Actions

@@ -1,18 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useSelector, useDispatch } from 'react-redux';
-import {
-  openApiKeyModal,
-  closeApiKeyModal,
-  startApiKeyTest,
-  apiKeyTestSuccess,
-  apiKeyTestFailed,
-  resetApiKeyTest,
-  toggleUsageExpanded,
-  setUsageTimeRange,
-} from '@/store/slices/tenantSettingsSlice';
-import type { RootState } from '@/store';
+import { useUIStore } from '@/store/zustand';
 import type { TenantAISettings, AIProvider, UsageByType } from '@/gen/mirai/v1/tenant_settings_pb';
 import { ResponsiveModal } from '@/components/ui/ResponsiveModal';
 
@@ -50,15 +39,21 @@ export function AISettingsPanel({
   onTestApiKey,
   onRemoveApiKey,
 }: AISettingsPanelProps) {
-  const dispatch = useDispatch();
+  // Zustand store for tenant settings UI state
   const {
     isApiKeyModalOpen,
     isTestingApiKey,
     apiKeyTestStatus,
     apiKeyTestError,
     isUsageExpanded,
-    usageTimeRange,
-  } = useSelector((state: RootState) => state.tenantSettings);
+  } = useUIStore((s) => s.tenantSettings);
+  const openApiKeyModal = useUIStore((s) => s.openApiKeyModal);
+  const closeApiKeyModal = useUIStore((s) => s.closeApiKeyModal);
+  const startApiKeyTest = useUIStore((s) => s.startApiKeyTest);
+  const apiKeyTestSuccess = useUIStore((s) => s.apiKeyTestSuccess);
+  const apiKeyTestFailed = useUIStore((s) => s.apiKeyTestFailed);
+  const resetApiKeyTest = useUIStore((s) => s.resetApiKeyTest);
+  const toggleUsageExpanded = useUIStore((s) => s.toggleUsageExpanded);
 
   const [apiKey, setApiKey] = useState('');
   const [provider, setProvider] = useState<AIProvider>(1); // Default to Gemini
@@ -68,22 +63,22 @@ export function AISettingsPanel({
 
   const handleOpenModal = () => {
     setApiKey('');
-    dispatch(resetApiKeyTest());
-    dispatch(openApiKeyModal());
+    resetApiKeyTest();
+    openApiKeyModal();
   };
 
   const handleTestKey = async () => {
     if (!apiKey.trim()) return;
-    dispatch(startApiKeyTest());
+    startApiKeyTest();
     try {
       const result = await onTestApiKey(provider, apiKey);
       if (result.valid) {
-        dispatch(apiKeyTestSuccess());
+        apiKeyTestSuccess();
       } else {
-        dispatch(apiKeyTestFailed(result.errorMessage || 'Invalid API key'));
+        apiKeyTestFailed(result.errorMessage || 'Invalid API key');
       }
     } catch (error) {
-      dispatch(apiKeyTestFailed(error instanceof Error ? error.message : 'Test failed'));
+      apiKeyTestFailed(error instanceof Error ? error.message : 'Test failed');
     }
   };
 
@@ -91,9 +86,9 @@ export function AISettingsPanel({
     if (!apiKey.trim()) return;
     try {
       await onSetApiKey(provider, apiKey);
-      dispatch(closeApiKeyModal());
+      closeApiKeyModal();
     } catch (error) {
-      dispatch(apiKeyTestFailed(error instanceof Error ? error.message : 'Failed to save API key'));
+      apiKeyTestFailed(error instanceof Error ? error.message : 'Failed to save API key');
     }
   };
 
@@ -200,7 +195,7 @@ export function AISettingsPanel({
       {settings?.apiKeyConfigured && usageStats && (
         <div className="px-6 py-4">
           <button
-            onClick={() => dispatch(toggleUsageExpanded())}
+            onClick={() => toggleUsageExpanded()}
             className="flex items-center justify-between w-full text-left"
           >
             <h3 className="text-sm font-medium text-gray-900">Token Usage</h3>
@@ -319,7 +314,7 @@ export function AISettingsPanel({
       {isApiKeyModalOpen && (
         <ResponsiveModal
           isOpen={true}
-          onClose={() => dispatch(closeApiKeyModal())}
+          onClose={() => closeApiKeyModal()}
           title={settings?.apiKeyConfigured ? 'Update API Key' : 'Configure API Key'}
         >
           <div className="space-y-4">
@@ -376,7 +371,7 @@ export function AISettingsPanel({
             <div className="flex flex-col-reverse sm:flex-row gap-3 pt-4 border-t border-gray-200">
               <button
                 type="button"
-                onClick={() => dispatch(closeApiKeyModal())}
+                onClick={() => closeApiKeyModal()}
                 className="w-full sm:w-auto px-4 py-2 rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 font-medium"
               >
                 Cancel

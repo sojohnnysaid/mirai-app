@@ -2,14 +2,14 @@
 
 import React from 'react';
 import { X, RefreshCw } from 'lucide-react';
-import { useSelector } from 'react-redux';
-import { RootState } from '@/store';
-import { BlockAlignment } from '@/types';
+import type { BlockAlignment, Persona, LearningObjective } from '@/gen/mirai/v1/course_pb';
 
 interface BlockAlignmentPanelProps {
   blockId: string;
   alignment: BlockAlignment | undefined;
-  onUpdate: (alignment: BlockAlignment) => void;
+  personas: Persona[];
+  objectives: LearningObjective[];
+  onUpdate: (alignment: Partial<BlockAlignment>) => void;
   onClose: () => void;
   onRegenerate: () => void;
   isRegenerating?: boolean;
@@ -18,39 +18,40 @@ interface BlockAlignmentPanelProps {
 export default function BlockAlignmentPanel({
   blockId,
   alignment,
+  personas,
+  objectives,
   onUpdate,
   onClose,
   onRegenerate,
   isRegenerating = false,
 }: BlockAlignmentPanelProps) {
-  const personas = useSelector((state: RootState) => state.course.currentCourse.personas || []);
-  const objectives = useSelector((state: RootState) => state.course.currentCourse.learningObjectives || []);
 
-  const currentAlignment = alignment || {
-    personas: [],
-    learningObjectives: [],
-    kpis: []
-  };
+  // Create mutable copies of the alignment arrays
+  const currentPersonas = alignment?.personas ? [...alignment.personas] : [];
+  const currentObjectives = alignment?.learningObjectives ? [...alignment.learningObjectives] : [];
+  const currentKpis = alignment?.kpis ? [...alignment.kpis] : [];
 
   const togglePersona = (personaId: string) => {
-    const newPersonas = currentAlignment.personas.includes(personaId)
-      ? currentAlignment.personas.filter(id => id !== personaId)
-      : [...currentAlignment.personas, personaId];
+    const newPersonas = currentPersonas.includes(personaId)
+      ? currentPersonas.filter(id => id !== personaId)
+      : [...currentPersonas, personaId];
 
     onUpdate({
-      ...currentAlignment,
-      personas: newPersonas
+      personas: newPersonas,
+      learningObjectives: currentObjectives,
+      kpis: currentKpis
     });
   };
 
   const toggleObjective = (objectiveId: string) => {
-    const newObjectives = currentAlignment.learningObjectives.includes(objectiveId)
-      ? currentAlignment.learningObjectives.filter(id => id !== objectiveId)
-      : [...currentAlignment.learningObjectives, objectiveId];
+    const newObjectives = currentObjectives.includes(objectiveId)
+      ? currentObjectives.filter(id => id !== objectiveId)
+      : [...currentObjectives, objectiveId];
 
     onUpdate({
-      ...currentAlignment,
-      learningObjectives: newObjectives
+      personas: currentPersonas,
+      learningObjectives: newObjectives,
+      kpis: currentKpis
     });
   };
 
@@ -87,7 +88,7 @@ export default function BlockAlignmentPanel({
               >
                 <input
                   type="checkbox"
-                  checked={currentAlignment.personas.includes(persona.id)}
+                  checked={currentPersonas.includes(persona.id)}
                   onChange={() => togglePersona(persona.id)}
                   className="w-4 h-4 text-purple-600 rounded focus:ring-purple-500"
                 />
@@ -108,7 +109,7 @@ export default function BlockAlignmentPanel({
               >
                 <input
                   type="checkbox"
-                  checked={currentAlignment.learningObjectives.includes(objective.id)}
+                  checked={currentObjectives.includes(objective.id)}
                   onChange={() => toggleObjective(objective.id)}
                   className="w-4 h-4 text-purple-600 rounded focus:ring-purple-500 mt-0.5"
                 />
@@ -133,13 +134,14 @@ export default function BlockAlignmentPanel({
                 >
                   <input
                     type="checkbox"
-                    checked={currentAlignment.kpis.includes(kpiId)}
+                    checked={currentKpis.includes(kpiId)}
                     onChange={() => {
-                      const newKpis = currentAlignment.kpis.includes(kpiId)
-                        ? currentAlignment.kpis.filter(id => id !== kpiId)
-                        : [...currentAlignment.kpis, kpiId];
+                      const newKpis = currentKpis.includes(kpiId)
+                        ? currentKpis.filter(id => id !== kpiId)
+                        : [...currentKpis, kpiId];
                       onUpdate({
-                        ...currentAlignment,
+                        personas: currentPersonas,
+                        learningObjectives: currentObjectives,
                         kpis: newKpis
                       });
                     }}

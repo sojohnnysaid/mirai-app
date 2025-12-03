@@ -1,19 +1,17 @@
 'use client';
 
-import { useSelector, useDispatch } from 'react-redux';
-import { togglePanel } from '@/store/slices/notificationSlice';
-import type { RootState } from '@/store';
+import { useUIStore } from '@/store/zustand';
 
 interface NotificationBellProps {
   unreadCount: number;
 }
 
 export function NotificationBell({ unreadCount }: NotificationBellProps) {
-  const dispatch = useDispatch();
-  const isPanelOpen = useSelector((state: RootState) => state.notification.isPanelOpen);
+  const isPanelOpen = useUIStore((s) => s.notification.isPanelOpen);
+  const toggleNotificationPanel = useUIStore((s) => s.toggleNotificationPanel);
 
   const handleClick = () => {
-    dispatch(togglePanel());
+    toggleNotificationPanel();
   };
 
   return (

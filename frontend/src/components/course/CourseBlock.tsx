@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   GripVertical,
   Trash2,
@@ -11,14 +11,14 @@ import {
   CheckCircle,
   Sparkles
 } from 'lucide-react';
-import { CourseBlock as CourseBlockType } from '@/types';
+import type { CourseBlock as CourseBlockType } from '@/gen/mirai/v1/course_pb';
+import { BlockType } from '@/gen/mirai/v1/course_pb';
 import {
   useRegenerateComponent,
   useGetJob,
   useGetGeneratedLesson,
   GenerationJobStatus,
 } from '@/hooks/useAIGeneration';
-import { transformRegeneratedComponent } from '@/lib/contentTransform';
 
 interface CourseBlockProps {
   block: CourseBlockType;
@@ -58,8 +58,11 @@ export default function CourseBlock({
       refetchLesson().then(() => {
         const updatedComponent = lesson?.components.find((c) => c.id === block.id);
         if (updatedComponent) {
-          // Transform and update the block
-          const newBlock = transformRegeneratedComponent(updatedComponent, block);
+          // Update block with regenerated content
+          const newBlock: CourseBlockType = {
+            ...block,
+            content: updatedComponent.contentJson,
+          };
           onUpdate(newBlock);
         }
         setIsRegenerating(false);
@@ -75,13 +78,13 @@ export default function CourseBlock({
 
   const getBlockIcon = () => {
     switch (block.type) {
-      case 'heading':
+      case BlockType.HEADING:
         return <Type size={16} />;
-      case 'text':
+      case BlockType.TEXT:
         return <FileText size={16} />;
-      case 'interactive':
+      case BlockType.INTERACTIVE:
         return <MousePointer size={16} />;
-      case 'knowledgeCheck':
+      case BlockType.KNOWLEDGE_CHECK:
         return <CheckCircle size={16} />;
       default:
         return null;
@@ -90,13 +93,13 @@ export default function CourseBlock({
 
   const getBlockTypeLabel = () => {
     switch (block.type) {
-      case 'heading':
+      case BlockType.HEADING:
         return 'Heading Block';
-      case 'text':
+      case BlockType.TEXT:
         return 'Text Block';
-      case 'interactive':
+      case BlockType.INTERACTIVE:
         return 'Interactive Block';
-      case 'knowledgeCheck':
+      case BlockType.KNOWLEDGE_CHECK:
         return 'Knowledge Check';
       default:
         return 'Block';
@@ -184,9 +187,9 @@ export default function CourseBlock({
 
       {/* Block Content */}
       <div className="p-4">
-        {block.type === 'heading' ? (
+        {block.type === BlockType.HEADING ? (
           <h3 className="text-xl font-semibold text-gray-900">{block.content}</h3>
-        ) : block.type === 'interactive' ? (
+        ) : block.type === BlockType.INTERACTIVE ? (
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <div className="flex items-center gap-2 text-blue-700 mb-2">
               <MousePointer size={16} />
@@ -194,7 +197,7 @@ export default function CourseBlock({
             </div>
             <p className="text-gray-700">{block.content}</p>
           </div>
-        ) : block.type === 'knowledgeCheck' ? (
+        ) : block.type === BlockType.KNOWLEDGE_CHECK ? (
           (() => {
             try {
               const quizData = JSON.parse(block.content);
@@ -230,7 +233,7 @@ export default function CourseBlock({
                   )}
                 </div>
               );
-            } catch (e) {
+            } catch {
               // Fallback for old format
               return (
                 <div className="bg-green-50 border border-green-200 rounded-lg p-4">

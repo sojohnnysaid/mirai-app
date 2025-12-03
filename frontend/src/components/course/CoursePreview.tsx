@@ -1,24 +1,24 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useSelector, useDispatch } from 'react-redux';
-import { RootState } from '@/store';
+import { useGetCourse } from '@/hooks/useCourses';
 import {
   Download,
-  Share2,
   Check,
   ChevronLeft,
   ChevronRight,
   Menu,
   X
 } from 'lucide-react';
-import { setCurrentStep } from '@/store/slices/courseSlice';
-import { docOMaticCourseSections, docOMaticFinalExam } from '@/lib/docOMaticMockData';
 
-export default function CoursePreview() {
-  const dispatch = useDispatch();
-  const course = useSelector((state: RootState) => state.course.currentCourse);
-  const courseBlocks = useSelector((state: RootState) => state.course.courseBlocks);
+interface CoursePreviewProps {
+  courseId: string;
+  onBack: () => void;
+}
+
+export default function CoursePreview({ courseId, onBack }: CoursePreviewProps) {
+  // Connect-Query: fetch course data
+  const { data: course, isLoading } = useGetCourse(courseId);
 
   const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
   const [currentLessonIndex, setCurrentLessonIndex] = useState(0);
@@ -28,16 +28,11 @@ export default function CoursePreview() {
   const [showSidebar, setShowSidebar] = useState(true);
   const [quizAnswers, setQuizAnswers] = useState<{[key: string]: number}>({});
   const [showQuizFeedback, setShowQuizFeedback] = useState<{[key: string]: boolean}>({});
-  const [examAnswers, setExamAnswers] = useState<{[key: string]: number}>({});
-  const [showExamResults, setShowExamResults] = useState(false);
 
-  // Use actual course content if available, otherwise fallback to mock data
-  const courseSections = course.content?.sections && course.content.sections.length > 0
-    ? course.content.sections
-    : docOMaticCourseSections;
-
+  // Use actual course content
+  const courseSections = course?.content?.sections || [];
   const currentSection = courseSections[currentSectionIndex];
-  const currentLesson = currentSection?.lessons[currentLessonIndex];
+  const currentLesson = currentSection?.lessons?.[currentLessonIndex];
 
   const handleExport = async () => {
     setIsExporting(true);
@@ -55,7 +50,7 @@ export default function CoursePreview() {
 
   const navigateLesson = (direction: 'prev' | 'next') => {
     if (direction === 'next') {
-      if (currentLessonIndex < currentSection.lessons.length - 1) {
+      if (currentSection?.lessons && currentLessonIndex < currentSection.lessons.length - 1) {
         setCurrentLessonIndex(currentLessonIndex + 1);
       } else if (currentSectionIndex < courseSections.length - 1) {
         setCurrentSectionIndex(currentSectionIndex + 1);
@@ -65,420 +60,255 @@ export default function CoursePreview() {
       if (currentLessonIndex > 0) {
         setCurrentLessonIndex(currentLessonIndex - 1);
       } else if (currentSectionIndex > 0) {
-        setCurrentSectionIndex(currentSectionIndex - 1);
         const prevSection = courseSections[currentSectionIndex - 1];
-        setCurrentLessonIndex(prevSection.lessons.length - 1);
+        setCurrentSectionIndex(currentSectionIndex - 1);
+        setCurrentLessonIndex((prevSection?.lessons?.length || 1) - 1);
       }
     }
+    // Reset quiz state when navigating
+    setQuizAnswers({});
+    setShowQuizFeedback({});
   };
 
-  const renderBlockContent = (block: any) => {
-    switch (block.type) {
-      case 'heading':
-        return <h2 className="text-2xl font-bold text-gray-900 mb-4">{block.content}</h2>;
-      case 'text':
-        // Check if content contains HTML (for images/figures)
-        const hasHtml = block.content.includes('<') && block.content.includes('>');
-        if (hasHtml) {
-          return (
-            <div
-              className="text-gray-700 leading-relaxed mb-4 prose prose-gray max-w-none"
-              dangerouslySetInnerHTML={{ __html: block.content }}
-            />
-          );
-        }
-        return <p className="text-gray-700 leading-relaxed mb-4 whitespace-pre-wrap">{block.content}</p>;
-      case 'interactive':
-        return (
-          <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-6 mb-4">
-            <div className="flex items-center gap-2 text-blue-700 mb-2">
-              <span className="font-semibold">Interactive Activity</span>
-            </div>
-            <p className="text-gray-700">{block.content}</p>
-            <button className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-              Start Activity
-            </button>
-          </div>
-        );
-      case 'knowledgeCheck':
-        try {
-          const quizData = JSON.parse(block.content);
-          const selectedAnswerId = quizAnswers[block.id];
-          const showFeedback = showQuizFeedback[block.id];
-
-          // Support both old format (string[] options) and new format (object[] with id/text)
-          const options = quizData.options || [];
-          const isNewFormat = options.length > 0 && typeof options[0] === 'object' && 'id' in options[0];
-
-          // Determine correct answer - handle both old (correctAnswer index) and new (correctAnswerId) formats
-          const correctAnswerIndex = isNewFormat
-            ? options.findIndex((opt: any) => opt.id === quizData.correctAnswerId)
-            : quizData.correctAnswer;
-
-          return (
-            <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-lg p-6 mb-4">
-              <div className="flex items-center gap-2 text-green-700 mb-4">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span className="font-semibold">Knowledge Check</span>
-              </div>
-
-              <p className="text-gray-800 font-medium mb-4">{quizData.question}</p>
-
-              <div className="space-y-2 mb-4">
-                {options.map((option: any, index: number) => {
-                  const optionText = isNewFormat ? option.text : option;
-                  const isSelected = selectedAnswerId === index;
-                  const isCorrect = index === correctAnswerIndex;
-
-                  return (
-                    <label
-                      key={isNewFormat ? option.id : index}
-                      className={`block p-3 rounded-lg border-2 cursor-pointer transition-all ${
-                        isSelected
-                          ? showFeedback
-                            ? isCorrect
-                              ? 'border-green-500 bg-green-100'
-                              : 'border-red-500 bg-red-100'
-                            : 'border-green-400 bg-green-50'
-                          : 'border-gray-200 hover:border-green-300 hover:bg-gray-50'
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name={`quiz-${block.id}`}
-                        value={index}
-                        checked={isSelected}
-                        onChange={() => setQuizAnswers({...quizAnswers, [block.id]: index})}
-                        className="mr-3"
-                        disabled={showFeedback}
-                      />
-                      <span className={`${showFeedback && isCorrect ? 'font-semibold text-green-700' : ''}`}>
-                        {optionText}
-                      </span>
-                    </label>
-                  );
-                })}
-              </div>
-
-              {!showFeedback ? (
-                <button
-                  onClick={() => setShowQuizFeedback({...showQuizFeedback, [block.id]: true})}
-                  disabled={selectedAnswerId === undefined}
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Submit Answer
-                </button>
-              ) : (
-                <div className={`p-4 rounded-lg ${selectedAnswerId === correctAnswerIndex ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                  {selectedAnswerId === correctAnswerIndex ? (
-                    <p className="font-semibold">✅ Correct! {quizData.correctFeedback || ''}</p>
-                  ) : (
-                    <p className="font-semibold">❌ Not quite right. {quizData.incorrectFeedback || ''}</p>
-                  )}
-                  <p className="mt-2">{quizData.explanation}</p>
-                </div>
-              )}
-            </div>
-          );
-        } catch (e) {
-          // Fallback for old format
-          return (
-            <div className="bg-green-50 border-2 border-green-200 rounded-lg p-6 mb-4">
-              <div className="flex items-center gap-2 text-green-700 mb-2">
-                <span className="font-semibold">Knowledge Check</span>
-              </div>
-              <p className="text-gray-700">{block.content}</p>
-            </div>
-          );
-        }
-      default:
-        return null;
-    }
+  const handleQuizAnswer = (quizId: string, answerIndex: number) => {
+    setQuizAnswers(prev => ({ ...prev, [quizId]: answerIndex }));
   };
+
+  const checkQuizAnswer = (quizId: string) => {
+    setShowQuizFeedback(prev => ({ ...prev, [quizId]: true }));
+  };
+
+  if (isLoading) {
+    return (
+      <div className="h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+      </div>
+    );
+  }
+
+  if (!course || courseSections.length === 0) {
+    return (
+      <div className="h-screen flex flex-col items-center justify-center">
+        <p className="text-gray-500 mb-4">No course content available</p>
+        <button
+          onClick={onBack}
+          className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+        >
+          Go Back
+        </button>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex h-full bg-gray-50">
-      {/* Sidebar Navigation */}
-      {showSidebar && (
-        <div className="w-80 bg-white border-r border-gray-200 overflow-y-auto">
-          <div className="p-6 border-b border-gray-200">
-            <h1 className="text-xl font-bold text-gray-900">{course.title}</h1>
-            <p className="text-sm text-gray-600 mt-2">{course.desiredOutcome}</p>
-          </div>
+    <div className="h-screen flex flex-col bg-gray-50">
+      {/* Top Navigation Bar */}
+      <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <button
+            onClick={onBack}
+            className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
+          >
+            <ChevronLeft size={20} />
+            <span>Back to Editor</span>
+          </button>
+          <div className="h-6 w-px bg-gray-300" />
+          <h1 className="font-semibold text-gray-900">{course.settings?.title || 'Course Preview'}</h1>
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowSidebar(!showSidebar)}
+            className="lg:hidden p-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+          >
+            {showSidebar ? <X size={20} /> : <Menu size={20} />}
+          </button>
+          <button
+            onClick={() => setShowExportModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+          >
+            <Download size={18} />
+            Export Course
+          </button>
+        </div>
+      </div>
 
+      {/* Main Content Area */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Sidebar - Course Structure */}
+        <div className={`${showSidebar ? 'block' : 'hidden'} lg:block w-64 bg-white border-r border-gray-200 overflow-y-auto`}>
           <div className="p-4">
-            <h3 className="text-sm font-semibold text-gray-500 uppercase mb-4">Course Content</h3>
-            {courseSections.map((section, sIndex) => (
-              <div key={section.id} className="mb-4">
-                <h4
-                  className={`font-medium mb-2 ${
-                    sIndex === currentSectionIndex ? 'text-purple-600' : 'text-gray-900'
-                  }`}
-                >
-                  {section.name}
-                </h4>
-                <div className="ml-4 space-y-1">
-                  {section.lessons.map((lesson, lIndex) => (
-                    <button
-                      key={lesson.id}
-                      onClick={() => {
-                        setCurrentSectionIndex(sIndex);
-                        setCurrentLessonIndex(lIndex);
-                      }}
-                      className={`w-full text-left px-3 py-2 rounded text-sm transition-colors ${
-                        sIndex === currentSectionIndex && lIndex === currentLessonIndex
-                          ? 'bg-purple-100 text-purple-700 font-medium'
-                          : 'hover:bg-gray-100 text-gray-600'
-                      }`}
-                    >
-                      {lesson.title}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col">
-        {/* Top Bar */}
-        <div className="bg-white border-b border-gray-200 px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => setShowSidebar(!showSidebar)}
-                className="p-2 hover:bg-gray-100 rounded-lg"
-              >
-                {showSidebar ? <X size={20} /> : <Menu size={20} />}
-              </button>
-              <div>
-                <div className="text-sm text-gray-500">{currentSection?.name}</div>
-                <div className="font-medium text-gray-900">{currentLesson?.title}</div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => dispatch(setCurrentStep(4))}
-                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                Back to Editor
-              </button>
-              <button
-                onClick={() => setShowExportModal(true)}
-                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2"
-              >
-                <Download size={18} />
-                Export to SCORM
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Content Area */}
-        <div className="flex-1 overflow-y-auto">
-          <div className="max-w-4xl mx-auto p-8">
-            {/* Check if this is the final exam lesson */}
-            {currentSection?.id === 'section-4' && currentLesson?.id === 'lesson-4-1' ? (
-              <div className="space-y-6">
-                <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border-2 border-purple-200 rounded-lg p-8">
-                  <h2 className="text-2xl font-bold text-gray-900 mb-4">
-                    {docOMaticFinalExam.title}
-                  </h2>
-                  <p className="text-gray-600 mb-6">
-                    Test your knowledge with this comprehensive exam covering all course materials.
-                    You need {docOMaticFinalExam.passingScore}% or higher to pass.
-                  </p>
-
-                  {!showExamResults ? (
-                    <>
-                      {docOMaticFinalExam.questions.map((question, index) => (
-                        <div key={question.id} className="bg-white rounded-lg p-6 mb-4 border border-gray-200">
-                          <p className="font-semibold text-gray-800 mb-4">
-                            {index + 1}. {question.question}
-                          </p>
-                          <div className="space-y-2">
-                            {question.options.map((option, optIndex) => (
-                              <label
-                                key={optIndex}
-                                className={`block p-3 rounded-lg border cursor-pointer transition-all ${
-                                  examAnswers[question.id] === optIndex
-                                    ? 'border-purple-400 bg-purple-50'
-                                    : 'border-gray-200 hover:border-purple-300 hover:bg-gray-50'
-                                }`}
-                              >
-                                <input
-                                  type="radio"
-                                  name={`exam-${question.id}`}
-                                  value={optIndex}
-                                  checked={examAnswers[question.id] === optIndex}
-                                  onChange={() => setExamAnswers({...examAnswers, [question.id]: optIndex})}
-                                  className="mr-3"
-                                />
-                                {option}
-                              </label>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-
+            <h2 className="font-semibold text-gray-900 mb-4">Course Content</h2>
+            <div className="space-y-2">
+              {courseSections.map((section, sIdx) => (
+                <div key={section.id}>
+                  <div className="font-medium text-gray-700 py-2">{section.name}</div>
+                  <div className="ml-2 space-y-1">
+                    {section.lessons?.map((lesson, lIdx) => (
                       <button
-                        onClick={() => setShowExamResults(true)}
-                        disabled={Object.keys(examAnswers).length < docOMaticFinalExam.questions.length}
-                        className="w-full px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+                        key={lesson.id}
+                        onClick={() => {
+                          setCurrentSectionIndex(sIdx);
+                          setCurrentLessonIndex(lIdx);
+                          setQuizAnswers({});
+                          setShowQuizFeedback({});
+                        }}
+                        className={`w-full text-left px-3 py-2 rounded text-sm ${
+                          sIdx === currentSectionIndex && lIdx === currentLessonIndex
+                            ? 'bg-purple-100 text-purple-700'
+                            : 'text-gray-600 hover:bg-gray-100'
+                        }`}
                       >
-                        Submit Exam
+                        {lesson.title}
                       </button>
-                    </>
-                  ) : (
-                    <div className="bg-white rounded-lg p-6">
-                      {(() => {
-                        const correctCount = docOMaticFinalExam.questions.filter(
-                          q => examAnswers[q.id] === q.correctAnswer
-                        ).length;
-                        const score = Math.round((correctCount / docOMaticFinalExam.questions.length) * 100);
-                        const passed = score >= docOMaticFinalExam.passingScore;
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
 
-                        return (
-                          <>
-                            <div className={`text-center mb-6 p-6 rounded-lg ${passed ? 'bg-green-50' : 'bg-red-50'}`}>
-                              <div className={`text-5xl font-bold mb-2 ${passed ? 'text-green-600' : 'text-red-600'}`}>
-                                {score}%
-                              </div>
-                              <p className={`text-xl font-semibold ${passed ? 'text-green-700' : 'text-red-700'}`}>
-                                {passed ? '🎉 Congratulations! You passed!' : '📚 Keep studying and try again!'}
-                              </p>
-                              <p className="text-gray-600 mt-2">
-                                You got {correctCount} out of {docOMaticFinalExam.questions.length} questions correct
-                              </p>
-                            </div>
+        {/* Main Content */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="max-w-3xl mx-auto px-6 py-8">
+            {currentLesson ? (
+              <>
+                {/* Section & Lesson Header */}
+                <div className="mb-6">
+                  <div className="text-sm text-purple-600 font-medium mb-1">
+                    {currentSection?.name}
+                  </div>
+                  <h2 className="text-2xl font-bold text-gray-900">
+                    {currentLesson.title}
+                  </h2>
+                </div>
 
-                            <div className="space-y-4">
-                              {docOMaticFinalExam.questions.map((question, index) => {
-                                const userAnswer = examAnswers[question.id];
-                                const isCorrect = userAnswer === question.correctAnswer;
+                {/* Lesson Content */}
+                <div className="prose prose-gray max-w-none">
+                  {currentLesson.blocks?.map((block) => (
+                    <div key={block.id} className="mb-6">
+                      {block.type === 1 ? ( // HEADING
+                        <h3 className="text-xl font-semibold text-gray-900">{block.content}</h3>
+                      ) : block.type === 4 ? ( // KNOWLEDGE_CHECK
+                        (() => {
+                          try {
+                            const quiz = JSON.parse(block.content);
+                            const quizId = block.id;
+                            const selectedAnswer = quizAnswers[quizId];
+                            const showFeedback = showQuizFeedback[quizId];
+                            const isCorrect = selectedAnswer === quiz.correctAnswer;
 
-                                return (
-                                  <div key={question.id} className="border-l-4 pl-4" style={{borderColor: isCorrect ? '#10b981' : '#ef4444'}}>
-                                    <p className="font-medium mb-2">
-                                      {index + 1}. {question.question}
+                            return (
+                              <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg p-6">
+                                <h4 className="font-semibold text-green-800 mb-3">Knowledge Check</h4>
+                                <p className="text-gray-800 mb-4">{quiz.question}</p>
+                                <div className="space-y-2">
+                                  {quiz.options?.map((option: string, idx: number) => (
+                                    <button
+                                      key={idx}
+                                      onClick={() => !showFeedback && handleQuizAnswer(quizId, idx)}
+                                      disabled={showFeedback}
+                                      className={`w-full text-left px-4 py-3 rounded-lg border transition-colors ${
+                                        showFeedback
+                                          ? idx === quiz.correctAnswer
+                                            ? 'bg-green-100 border-green-500 text-green-800'
+                                            : idx === selectedAnswer
+                                              ? 'bg-red-100 border-red-500 text-red-800'
+                                              : 'bg-white border-gray-200'
+                                          : selectedAnswer === idx
+                                            ? 'bg-purple-100 border-purple-500'
+                                            : 'bg-white border-gray-200 hover:border-purple-300'
+                                      }`}
+                                    >
+                                      {option}
+                                    </button>
+                                  ))}
+                                </div>
+                                {!showFeedback && selectedAnswer !== undefined && (
+                                  <button
+                                    onClick={() => checkQuizAnswer(quizId)}
+                                    className="mt-4 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                                  >
+                                    Check Answer
+                                  </button>
+                                )}
+                                {showFeedback && (
+                                  <div className={`mt-4 p-3 rounded-lg ${isCorrect ? 'bg-green-100' : 'bg-red-100'}`}>
+                                    <p className={`font-medium ${isCorrect ? 'text-green-800' : 'text-red-800'}`}>
+                                      {isCorrect ? 'Correct!' : 'Incorrect'}
                                     </p>
-                                    <p className="text-sm">
-                                      Your answer: <span className={isCorrect ? 'text-green-600' : 'text-red-600'}>
-                                        {question.options[userAnswer]}
-                                      </span>
-                                    </p>
-                                    {!isCorrect && (
-                                      <p className="text-sm text-gray-600 mt-1">
-                                        Correct answer: <span className="text-green-600">
-                                          {question.options[question.correctAnswer]}
-                                        </span>
-                                      </p>
+                                    {quiz.explanation && (
+                                      <p className="text-gray-700 mt-1 text-sm">{quiz.explanation}</p>
                                     )}
                                   </div>
-                                );
-                              })}
-                            </div>
-
-                            <button
-                              onClick={() => {
-                                setExamAnswers({});
-                                setShowExamResults(false);
-                              }}
-                              className="mt-6 px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
-                            >
-                              Retake Exam
-                            </button>
-                          </>
-                        );
-                      })()}
+                                )}
+                              </div>
+                            );
+                          } catch {
+                            return <div className="text-gray-700">{block.content}</div>;
+                          }
+                        })()
+                      ) : (
+                        <div className="text-gray-700 whitespace-pre-wrap">{block.content}</div>
+                      )}
                     </div>
-                  )}
+                  ))}
                 </div>
-              </div>
+
+                {/* Navigation Buttons */}
+                <div className="mt-8 pt-6 border-t border-gray-200 flex justify-between">
+                  <button
+                    onClick={() => navigateLesson('prev')}
+                    disabled={currentSectionIndex === 0 && currentLessonIndex === 0}
+                    className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <ChevronLeft size={20} />
+                    Previous Lesson
+                  </button>
+                  <button
+                    onClick={() => navigateLesson('next')}
+                    disabled={
+                      currentSectionIndex === courseSections.length - 1 &&
+                      currentLessonIndex === (currentSection?.lessons?.length || 1) - 1
+                    }
+                    className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Next Lesson
+                    <ChevronRight size={20} />
+                  </button>
+                </div>
+              </>
             ) : (
-              /* Render lesson blocks normally */
-              currentLesson?.blocks?.map((block) => (
-                <div key={block.id}>
-                  {renderBlockContent(block)}
-                </div>
-              ))
-            )}
-
-            {/* Navigation */}
-            <div className="flex items-center justify-between mt-12 pt-6 border-t border-gray-200">
-              <button
-                onClick={() => navigateLesson('prev')}
-                disabled={currentSectionIndex === 0 && currentLessonIndex === 0}
-                className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <ChevronLeft size={20} />
-                Previous
-              </button>
-
-              <div className="flex gap-2">
-                {courseSections.map((_, index) => (
-                  <div
-                    key={index}
-                    className={`w-2 h-2 rounded-full ${
-                      index === currentSectionIndex ? 'bg-purple-600' : 'bg-gray-300'
-                    }`}
-                  />
-                ))}
+              <div className="text-center py-12">
+                <p className="text-gray-500">Select a lesson from the sidebar to begin.</p>
               </div>
-
-              <button
-                onClick={() => navigateLesson('next')}
-                disabled={
-                  currentSectionIndex === courseSections.length - 1 &&
-                  currentLessonIndex === currentSection.lessons.length - 1
-                }
-                className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Next
-                <ChevronRight size={20} />
-              </button>
-            </div>
+            )}
           </div>
         </div>
       </div>
 
       {/* Export Modal */}
       {showExportModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl">
-            <h3 className="text-xl font-bold text-gray-900 mb-4">Export to SCORM</h3>
-
-            {!exportComplete ? (
-              <>
-                <p className="text-gray-600 mb-6">
-                  Your course will be exported as a SCORM 1.2 compliant package that can be
-                  imported directly into any LMS.
-                </p>
-
-                <div className="space-y-3 mb-6">
-                  <div className="flex items-center gap-3">
-                    <Check className="text-green-500" size={20} />
-                    <span className="text-sm">SCORM 1.2 compliant</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Check className="text-green-500" size={20} />
-                    <span className="text-sm">Ready for LMS import</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Check className="text-green-500" size={20} />
-                    <span className="text-sm">Includes all media and assessments</span>
-                  </div>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4">
+            {exportComplete ? (
+              <div className="text-center py-6">
+                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Check className="w-8 h-8 text-green-600" />
                 </div>
-
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">Export Complete!</h3>
+                <p className="text-gray-600">Your course has been exported successfully.</p>
+              </div>
+            ) : (
+              <>
+                <h3 className="text-xl font-semibold text-gray-900 mb-4">Export Course</h3>
+                <p className="text-gray-600 mb-6">
+                  Export your course to SCORM format for use in your LMS.
+                </p>
                 <div className="flex gap-3">
                   <button
                     onClick={() => setShowExportModal(false)}
-                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
                     disabled={isExporting}
                   >
                     Cancel
@@ -486,47 +316,12 @@ export default function CoursePreview() {
                   <button
                     onClick={handleExport}
                     disabled={isExporting}
-                    className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                    className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
                   >
-                    {isExporting ? (
-                      <>
-                        <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                          <circle
-                            className="opacity-25"
-                            cx="12"
-                            cy="12"
-                            r="10"
-                            stroke="currentColor"
-                            strokeWidth="4"
-                            fill="none"
-                          />
-                          <path
-                            className="opacity-75"
-                            fill="currentColor"
-                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                          />
-                        </svg>
-                        Exporting...
-                      </>
-                    ) : (
-                      <>
-                        <Download size={18} />
-                        Export
-                      </>
-                    )}
+                    {isExporting ? 'Exporting...' : 'Export SCORM'}
                   </button>
                 </div>
               </>
-            ) : (
-              <div className="text-center py-8">
-                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Check className="text-green-600" size={32} />
-                </div>
-                <h4 className="text-lg font-semibold text-gray-900 mb-2">Export Complete!</h4>
-                <p className="text-gray-600">
-                  Your SCORM package has been downloaded successfully.
-                </p>
-              </div>
             )}
           </div>
         </div>

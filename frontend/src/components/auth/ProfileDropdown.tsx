@@ -2,9 +2,8 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
-import { useSelector } from 'react-redux';
 import { User, Settings, LogOut, ChevronDown, Loader2 } from 'lucide-react';
-import { selectUser, selectIsAuthenticated, selectIsAuthInitialized } from '@/store/slices/authSlice';
+import { useAuth } from '@/contexts';
 import { useLogout } from '@/hooks/useLogout';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { roleToDisplayString, getRoleBadgeColor } from '@/lib/proto/display';
@@ -15,9 +14,7 @@ interface ProfileDropdownProps {
 }
 
 export default function ProfileDropdown({ isProtectedPage = false }: ProfileDropdownProps) {
-  const user = useSelector(selectUser);
-  const isAuthenticated = useSelector(selectIsAuthenticated);
-  const isInitialized = useSelector(selectIsAuthInitialized);
+  const { user, isAuthenticated, isInitialized } = useAuth();
   const { startLogout, isLoggingOut } = useLogout();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);

@@ -2,9 +2,7 @@
 
 import React, { useEffect } from 'react';
 import { X, Sparkles } from 'lucide-react';
-import { useDispatch, useSelector } from 'react-redux';
-import { RootState } from '@/store';
-import { resetGeneration } from '@/store/slices/aiGenerationSlice';
+import { useUIStore } from '@/store/zustand';
 
 interface AIGenerationModalProps {
   isOpen: boolean;
@@ -12,10 +10,8 @@ interface AIGenerationModalProps {
 }
 
 export default function AIGenerationModal({ isOpen, onClose }: AIGenerationModalProps) {
-  const dispatch = useDispatch();
-  const { isGenerating, progress, currentMessage, generationType } = useSelector(
-    (state: RootState) => state.aiGeneration
-  );
+  const { isGenerating, progress, currentMessage, generationType } = useUIStore((s) => s.aiGeneration);
+  const resetGeneration = useUIStore((s) => s.resetGeneration);
 
   useEffect(() => {
     if (progress === 100 && !isGenerating) {
@@ -27,7 +23,7 @@ export default function AIGenerationModal({ isOpen, onClose }: AIGenerationModal
   }, [progress, isGenerating]);
 
   const handleClose = () => {
-    dispatch(resetGeneration());
+    resetGeneration();
     onClose();
   };
 

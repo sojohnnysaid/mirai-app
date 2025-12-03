@@ -3,9 +3,7 @@
 import React, { useCallback, useEffect, useRef } from 'react';
 import { useMachine } from '@xstate/react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useDispatch, useSelector } from 'react-redux';
-import { RootState, AppDispatch } from '@/store';
-import { loadCourse, setCurrentStep as setReduxStep } from '@/store/slices/courseSlice';
+import { useGetCourse } from '@/hooks/useCourses';
 
 // Machine
 import { courseBuilderMachine, STEP_LABELS } from '@/machines/courseBuilderMachine';
@@ -48,15 +46,13 @@ import { Check } from 'lucide-react';
 export default function CourseBuilder() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const dispatch = useDispatch<AppDispatch>();
 
-  // Redux state
-  const currentCourse = useSelector((state: RootState) => state.course.currentCourse);
-  const courseBlocks = useSelector((state: RootState) => state.course.courseBlocks);
-
-  // XState machine
+  // XState machine drives the wizard flow
   const [state, send] = useMachine(courseBuilderMachine);
   const { context } = state;
+
+  // Connect-Query hook to fetch course data when we have an ID
+  const { data: courseData } = useGetCourse(context.courseId || undefined);
 
   // API Hooks
   const createCourseHook = useCreateCourse();
@@ -89,8 +85,7 @@ export default function CourseBuilder() {
     const stepParam = searchParams.get('step');
 
     if (courseId) {
-      // Load existing course
-      dispatch(loadCourse(courseId));
+      // Notify XState machine about existing course
       send({ type: 'COURSE_CREATED', courseId });
 
       // Jump to specific step if provided
@@ -98,11 +93,10 @@ export default function CourseBuilder() {
         const step = parseInt(stepParam, 10);
         if (step >= 1 && step <= 7) {
           send({ type: 'GO_TO_STEP', step });
-          dispatch(setReduxStep(step));
         }
       }
     }
-  }, [searchParams, dispatch, send]);
+  }, [searchParams, send]);
 
   // ============================================================
   // Course Creation
@@ -124,7 +118,7 @@ export default function CourseBuilder() {
 
       const newCourseId = result.course?.id || '';
       send({ type: 'COURSE_CREATED', courseId: newCourseId });
-      dispatch(loadCourse(newCourseId));
+      // Course data will be loaded via Connect-Query hook when courseId changes
 
       // Update URL
       router.replace(`/course-builder?id=${newCourseId}`, { scroll: false });
@@ -133,7 +127,7 @@ export default function CourseBuilder() {
     } finally {
       isCreatingCourse.current = false;
     }
-  }, [context.courseId, context.title, context.desiredOutcome, createCourseHook, send, dispatch, router]);
+  }, [context.courseId, context.title, context.desiredOutcome, createCourseHook, send, router]);
 
   // ============================================================
   // Generation Flow
@@ -274,16 +268,15 @@ export default function CourseBuilder() {
 
         if (lessons.length > 0 && outline && context.courseId) {
           // Transform content
-          const { sections, courseBlocks } = generatedLessonsToCourseContent(lessons, outline);
-          const apiContent = toApiFormat({ sections, courseBlocks });
+          const { sections, courseBlocks: generatedBlocks } = generatedLessonsToCourseContent(lessons, outline);
+          const apiContent = toApiFormat({ sections, courseBlocks: generatedBlocks });
 
           // Update course with content
           await updateCourseHook.mutate(context.courseId, {
             content: apiContent,
           });
 
-          // Reload course in Redux
-          dispatch(loadCourse(context.courseId));
+          // Course data will be refetched via Connect-Query automatic refetch
         }
 
         send({ type: 'GENERATION_COMPLETE' });
@@ -291,7 +284,7 @@ export default function CourseBuilder() {
     } else if (lessonJob.status === GenerationJobStatus.FAILED) {
       send({ type: 'ERROR', error: lessonJob.errorMessage || 'Lesson generation failed' });
     }
-  }, [lessonJob, state.value, listLessonsHook, getOutlineHook.data, context.courseId, updateCourseHook, dispatch, send]);
+  }, [lessonJob, state.value, listLessonsHook, getOutlineHook.data, context.courseId, updateCourseHook, send]);
 
   // ============================================================
   // Step Handlers
@@ -405,10 +398,10 @@ export default function CourseBuilder() {
         );
 
       case 'editor':
-        return <CourseEditor />;
+        return <CourseEditor courseId={context.courseId!} onPreview={() => send({ type: 'NEXT' })} />;
 
       case 'preview':
-        return <CoursePreview />;
+        return <CoursePreview courseId={context.courseId!} onBack={() => send({ type: 'PREVIOUS' })} />;
 
       default:
         return null;

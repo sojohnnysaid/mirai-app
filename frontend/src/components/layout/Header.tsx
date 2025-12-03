@@ -1,10 +1,9 @@
 'use client';
 
 import React from 'react';
-import { useDispatch } from 'react-redux';
 import { BookOpen, Menu } from 'lucide-react';
 import ProfileDropdown from '@/components/auth/ProfileDropdown';
-import { toggleMobileSidebar } from '@/store/slices/uiSlice';
+import { useUIStore } from '@/store/zustand';
 import { useIsMobile } from '@/hooks/useBreakpoint';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { NotificationPanel } from '@/components/notifications/NotificationPanel';
@@ -21,7 +20,7 @@ interface HeaderProps {
 }
 
 export default function Header({ title }: HeaderProps) {
-  const dispatch = useDispatch();
+  const toggleMobileSidebar = useUIStore((s) => s.toggleMobileSidebar);
   const isMobile = useIsMobile();
 
   // Notification hooks (RTK Query / Connect Query)
@@ -37,7 +36,7 @@ export default function Header({ title }: HeaderProps) {
         {/* Hamburger menu (mobile devices only) */}
         {isMobile && (
           <button
-            onClick={() => dispatch(toggleMobileSidebar())}
+            onClick={toggleMobileSidebar}
             className="touch-target flex items-center justify-center p-2 -ml-2 mr-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
             aria-label="Open navigation menu"
           >

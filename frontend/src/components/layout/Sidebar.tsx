@@ -3,9 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { useSelector, useDispatch } from 'react-redux';
-import { RootState } from '@/store';
-import { toggleSidebar, closeMobileSidebar } from '@/store/slices/uiSlice';
+import { useUIStore } from '@/store/zustand';
 import { useIsMobile } from '@/hooks/useBreakpoint';
 import {
   LayoutDashboard,
@@ -44,8 +42,10 @@ export const bottomItems = [
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const dispatch = useDispatch();
-  const { sidebarOpen, mobileSidebarOpen } = useSelector((state: RootState) => state.ui);
+  const sidebarOpen = useUIStore((s) => s.sidebarOpen);
+  const mobileSidebarOpen = useUIStore((s) => s.mobileSidebarOpen);
+  const toggleSidebar = useUIStore((s) => s.toggleSidebar);
+  const closeMobileSidebar = useUIStore((s) => s.closeMobileSidebar);
   const [showText, setShowText] = useState(sidebarOpen);
   const isMobile = useIsMobile();
   const { isAdmin } = useIsAdmin();
@@ -67,7 +67,7 @@ export default function Sidebar() {
   // Close mobile sidebar on route change
   useEffect(() => {
     if (isMobile && mobileSidebarOpen) {
-      dispatch(closeMobileSidebar());
+      closeMobileSidebar();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
@@ -89,7 +89,7 @@ export default function Sidebar() {
       {isMobile && mobileSidebarOpen && (
         <div
           className="fixed inset-0 bg-black/50 z-40 animate-backdrop-in"
-          onClick={() => dispatch(closeMobileSidebar())}
+          onClick={closeMobileSidebar}
           aria-hidden="true"
         />
       )}
@@ -105,7 +105,7 @@ export default function Sidebar() {
         </Link>
 
         <button
-          onClick={() => dispatch(toggleSidebar())}
+          onClick={toggleSidebar}
           className="sidebar-toggle"
         >
           {sidebarOpen ? (

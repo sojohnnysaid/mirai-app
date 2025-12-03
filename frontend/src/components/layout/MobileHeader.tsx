@@ -1,10 +1,9 @@
 'use client';
 
 import React from 'react';
-import { useDispatch } from 'react-redux';
 import { Menu, BookOpen } from 'lucide-react';
 import ProfileDropdown from '@/components/auth/ProfileDropdown';
-import { toggleMobileSidebar } from '@/store/slices/uiSlice';
+import { useUIStore } from '@/store/zustand';
 import { useIsMobile } from '@/hooks/useBreakpoint';
 
 interface MobileHeaderProps {
@@ -12,7 +11,7 @@ interface MobileHeaderProps {
 }
 
 export function MobileHeader({ title }: MobileHeaderProps) {
-  const dispatch = useDispatch();
+  const toggleMobileSidebar = useUIStore((s) => s.toggleMobileSidebar);
   const isMobile = useIsMobile();
 
   // Only render on mobile
@@ -26,7 +25,7 @@ export function MobileHeader({ title }: MobileHeaderProps) {
       <div className="flex items-center justify-between h-16 px-4">
         {/* Hamburger Menu Button */}
         <button
-          onClick={() => dispatch(toggleMobileSidebar())}
+          onClick={toggleMobileSidebar}
           className="touch-target flex items-center justify-center p-2 -ml-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
           aria-label="Open navigation menu"
         >

@@ -3,7 +3,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, Clock, FileText, CheckCircle, Edit2, Trash2, X, PartyPopper } from 'lucide-react';
 import { AIGenerationFlowModal } from '@/components/ai-generation';
-import { useGetCoursesQuery, useDeleteCourseMutation, type LibraryEntry } from '@/store/api/apiSlice';
+import { useListCourses, useDeleteCourse, type LibraryEntry } from '@/hooks/useCourses';
+import { CourseStatus } from '@/gen/mirai/v1/course_pb';
 import { useRouter, useSearchParams } from 'next/navigation';
 import confetti from 'canvas-confetti';
 import * as courseClient from '@/lib/courseClient';
@@ -82,14 +83,14 @@ export default function Dashboard() {
     }
   }, [showSuccessBanner]);
 
-  // RTK Query - automatically fetches and caches
-  const { data: courses = [], isLoading } = useGetCoursesQuery();
-  const [deleteCourse] = useDeleteCourseMutation();
+  // Connect-Query - automatically fetches and caches
+  const { data: courses, isLoading } = useListCourses();
+  const deleteCourseMutation = useDeleteCourse();
 
   // Filter courses based on active tab - handle undefined courses array
   const filteredCourses = (courses || []).filter((course: LibraryEntry) => {
-    if (activeTab === 'draft') return course.status === 'draft';
-    if (activeTab === 'published') return course.status === 'published';
+    if (activeTab === 'draft') return course.status === CourseStatus.DRAFT;
+    if (activeTab === 'published') return course.status === CourseStatus.PUBLISHED;
     // For 'recent', show all courses sorted by date (handled by API)
     return true;
   });
@@ -111,7 +112,7 @@ export default function Dashboard() {
     if (confirm(confirmMessage)) {
       try {
         // Delete the course - connect-query automatically refetches via query invalidation
-        await deleteCourse(courseId);
+        await deleteCourseMutation.mutate(courseId);
       } catch (error) {
         console.error('Failed to delete course:', error);
         alert('Failed to delete course. Please try again.');
@@ -269,7 +270,7 @@ export default function Dashboard() {
 
                 <div className="flex items-center justify-between text-xs mt-3">
                   <div className="flex items-center gap-1">
-                    {course.status === 'published' ? (
+                    {course.status === CourseStatus.PUBLISHED ? (
                       <>
                         <CheckCircle className="w-3 h-3 text-green-600" />
                         <span className="text-green-600">Published</span>
@@ -284,7 +285,9 @@ export default function Dashboard() {
                   <div className="flex items-center gap-1 text-gray-500">
                     <Clock className="w-3 h-3" />
                     <span>
-                      {new Date(course.modifiedAt).toLocaleDateString()}
+                      {course.modifiedAt
+                        ? new Date(Number(course.modifiedAt.seconds) * 1000).toLocaleDateString()
+                        : 'Unknown'}
                     </span>
                   </div>
                 </div>

@@ -1,11 +1,9 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { useSelector, useDispatch } from 'react-redux';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { RootState, AppDispatch } from '@/store';
-import { checkSession, selectIsAuthInitialized } from '@/store/slices/authSlice';
-import { prefetchFolders, prefetchCourses } from '@/store/slices/courseSlice';
+import { useAuth } from '@/contexts';
+import { useUIStore } from '@/store/zustand';
 import { setSessionTokenCookie } from '@/lib/auth.config';
 import Sidebar, { menuItems, bottomItems } from '@/components/layout/Sidebar';
 import Header from '@/components/layout/Header';
@@ -28,9 +26,8 @@ export default function Layout({
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const dispatch = useDispatch<AppDispatch>();
-  const { sidebarOpen } = useSelector((state: RootState) => state.ui);
-  const isAuthInitialized = useSelector(selectIsAuthInitialized);
+  const { isInitialized: isAuthInitialized, checkSession } = useAuth();
+  const sidebarOpen = useUIStore((s) => s.sidebarOpen);
   const isMobile = useIsMobile();
   const [tokenProcessed, setTokenProcessed] = useState(false);
 
@@ -48,13 +45,15 @@ export default function Layout({
   useEffect(() => {
     if (!tokenProcessed) return;
 
-    // Check auth session
-    if (!isAuthInitialized) {
-      dispatch(checkSession());
+    // Check auth session - AuthContext handles the initial check on mount,
+    // but we re-check if we processed a token from URL
+    if (searchParams.get('auth_token')) {
+      checkSession();
     }
-  }, [dispatch, isAuthInitialized, tokenProcessed]);
+  }, [checkSession, tokenProcessed, searchParams]);
 
-  // Prefetch routes and API data only AFTER auth is initialized
+  // Prefetch routes only AFTER auth is initialized
+  // Note: Data prefetching is now handled by React Query automatic caching
   useEffect(() => {
     if (!isAuthInitialized) return;
 
@@ -73,11 +72,7 @@ export default function Layout({
       });
     }
     allPaths.forEach((path) => router.prefetch(path));
-
-    // Prefetch API data - only after auth is ready
-    dispatch(prefetchFolders(true));
-    dispatch(prefetchCourses());
-  }, [router, dispatch, isAuthInitialized]);
+  }, [router, isAuthInitialized]);
 
   // Desktop: sidebar margin based on collapsed/expanded state
   // Mobile: no margin (sidebar is a drawer overlay)
