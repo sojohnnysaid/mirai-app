@@ -211,6 +211,7 @@ func main() {
 			geminiProviderFactory,
 			notificationService, // For tenant-isolated job notifications
 			notificationService, // For course completion notifications (implements CourseCompletionNotifier)
+			notificationService, // For outline completion notifications (implements OutlineCompletionNotifier)
 			logger,
 		)
 

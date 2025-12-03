@@ -36,6 +36,14 @@ type CourseCompletionNotifier interface {
 	NotifyCourseFailed(ctx context.Context, userID uuid.UUID, courseID uuid.UUID, courseTitle string, errorMsg string) error
 }
 
+// OutlineCompletionNotifier sends notifications when outline generation completes.
+type OutlineCompletionNotifier interface {
+	// NotifyOutlineReady sends notification when course outline is generated and ready for review.
+	NotifyOutlineReady(ctx context.Context, userID uuid.UUID, courseID uuid.UUID, courseTitle string, sectionCount, lessonCount int) error
+	// NotifyOutlineFailed sends notification when outline generation fails.
+	NotifyOutlineFailed(ctx context.Context, userID uuid.UUID, courseID uuid.UUID, courseTitle string, errorMsg string) error
+}
+
 // AIGenerationService handles AI-powered content generation.
 type AIGenerationService struct {
 	userRepo            repository.UserRepository
@@ -53,6 +61,7 @@ type AIGenerationService struct {
 	aiProviderFactory   AIProviderFactory
 	notifier            JobNotifier
 	completionNotifier  CourseCompletionNotifier
+	outlineNotifier     OutlineCompletionNotifier
 	logger              service.Logger
 }
 
@@ -73,6 +82,7 @@ func NewAIGenerationService(
 	aiProviderFactory AIProviderFactory,
 	notifier JobNotifier,
 	completionNotifier CourseCompletionNotifier,
+	outlineNotifier OutlineCompletionNotifier,
 	logger service.Logger,
 ) *AIGenerationService {
 	return &AIGenerationService{
@@ -91,6 +101,7 @@ func NewAIGenerationService(
 		aiProviderFactory:   aiProviderFactory,
 		notifier:            notifier,
 		completionNotifier:  completionNotifier,
+		outlineNotifier:     outlineNotifier,
 		logger:              logger,
 	}
 }
@@ -381,6 +392,13 @@ func (s *AIGenerationService) ProcessOutlineGenerationJob(ctx context.Context, j
 	// Update token usage
 	_ = s.aiSettingsRepo.IncrementTokenUsage(ctx, job.TenantID, outlineResult.TokensUsed)
 
+	// Count sections and lessons for notification
+	sectionCount := len(outlineResult.Sections)
+	lessonCount := 0
+	for _, section := range outlineResult.Sections {
+		lessonCount += len(section.Lessons)
+	}
+
 	// Complete the job
 	job.Status = valueobject.GenerationJobStatusCompleted
 	job.ProgressPercent = 100
@@ -392,14 +410,18 @@ func (s *AIGenerationService) ProcessOutlineGenerationJob(ctx context.Context, j
 		log.Error("failed to mark job as completed", "error", err)
 	}
 
-	// Notify user of completion (tenant-isolated via user lookup)
-	if s.notifier != nil {
-		if err := s.notifier.NotifyJobProgress(ctx, job.CreatedByUserID, job.ID, "Course Outline", "completed", 100); err != nil {
-			log.Error("failed to send completion notification", "error", err)
+	// Send outline ready notification with email (tenant-isolated via user lookup)
+	if s.outlineNotifier != nil {
+		courseTitle := genInput.DesiredOutcome // Use desired outcome as course context
+		if len(courseTitle) > 50 {
+			courseTitle = courseTitle[:47] + "..."
+		}
+		if err := s.outlineNotifier.NotifyOutlineReady(ctx, job.CreatedByUserID, *job.CourseID, courseTitle, sectionCount, lessonCount); err != nil {
+			log.Error("failed to send outline ready notification", "error", err)
 		}
 	}
 
-	log.Info("outline generation completed", "tokensUsed", outlineResult.TokensUsed)
+	log.Info("outline generation completed", "tokensUsed", outlineResult.TokensUsed, "sections", sectionCount, "lessons", lessonCount)
 	return nil
 }
 

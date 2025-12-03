@@ -577,3 +577,134 @@ func (s *NotificationService) NotifyTaskAssigned(ctx context.Context, req Notify
 
 	return nil
 }
+
+// NotifyOutlineReady sends both in-app notification and email when course outline is generated.
+// Implements OutlineCompletionNotifier interface for AIGenerationService.
+func (s *NotificationService) NotifyOutlineReady(ctx context.Context, userID uuid.UUID, courseID uuid.UUID, courseTitle string, sectionCount, lessonCount int) error {
+	log := s.logger.With("userID", userID, "courseID", courseID)
+
+	// Look up user to get KratosID
+	user, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil || user == nil {
+		log.Error("failed to get user for outline notification", "error", err)
+		return domainerrors.ErrUserNotFound
+	}
+
+	// Look up identity from Kratos to get email
+	var userEmail, userName string
+	if s.identityProvider != nil {
+		identity, err := s.identityProvider.GetIdentity(ctx, user.KratosID.String())
+		if err != nil {
+			log.Warn("failed to get identity for email", "error", err)
+		} else if identity != nil {
+			userEmail = identity.Email
+			userName = identity.FirstName
+		}
+	}
+
+	// Link to outline review page
+	actionURL := fmt.Sprintf("/course/%s/outline", courseID.String())
+
+	// Create in-app notification
+	notifReq := CreateNotificationRequest{
+		UserID:    userID,
+		Type:      valueobject.NotificationTypeOutlineReady,
+		Priority:  valueobject.NotificationPriorityNormal,
+		Title:     "Outline Ready for Review",
+		Message:   fmt.Sprintf("Your course outline is ready with %d sections and %d lessons.", sectionCount, lessonCount),
+		ActionURL: &actionURL,
+		CourseID:  &courseID,
+	}
+
+	_, err = s.CreateNotification(ctx, notifReq)
+	if err != nil {
+		log.Error("failed to create in-app notification", "error", err)
+	} else {
+		log.Info("in-app notification created for outline ready")
+	}
+
+	// Send email if we have the email address
+	if userEmail != "" && s.emailProvider != nil {
+		emailReq := service.SendOutlineReadyRequest{
+			To:           userEmail,
+			UserName:     userName,
+			CourseTitle:  courseTitle,
+			SectionCount: sectionCount,
+			LessonCount:  lessonCount,
+			ReviewURL:    s.baseURL + actionURL,
+		}
+
+		if err := s.emailProvider.SendOutlineReady(ctx, emailReq); err != nil {
+			log.Error("failed to send outline ready email", "error", err)
+		} else {
+			log.Info("outline ready email sent", "to", userEmail)
+		}
+	}
+
+	return nil
+}
+
+// NotifyOutlineFailed sends both in-app notification and email when outline generation fails.
+// Implements OutlineCompletionNotifier interface for AIGenerationService.
+func (s *NotificationService) NotifyOutlineFailed(ctx context.Context, userID uuid.UUID, courseID uuid.UUID, courseTitle string, errorMsg string) error {
+	log := s.logger.With("userID", userID, "courseID", courseID)
+
+	// Look up user to get KratosID
+	user, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil || user == nil {
+		log.Error("failed to get user for outline failure notification", "error", err)
+		return domainerrors.ErrUserNotFound
+	}
+
+	// Look up identity from Kratos to get email
+	var userEmail, userName string
+	if s.identityProvider != nil {
+		identity, err := s.identityProvider.GetIdentity(ctx, user.KratosID.String())
+		if err != nil {
+			log.Warn("failed to get identity for email", "error", err)
+		} else if identity != nil {
+			userEmail = identity.Email
+			userName = identity.FirstName
+		}
+	}
+
+	actionURL := fmt.Sprintf("/courses/%s", courseID.String())
+
+	// Create in-app notification
+	notifReq := CreateNotificationRequest{
+		UserID:    userID,
+		Type:      valueobject.NotificationTypeGenerationFailed,
+		Priority:  valueobject.NotificationPriorityHigh,
+		Title:     "Outline Generation Failed",
+		Message:   errorMsg,
+		ActionURL: &actionURL,
+		CourseID:  &courseID,
+	}
+
+	_, err = s.CreateNotification(ctx, notifReq)
+	if err != nil {
+		log.Error("failed to create in-app notification", "error", err)
+	} else {
+		log.Info("in-app notification created for outline failure")
+	}
+
+	// Send email if we have the email address
+	if userEmail != "" && s.emailProvider != nil {
+		emailReq := service.SendGenerationFailedRequest{
+			To:           userEmail,
+			UserName:     userName,
+			CourseTitle:  courseTitle,
+			ContentType:  "outline",
+			ErrorMessage: errorMsg,
+			CourseURL:    s.baseURL + actionURL,
+		}
+
+		if err := s.emailProvider.SendGenerationFailed(ctx, emailReq); err != nil {
+			log.Error("failed to send outline failure email", "error", err)
+		} else {
+			log.Info("outline failure email sent", "to", userEmail)
+		}
+	}
+
+	return nil
+}
