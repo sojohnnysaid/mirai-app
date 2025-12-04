@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { BookOpen, Menu, Loader2 } from 'lucide-react';
+import { BookOpen, Menu } from 'lucide-react';
 import ProfileDropdown from '@/components/auth/ProfileDropdown';
 import { useUIStore } from '@/store/zustand';
 import { useIsMobile } from '@/hooks/useBreakpoint';
@@ -22,7 +22,6 @@ interface HeaderProps {
 
 export default function Header({ title }: HeaderProps) {
   const toggleMobileSidebar = useUIStore((s) => s.toggleMobileSidebar);
-  const openNotificationPanel = useUIStore((s) => s.openNotificationPanel);
   const isMobile = useIsMobile();
 
   // Notification hooks (RTK Query / Connect Query)
@@ -32,8 +31,8 @@ export default function Header({ title }: HeaderProps) {
   const markAllAsRead = useMarkAllAsRead();
   const deleteNotification = useDeleteNotification();
 
-  // Active generation jobs
-  const { data: activeJobs, hasActiveJobs, refetch: refetchJobs } = useActiveGenerationJobs();
+  // Active generation jobs (shown in notification panel)
+  const { data: activeJobs, refetch: refetchJobs } = useActiveGenerationJobs();
   const cancelJob = useCancelJob();
 
   return (
@@ -58,23 +57,9 @@ export default function Header({ title }: HeaderProps) {
           </span>
         </div>
 
-        {/* Active Job, Notifications & Profile */}
+        {/* Notifications & Profile */}
         <div className="flex items-center gap-2">
-          {/* Active Generation Job Indicator - clickable to open notification panel */}
-          {hasActiveJobs && (
-            <button
-              onClick={openNotificationPanel}
-              className="flex items-center gap-2 bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-full text-sm hover:bg-indigo-200 transition-colors"
-              title="View active jobs"
-            >
-              <Loader2 className="w-4 h-4 animate-spin" />
-              <span className="hidden sm:inline font-medium">
-                Generating...
-              </span>
-            </button>
-          )}
-
-          {/* Notification Bell with Panel */}
+          {/* Notification Bell with Panel (active jobs shown inside panel) */}
           <div className="relative">
             <NotificationBell unreadCount={unreadCount} />
             <NotificationPanel
