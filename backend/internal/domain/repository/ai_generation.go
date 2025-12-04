@@ -24,6 +24,10 @@ type GenerationJobRepository interface {
 	// Create creates a new job.
 	Create(ctx context.Context, job *entity.GenerationJob) error
 
+	// CreateBatch atomically creates multiple jobs in a single transaction.
+	// If any job fails to create, all jobs are rolled back.
+	CreateBatch(ctx context.Context, jobs []*entity.GenerationJob) error
+
 	// GetByID retrieves a job by its ID.
 	GetByID(ctx context.Context, id uuid.UUID) (*entity.GenerationJob, error)
 
@@ -48,10 +52,16 @@ type GenerationJobRepository interface {
 	// CheckAllChildrenComplete checks if all child jobs of a parent are completed.
 	CheckAllChildrenComplete(ctx context.Context, parentID uuid.UUID) (bool, error)
 
-	// TryFinalizeParentJob atomically checks if all children are complete and finalizes the parent job.
-	// Returns the finalization result (completed count, failed count, total tokens) or nil if parent was already finalized.
+	// TryFinalizeParentJob atomically checks if all children are complete and optionally finalizes the parent job.
+	// If allComplete is true and WasFinalized is true, the parent status has been updated atomically.
+	// Returns the finalization result (completed count, failed count, total tokens) or nil if parent not found.
 	// Uses SELECT FOR UPDATE to prevent race conditions when multiple children complete simultaneously.
 	TryFinalizeParentJob(ctx context.Context, parentID uuid.UUID) (*ParentJobFinalizationResult, error)
+
+	// FinalizeParentJob atomically checks child completion and updates parent status in one transaction.
+	// This is the preferred method as it ensures the status update is inside the atomic lock.
+	// Returns nil if parent was already finalized or not found.
+	FinalizeParentJob(ctx context.Context, parentID uuid.UUID, completedStatus, failedStatus string, progressMessage string) (*ParentJobFinalizationResult, error)
 }
 
 // ParentJobFinalizationResult contains the result of trying to finalize a parent job.
@@ -75,6 +85,10 @@ type CourseOutlineRepository interface {
 	// Create creates a new outline.
 	Create(ctx context.Context, outline *entity.CourseOutline) error
 
+	// CreateCompleteOutline atomically creates an outline with all its sections and lessons.
+	// If any part fails, the entire operation is rolled back.
+	CreateCompleteOutline(ctx context.Context, outline *entity.CourseOutline, sections []entity.OutlineSection, lessons []entity.OutlineLesson) error
+
 	// GetByID retrieves an outline by its ID.
 	GetByID(ctx context.Context, id uuid.UUID) (*entity.CourseOutline, error)
 
@@ -83,6 +97,9 @@ type CourseOutlineRepository interface {
 
 	// GetByCourseIDAndVersion retrieves a specific version.
 	GetByCourseIDAndVersion(ctx context.Context, courseID uuid.UUID, version int32) (*entity.CourseOutline, error)
+
+	// GetNextVersion returns the next version number for a course (max existing + 1, or 1 if none).
+	GetNextVersion(ctx context.Context, courseID uuid.UUID) (int32, error)
 
 	// Update updates an outline.
 	Update(ctx context.Context, outline *entity.CourseOutline) error

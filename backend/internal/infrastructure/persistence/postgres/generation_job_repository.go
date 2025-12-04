@@ -13,12 +13,20 @@ import (
 
 // GenerationJobRepository implements repository.GenerationJobRepository using PostgreSQL.
 type GenerationJobRepository struct {
-	db *sql.DB
+	db                     *sql.DB
+	staleJobTimeoutMinutes int
 }
 
 // NewGenerationJobRepository creates a new PostgreSQL generation job repository.
-func NewGenerationJobRepository(db *sql.DB) repository.GenerationJobRepository {
-	return &GenerationJobRepository{db: db}
+// staleJobTimeoutMinutes sets how long a processing job can run before being considered stale.
+func NewGenerationJobRepository(db *sql.DB, staleJobTimeoutMinutes int) repository.GenerationJobRepository {
+	if staleJobTimeoutMinutes <= 0 {
+		staleJobTimeoutMinutes = 30 // Default to 30 minutes
+	}
+	return &GenerationJobRepository{
+		db:                     db,
+		staleJobTimeoutMinutes: staleJobTimeoutMinutes,
+	}
 }
 
 // Create creates a new job.
@@ -49,6 +57,48 @@ func (r *GenerationJobRepository) Create(ctx context.Context, job *entity.Genera
 			job.MaxRetries,
 			job.CreatedByUserID,
 		).Scan(&job.ID, &job.CreatedAt)
+	})
+}
+
+// CreateBatch atomically creates multiple jobs in a single transaction.
+// If any job fails to create, all jobs are rolled back.
+// Uses RLS to ensure proper tenant isolation.
+func (r *GenerationJobRepository) CreateBatch(ctx context.Context, jobs []*entity.GenerationJob) error {
+	if len(jobs) == 0 {
+		return nil
+	}
+
+	return RLSExec(ctx, r.db, func(tx *sql.Tx) error {
+		query := `
+			INSERT INTO generation_jobs (id, tenant_id, type, status, course_id, lesson_id, outline_lesson_id, sme_task_id, submission_id, parent_job_id, progress_percent, progress_message, result_path, error_message, tokens_used, retry_count, max_retries, created_by_user_id, created_at)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, NOW())
+		`
+		for _, job := range jobs {
+			_, err := tx.ExecContext(ctx, query,
+				job.ID,
+				job.TenantID,
+				job.Type.String(),
+				job.Status.String(),
+				job.CourseID,
+				job.LessonID,
+				job.OutlineLessonID,
+				job.SMETaskID,
+				job.SubmissionID,
+				job.ParentJobID,
+				job.ProgressPercent,
+				job.ProgressMessage,
+				job.ResultPath,
+				job.ErrorMessage,
+				job.TokensUsed,
+				job.RetryCount,
+				job.MaxRetries,
+				job.CreatedByUserID,
+			)
+			if err != nil {
+				return fmt.Errorf("failed to create job for lesson %v: %w", job.OutlineLessonID, err)
+			}
+		}
+		return nil
 	})
 }
 
@@ -225,14 +275,15 @@ func (r *GenerationJobRepository) GetNextQueued(ctx context.Context) (*entity.Ge
 		// Atomic claim: UPDATE with subquery SELECT FOR UPDATE SKIP LOCKED
 		// This ensures only one worker can claim each job
 		// Includes stale job recovery: if a worker crashes, the job stays in 'processing'
-		// forever. This query also picks up jobs stuck in 'processing' for >10 minutes.
-		query := `
+		// forever. This query also picks up jobs stuck in 'processing' for the configured timeout.
+		// NOTE: full_course jobs are excluded - they are parent tracking jobs, not processable work.
+		query := fmt.Sprintf(`
 			UPDATE generation_jobs
 			SET status = 'processing', started_at = NOW(), retry_count = retry_count + CASE WHEN status = 'processing' THEN 1 ELSE 0 END
 			WHERE id = (
 				SELECT id FROM generation_jobs
-				WHERE status = 'queued'
-				   OR (status = 'processing' AND started_at < NOW() - INTERVAL '10 minutes')
+				WHERE (status = 'queued' AND type != 'full_course')
+				   OR (status = 'processing' AND started_at < NOW() - INTERVAL '%d minutes' AND type != 'full_course')
 				ORDER BY
 					CASE WHEN status = 'queued' THEN 0 ELSE 1 END, -- Prefer queued jobs
 					created_at ASC
@@ -240,7 +291,7 @@ func (r *GenerationJobRepository) GetNextQueued(ctx context.Context) (*entity.Ge
 				FOR UPDATE SKIP LOCKED
 			)
 			RETURNING id, tenant_id, type, status, course_id, lesson_id, outline_lesson_id, sme_task_id, submission_id, parent_job_id, progress_percent, progress_message, result_path, error_message, tokens_used, retry_count, max_retries, created_by_user_id, created_at, started_at, completed_at
-		`
+		`, r.staleJobTimeoutMinutes)
 		job := &entity.GenerationJob{}
 		var typeStr, statusStr string
 		err := tx.QueryRowContext(ctx, query).Scan(
@@ -481,6 +532,90 @@ func (r *GenerationJobRepository) TryFinalizeParentJob(ctx context.Context, pare
 		// All children are complete - we're the one to finalize the parent
 		result.WasFinalized = true
 
+		return result, nil
+	})
+}
+
+// FinalizeParentJob atomically checks child completion and updates parent status in one transaction.
+// This ensures the status update happens inside the lock, preventing race conditions.
+// Returns nil if parent was already finalized or not found.
+func (r *GenerationJobRepository) FinalizeParentJob(ctx context.Context, parentID uuid.UUID, completedStatus, failedStatus string, progressMessage string) (*repository.ParentJobFinalizationResult, error) {
+	return RLSQuery(ctx, r.db, func(tx *sql.Tx) (*repository.ParentJobFinalizationResult, error) {
+		// Lock the parent job row to prevent concurrent finalization attempts
+		var parentStatus string
+		lockQuery := `
+			SELECT status FROM generation_jobs
+			WHERE id = $1
+			FOR UPDATE
+		`
+		if err := tx.QueryRowContext(ctx, lockQuery, parentID).Scan(&parentStatus); err != nil {
+			if err == sql.ErrNoRows {
+				return nil, nil
+			}
+			return nil, fmt.Errorf("failed to lock parent job: %w", err)
+		}
+
+		// If parent is already finalized, return early
+		if parentStatus == "completed" || parentStatus == "failed" || parentStatus == "cancelled" {
+			return &repository.ParentJobFinalizationResult{
+				WasFinalized: false,
+				AllComplete:  true,
+			}, nil
+		}
+
+		// Get child job statistics in a single query
+		statsQuery := `
+			SELECT
+				COUNT(*) as total,
+				COUNT(*) FILTER (WHERE status = 'completed') as completed,
+				COUNT(*) FILTER (WHERE status = 'failed') as failed,
+				COUNT(*) FILTER (WHERE status NOT IN ('completed', 'failed', 'cancelled')) as pending,
+				COALESCE(SUM(tokens_used), 0) as total_tokens
+			FROM generation_jobs
+			WHERE parent_job_id = $1
+		`
+
+		var total, completed, failed, pending int
+		var totalTokens int64
+		if err := tx.QueryRowContext(ctx, statsQuery, parentID).Scan(&total, &completed, &failed, &pending, &totalTokens); err != nil {
+			return nil, fmt.Errorf("failed to get child stats: %w", err)
+		}
+
+		result := &repository.ParentJobFinalizationResult{
+			WasFinalized:   false,
+			AllComplete:    pending == 0,
+			CompletedCount: completed,
+			FailedCount:    failed,
+			TotalCount:     total,
+			TotalTokens:    totalTokens,
+		}
+
+		// If there are still pending jobs, just return the stats without finalizing
+		if pending > 0 {
+			return result, nil
+		}
+
+		// All children are complete - finalize the parent INSIDE the atomic lock
+		finalStatus := completedStatus
+		var errorMessage *string
+		if failed > 0 {
+			finalStatus = failedStatus
+			errMsg := fmt.Sprintf("%d lesson(s) failed to generate", failed)
+			errorMessage = &errMsg
+		}
+
+		// Update parent status atomically while holding the lock
+		updateQuery := `
+			UPDATE generation_jobs
+			SET status = $1, progress_percent = 100, progress_message = $2,
+			    tokens_used = $3, completed_at = NOW(), error_message = $4
+			WHERE id = $5
+		`
+		if _, err := tx.ExecContext(ctx, updateQuery, finalStatus, progressMessage, totalTokens, errorMessage, parentID); err != nil {
+			return nil, fmt.Errorf("failed to update parent job status: %w", err)
+		}
+
+		result.WasFinalized = true
 		return result, nil
 	})
 }

@@ -82,7 +82,7 @@ func main() {
 	genLessonRepo := postgres.NewGeneratedLessonRepository(db.DB)
 	componentRepo := postgres.NewLessonComponentRepository(db.DB)
 	genInputRepo := postgres.NewCourseGenerationInputRepository(db.DB)
-	generationJobRepo := postgres.NewGenerationJobRepository(db.DB)
+	generationJobRepo := postgres.NewGenerationJobRepository(db.DB, cfg.StaleJobTimeoutMinutes)
 
 	// Initialize shared HTTP client
 	httpClient := httputil.NewClient()

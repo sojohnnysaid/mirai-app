@@ -354,24 +354,28 @@ func (s *AIGenerationService) ProcessOutlineGenerationJob(ctx context.Context, j
 		log.Error("failed to update job progress", "progress", 70, "error", err)
 	}
 
-	// Create outline entity
+	// Get next version number for this course (handles regeneration after rejection)
+	nextVersion, err := s.outlineRepo.GetNextVersion(ctx, *job.CourseID)
+	if err != nil {
+		log.Error("failed to get next version", "error", err)
+		return s.failJob(ctx, job, "failed to determine outline version")
+	}
+
+	// Build all entities first with pre-generated UUIDs for atomic creation
 	outline := &entity.CourseOutline{
 		ID:             uuid.New(),
 		TenantID:       job.TenantID,
 		CourseID:       *job.CourseID,
-		Version:        1,
+		Version:        nextVersion,
 		ApprovalStatus: valueobject.OutlineApprovalStatusPendingReview,
 		GeneratedAt:    time.Now(),
 	}
 
-	if err := s.outlineRepo.Create(ctx, outline); err != nil {
-		log.Error("failed to create outline", "error", err)
-		return s.failJob(ctx, job, "failed to store outline")
-	}
+	var sections []entity.OutlineSection
+	var lessons []entity.OutlineLesson
 
-	// Create sections and lessons
 	for _, sectionResult := range outlineResult.Sections {
-		section := &entity.OutlineSection{
+		section := entity.OutlineSection{
 			ID:          uuid.New(),
 			TenantID:    job.TenantID,
 			OutlineID:   outline.ID,
@@ -380,15 +384,11 @@ func (s *AIGenerationService) ProcessOutlineGenerationJob(ctx context.Context, j
 			Position:    int32(sectionResult.Order),
 			CreatedAt:   time.Now(),
 		}
-
-		if err := s.sectionRepo.Create(ctx, section); err != nil {
-			log.Error("failed to create section", "error", err)
-			continue
-		}
+		sections = append(sections, section)
 
 		for _, lessonResult := range sectionResult.Lessons {
 			duration := int32(lessonResult.EstimatedDurationMinutes)
-			lesson := &entity.OutlineLesson{
+			lesson := entity.OutlineLesson{
 				ID:                       uuid.New(),
 				TenantID:                 job.TenantID,
 				SectionID:                section.ID,
@@ -401,11 +401,15 @@ func (s *AIGenerationService) ProcessOutlineGenerationJob(ctx context.Context, j
 				IsLastInCourse:           lessonResult.IsLastInCourse,
 				CreatedAt:                time.Now(),
 			}
-
-			if err := s.lessonRepo.Create(ctx, lesson); err != nil {
-				log.Error("failed to create lesson", "error", err)
-			}
+			lessons = append(lessons, lesson)
 		}
+	}
+
+	// Atomically create outline with all sections and lessons
+	// If any part fails, the entire operation is rolled back
+	if err := s.outlineRepo.CreateCompleteOutline(ctx, outline, sections, lessons); err != nil {
+		log.Error("failed to create outline atomically", "error", err)
+		return s.failJob(ctx, job, "failed to store outline")
 	}
 
 	// Update token usage
@@ -930,14 +934,21 @@ func (s *AIGenerationService) ProcessLessonGenerationJob(ctx context.Context, jo
 
 // checkAndCompleteParentJob checks child job progress and updates the parent job.
 // Uses atomic locking to prevent race conditions when multiple children complete simultaneously.
+// The parent status update now happens INSIDE the atomic transaction via FinalizeParentJob.
 func (s *AIGenerationService) checkAndCompleteParentJob(ctx context.Context, parentJobID uuid.UUID) error {
 	log := s.logger.With("parentJobID", parentJobID)
 
-	// Use atomic method to check completion and get stats with proper locking
-	// This prevents race conditions when multiple children complete simultaneously
-	result, err := s.jobRepo.TryFinalizeParentJob(ctx, parentJobID)
+	// Use the new atomic FinalizeParentJob which updates status inside the lock
+	// This prevents the race where we win the lock but crash before updating status
+	result, err := s.jobRepo.FinalizeParentJob(
+		ctx,
+		parentJobID,
+		valueobject.GenerationJobStatusCompleted.String(), // status if all succeed
+		valueobject.GenerationJobStatusFailed.String(),    // status if any fail
+		"All lessons generated successfully",              // progress message
+	)
 	if err != nil {
-		return fmt.Errorf("failed to check parent job status: %w", err)
+		return fmt.Errorf("failed to finalize parent job: %w", err)
 	}
 
 	if result == nil {
@@ -950,28 +961,27 @@ func (s *AIGenerationService) checkAndCompleteParentJob(ctx context.Context, par
 		return nil
 	}
 
-	// Calculate progress percentage (10% reserved for initial queuing, 90% for lesson generation)
-	doneCount := result.CompletedCount + result.FailedCount
-	progressPercent := int32(10)
-	if result.TotalCount > 0 {
-		progressPercent = int32(10 + (90 * doneCount / result.TotalCount))
-	}
-
-	// Get parent job for update
-	parentJob, err := s.jobRepo.GetByID(ctx, parentJobID)
-	if err != nil || parentJob == nil {
-		return fmt.Errorf("failed to get parent job: %w", err)
-	}
-
-	progressMsg := fmt.Sprintf("Generated %d of %d lessons...", result.CompletedCount, result.TotalCount)
-
-	// Update parent progress
-	parentJob.ProgressPercent = progressPercent
-	parentJob.ProgressMessage = &progressMsg
-	parentJob.TokensUsed = result.TotalTokens
-
-	// If not all complete, just update progress
+	// If not all complete, just update progress (non-atomic is fine for progress)
 	if !result.AllComplete {
+		// Get parent job for progress update
+		parentJob, err := s.jobRepo.GetByID(ctx, parentJobID)
+		if err != nil || parentJob == nil {
+			log.Error("failed to get parent job for progress update", "error", err)
+			return nil
+		}
+
+		// Calculate progress percentage (10% reserved for initial queuing, 90% for lesson generation)
+		doneCount := result.CompletedCount + result.FailedCount
+		progressPercent := int32(10)
+		if result.TotalCount > 0 {
+			progressPercent = int32(10 + (90 * doneCount / result.TotalCount))
+		}
+
+		progressMsg := fmt.Sprintf("Generated %d of %d lessons...", result.CompletedCount, result.TotalCount)
+		parentJob.ProgressPercent = progressPercent
+		parentJob.ProgressMessage = &progressMsg
+		parentJob.TokensUsed = result.TotalTokens
+
 		if err := s.jobRepo.Update(ctx, parentJob); err != nil {
 			log.Error("failed to update parent job progress", "progress", progressPercent, "error", err)
 		} else {
@@ -980,11 +990,15 @@ func (s *AIGenerationService) checkAndCompleteParentJob(ctx context.Context, par
 		return nil
 	}
 
-	// We won the race - finalize the parent job
-	log.Info("all children complete, finalizing parent job", "completed", result.CompletedCount, "failed", result.FailedCount)
+	// We won the race and status was updated atomically - now send notifications
+	log.Info("parent job finalized atomically", "completed", result.CompletedCount, "failed", result.FailedCount, "totalTokens", result.TotalTokens)
 
-	now := time.Now()
-	parentJob.CompletedAt = &now
+	// Get parent job to fetch course info for notification
+	parentJob, err := s.jobRepo.GetByID(ctx, parentJobID)
+	if err != nil || parentJob == nil {
+		log.Error("failed to get parent job for notification", "error", err)
+		return nil // Status already updated, notification failure is non-fatal
+	}
 
 	// Get course title for notification
 	courseTitle := "Course"
@@ -992,43 +1006,21 @@ func (s *AIGenerationService) checkAndCompleteParentJob(ctx context.Context, par
 		courseTitle = "Your Course"
 	}
 
+	// Send appropriate notification based on result
 	if result.FailedCount > 0 {
-		parentJob.Status = valueobject.GenerationJobStatusFailed
 		errMsg := fmt.Sprintf("%d lesson(s) failed to generate", result.FailedCount)
-		parentJob.ErrorMessage = &errMsg
-		finalMsg := "Course generation failed"
-		parentJob.ProgressMessage = &finalMsg
-		parentJob.ProgressPercent = 100
-
-		if err := s.jobRepo.Update(ctx, parentJob); err != nil {
-			log.Error("failed to mark parent job as failed", "error", err)
-		}
-
-		// Send failure notification
 		if s.completionNotifier != nil && parentJob.CourseID != nil {
 			if err := s.completionNotifier.NotifyCourseFailed(ctx, parentJob.CreatedByUserID, *parentJob.CourseID, courseTitle, errMsg); err != nil {
 				log.Error("failed to send course failure notification", "error", err)
 			}
 		}
-
 		log.Info("parent job marked as failed", "failedCount", result.FailedCount)
 	} else {
-		parentJob.Status = valueobject.GenerationJobStatusCompleted
-		finalMsg := "All lessons generated successfully"
-		parentJob.ProgressMessage = &finalMsg
-		parentJob.ProgressPercent = 100
-
-		if err := s.jobRepo.Update(ctx, parentJob); err != nil {
-			log.Error("failed to mark parent job as completed", "error", err)
-		}
-
-		// Send completion notification with email
 		if s.completionNotifier != nil && parentJob.CourseID != nil {
 			if err := s.completionNotifier.NotifyCourseComplete(ctx, parentJob.CreatedByUserID, *parentJob.CourseID, courseTitle); err != nil {
 				log.Error("failed to send course completion notification", "error", err)
 			}
 		}
-
 		log.Info("parent job marked as completed", "totalTokens", result.TotalTokens, "lessonsGenerated", result.TotalCount)
 	}
 
@@ -1113,7 +1105,8 @@ func (s *AIGenerationService) GenerateAllLessons(ctx context.Context, kratosID u
 		return nil, domainerrors.ErrInternal.WithCause(err)
 	}
 
-	// Queue individual lesson generation jobs with parent_job_id
+	// Build all child jobs first with pre-generated UUIDs
+	var childJobs []*entity.GenerationJob
 	for _, section := range outline.Sections {
 		for _, lesson := range section.Lessons {
 			outlineLessonID := lesson.ID
@@ -1130,12 +1123,17 @@ func (s *AIGenerationService) GenerateAllLessons(ctx context.Context, kratosID u
 				CreatedByUserID: user.ID,
 				CreatedAt:       time.Now(),
 			}
-
-			if err := s.jobRepo.Create(ctx, job); err != nil {
-				log.Error("failed to create lesson job", "outlineLessonID", outlineLessonID, "error", err)
-				// Continue with other lessons
-			}
+			childJobs = append(childJobs, job)
 		}
+	}
+
+	// Atomically create all child jobs in a single transaction
+	// If any fails, all are rolled back and we fail the parent job
+	if err := s.jobRepo.CreateBatch(ctx, childJobs); err != nil {
+		log.Error("failed to create lesson jobs atomically", "error", err)
+		// Fail the parent job since no children were created
+		_ = s.failJob(ctx, parentJob, fmt.Sprintf("failed to queue lesson jobs: %v", err))
+		return nil, domainerrors.ErrInternal.WithMessage("failed to queue lesson generation jobs")
 	}
 
 	log.Info("queued all lesson generation jobs", "totalLessons", totalLessons, "parentJobID", parentJob.ID)

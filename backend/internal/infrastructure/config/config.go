@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strconv"
 )
 
 // Config holds application configuration.
@@ -55,6 +56,9 @@ type Config struct {
 
 	// Encryption
 	EncryptionKey string // 32-byte hex-encoded key for AES-256-GCM (API keys, etc.)
+
+	// Worker
+	StaleJobTimeoutMinutes int // Timeout in minutes before a processing job is considered stale (default: 30)
 }
 
 // Load loads configuration from environment variables.
@@ -98,12 +102,23 @@ func Load() (*Config, error) {
 		AdminEmail:   getEnv("ADMIN_EMAIL", "john@sogos.io"),
 		// Encryption
 		EncryptionKey: getEnv("ENCRYPTION_KEY", ""),
+		// Worker
+		StaleJobTimeoutMinutes: getEnvInt("STALE_JOB_TIMEOUT_MINUTES", 30),
 	}, nil
 }
 
 func getEnv(key, defaultValue string) string {
 	if value := os.Getenv(key); value != "" {
 		return value
+	}
+	return defaultValue
+}
+
+func getEnvInt(key string, defaultValue int) int {
+	if value := os.Getenv(key); value != "" {
+		if i, err := strconv.Atoi(value); err == nil {
+			return i
+		}
 	}
 	return defaultValue
 }

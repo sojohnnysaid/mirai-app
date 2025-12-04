@@ -147,6 +147,88 @@ func (r *CourseOutlineRepository) Update(ctx context.Context, outline *entity.Co
 	return err
 }
 
+// GetNextVersion returns the next version number for a course (max existing + 1, or 1 if none).
+func (r *CourseOutlineRepository) GetNextVersion(ctx context.Context, courseID uuid.UUID) (int32, error) {
+	query := `
+		SELECT COALESCE(MAX(version), 0) + 1
+		FROM course_outlines
+		WHERE course_id = $1
+	`
+	var nextVersion int32
+	err := r.db.QueryRowContext(ctx, query, courseID).Scan(&nextVersion)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get next version: %w", err)
+	}
+	return nextVersion, nil
+}
+
+// CreateCompleteOutline atomically creates an outline with all its sections and lessons.
+// If any part fails, the entire operation is rolled back.
+func (r *CourseOutlineRepository) CreateCompleteOutline(ctx context.Context, outline *entity.CourseOutline, sections []entity.OutlineSection, lessons []entity.OutlineLesson) error {
+	return RLSExec(ctx, r.db, func(tx *sql.Tx) error {
+		// 1. Insert outline
+		outlineQuery := `
+			INSERT INTO course_outlines (id, tenant_id, course_id, version, approval_status, rejection_reason, generated_at)
+			VALUES ($1, $2, $3, $4, $5, $6, NOW())
+		`
+		_, err := tx.ExecContext(ctx, outlineQuery,
+			outline.ID,
+			outline.TenantID,
+			outline.CourseID,
+			outline.Version,
+			outline.ApprovalStatus.String(),
+			outline.RejectionReason,
+		)
+		if err != nil {
+			return fmt.Errorf("failed to insert outline: %w", err)
+		}
+
+		// 2. Insert all sections
+		sectionQuery := `
+			INSERT INTO outline_sections (id, tenant_id, outline_id, title, description, position, created_at)
+			VALUES ($1, $2, $3, $4, $5, $6, NOW())
+		`
+		for _, section := range sections {
+			_, err := tx.ExecContext(ctx, sectionQuery,
+				section.ID,
+				section.TenantID,
+				section.OutlineID,
+				section.Title,
+				section.Description,
+				section.Position,
+			)
+			if err != nil {
+				return fmt.Errorf("failed to insert section %s: %w", section.Title, err)
+			}
+		}
+
+		// 3. Insert all lessons
+		lessonQuery := `
+			INSERT INTO outline_lessons (id, tenant_id, section_id, title, description, position, estimated_duration_minutes, learning_objectives, is_last_in_section, is_last_in_course, created_at)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
+		`
+		for _, lesson := range lessons {
+			_, err := tx.ExecContext(ctx, lessonQuery,
+				lesson.ID,
+				lesson.TenantID,
+				lesson.SectionID,
+				lesson.Title,
+				lesson.Description,
+				lesson.Position,
+				lesson.EstimatedDurationMinutes,
+				pq.Array(lesson.LearningObjectives),
+				lesson.IsLastInSection,
+				lesson.IsLastInCourse,
+			)
+			if err != nil {
+				return fmt.Errorf("failed to insert lesson %s: %w", lesson.Title, err)
+			}
+		}
+
+		return nil
+	})
+}
+
 // OutlineSectionRepository implements repository.OutlineSectionRepository using PostgreSQL.
 type OutlineSectionRepository struct {
 	db *sql.DB

@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-import { BookOpen, Menu, Loader2, X } from 'lucide-react';
+import React from 'react';
+import { BookOpen, Menu, Loader2 } from 'lucide-react';
 import ProfileDropdown from '@/components/auth/ProfileDropdown';
 import { useUIStore } from '@/store/zustand';
 import { useIsMobile } from '@/hooks/useBreakpoint';
@@ -15,7 +15,6 @@ import {
   useDeleteNotification,
 } from '@/hooks/useNotifications';
 import { useActiveGenerationJobs, useCancelJob } from '@/hooks/useAIGeneration';
-import { GenerationJobType } from '@/gen/mirai/v1/ai_generation_pb';
 
 interface HeaderProps {
   title?: string;
@@ -23,8 +22,8 @@ interface HeaderProps {
 
 export default function Header({ title }: HeaderProps) {
   const toggleMobileSidebar = useUIStore((s) => s.toggleMobileSidebar);
+  const openNotificationPanel = useUIStore((s) => s.openNotificationPanel);
   const isMobile = useIsMobile();
-  const [cancelling, setCancelling] = useState(false);
 
   // Notification hooks (RTK Query / Connect Query)
   const { count: unreadCount } = useUnreadCount();
@@ -35,25 +34,7 @@ export default function Header({ title }: HeaderProps) {
 
   // Active generation jobs
   const { data: activeJobs, hasActiveJobs, refetch: refetchJobs } = useActiveGenerationJobs();
-  const cancelJobMutation = useCancelJob();
-
-  // Get primary job for display
-  const primaryJob = activeJobs.find(j => j.type === GenerationJobType.FULL_COURSE)
-    || activeJobs.find(j => j.type === GenerationJobType.COURSE_OUTLINE)
-    || activeJobs[0];
-
-  const handleCancelJob = async () => {
-    if (!primaryJob || cancelling) return;
-    if (confirm('Cancel course generation?')) {
-      setCancelling(true);
-      try {
-        await cancelJobMutation.mutate(primaryJob.id);
-        await refetchJobs();
-      } finally {
-        setCancelling(false);
-      }
-    }
-  };
+  const cancelJob = useCancelJob();
 
   return (
     <header className="sticky top-0 z-30 bg-white border-b border-gray-200 px-4 lg:px-6 py-4">
@@ -79,26 +60,18 @@ export default function Header({ title }: HeaderProps) {
 
         {/* Active Job, Notifications & Profile */}
         <div className="flex items-center gap-2">
-          {/* Active Generation Job Indicator */}
-          {hasActiveJobs && primaryJob && (
-            <div className="flex items-center gap-2 bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-full text-sm">
+          {/* Active Generation Job Indicator - clickable to open notification panel */}
+          {hasActiveJobs && (
+            <button
+              onClick={openNotificationPanel}
+              className="flex items-center gap-2 bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-full text-sm hover:bg-indigo-200 transition-colors"
+              title="View active jobs"
+            >
               <Loader2 className="w-4 h-4 animate-spin" />
               <span className="hidden sm:inline font-medium">
-                {primaryJob.progressPercent || 0}%
+                Generating...
               </span>
-              <button
-                onClick={handleCancelJob}
-                disabled={cancelling}
-                className="ml-1 p-0.5 rounded-full hover:bg-indigo-200 transition-colors"
-                title="Cancel generation"
-              >
-                {cancelling ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <X className="w-3.5 h-3.5" />
-                )}
-              </button>
-            </div>
+            </button>
           )}
 
           {/* Notification Bell with Panel */}
@@ -107,6 +80,11 @@ export default function Header({ title }: HeaderProps) {
             <NotificationPanel
               notifications={notifications}
               isLoading={notificationsLoading}
+              activeJobs={activeJobs}
+              onCancelJob={async (jobId) => {
+                await cancelJob.mutate(jobId);
+                await refetchJobs();
+              }}
               onMarkAsRead={(ids) => markAsRead.mutate(ids)}
               onMarkAllAsRead={() => markAllAsRead.mutate()}
               onDelete={(id) => deleteNotification.mutate(id)}
