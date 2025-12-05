@@ -311,7 +311,7 @@ func main() {
 		Addr:         ":" + cfg.Port,
 		Handler:      handler,
 		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
+		WriteTimeout: 0, // Disabled for streaming support (SubscribeNotifications)
 		IdleTimeout:  60 * time.Second,
 	}
 
