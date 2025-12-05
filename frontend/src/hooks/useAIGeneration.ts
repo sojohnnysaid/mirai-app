@@ -394,31 +394,31 @@ export function useListGeneratedLessons(courseId: string | undefined) {
 
 /**
  * Hook to get active generation jobs (queued or processing).
- * Uses adaptive polling: 3 seconds when jobs are active, 30 seconds when idle.
- * Useful for showing "generation in progress" in notification panel.
+ * Uses adaptive polling: 3 seconds when jobs are active, 30 seconds idle.
+ * Only shows top-level jobs (course_outline, full_course) - not individual lesson jobs.
  */
 export function useActiveGenerationJobs() {
-  // Fetch jobs that are queued or processing
-  // We query without a specific status filter and filter client-side
-  // because the backend may not support querying multiple statuses at once
   const query = useQuery(listJobs, {}, {
     // Adaptive polling: faster when jobs are active, slower when idle
     refetchInterval: (data) => {
       const jobs = data.state.data?.jobs ?? [];
       const hasActive = jobs.some(
         (job: GenerationJob) =>
-          job.status === GenerationJobStatus.QUEUED ||
-          job.status === GenerationJobStatus.PROCESSING
+          (job.status === GenerationJobStatus.QUEUED ||
+           job.status === GenerationJobStatus.PROCESSING) &&
+          !job.parentJobId // Only count top-level jobs
       );
       // Poll every 3 seconds when active, every 30 seconds when idle
       return hasActive ? 3000 : 30000;
     },
   });
 
+  // Filter to only show top-level active jobs (not child lesson jobs)
   const activeJobs = (query.data?.jobs ?? []).filter(
     (job: GenerationJob) =>
-      job.status === GenerationJobStatus.QUEUED ||
-      job.status === GenerationJobStatus.PROCESSING
+      (job.status === GenerationJobStatus.QUEUED ||
+       job.status === GenerationJobStatus.PROCESSING) &&
+      !job.parentJobId // Exclude child jobs - only show parent/standalone jobs
   );
 
   return {
