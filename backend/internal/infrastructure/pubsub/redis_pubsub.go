@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
+	"google.golang.org/protobuf/encoding/protojson"
 
 	v1 "github.com/sogos/mirai-backend/gen/mirai/v1"
 	"github.com/sogos/mirai-backend/internal/domain/service"
@@ -16,6 +17,45 @@ import (
 type NotificationEvent struct {
 	EventType    v1.NotificationEventType `json:"event_type"`
 	Notification *v1.Notification         `json:"notification"`
+}
+
+// notificationEventWire is the wire format for NotificationEvent using protojson for Notification.
+type notificationEventWire struct {
+	EventType    v1.NotificationEventType `json:"event_type"`
+	Notification json.RawMessage          `json:"notification"`
+}
+
+// MarshalJSON implements custom JSON marshaling using protojson for Notification.
+func (e *NotificationEvent) MarshalJSON() ([]byte, error) {
+	var notifBytes []byte
+	var err error
+	if e.Notification != nil {
+		notifBytes, err = protojson.Marshal(e.Notification)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal notification: %w", err)
+		}
+	}
+	wire := notificationEventWire{
+		EventType:    e.EventType,
+		Notification: notifBytes,
+	}
+	return json.Marshal(wire)
+}
+
+// UnmarshalJSON implements custom JSON unmarshaling using protojson for Notification.
+func (e *NotificationEvent) UnmarshalJSON(data []byte) error {
+	var wire notificationEventWire
+	if err := json.Unmarshal(data, &wire); err != nil {
+		return err
+	}
+	e.EventType = wire.EventType
+	if len(wire.Notification) > 0 {
+		e.Notification = &v1.Notification{}
+		if err := protojson.Unmarshal(wire.Notification, e.Notification); err != nil {
+			return fmt.Errorf("failed to unmarshal notification: %w", err)
+		}
+	}
+	return nil
 }
 
 // Publisher defines the interface for publishing notification events.
