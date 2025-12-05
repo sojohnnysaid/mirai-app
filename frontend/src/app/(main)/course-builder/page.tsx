@@ -187,11 +187,14 @@ export default function CourseBuilder() {
     if (!outlineJob || state.value !== 'generatingOutline') return;
 
     if (outlineJob.status === GenerationJobStatus.COMPLETED) {
-      send({ type: 'OUTLINE_READY' });
+      // Refetch outline data before transitioning to ensure it's available
+      getOutlineHook.refetch().then(() => {
+        send({ type: 'OUTLINE_READY' });
+      });
     } else if (outlineJob.status === GenerationJobStatus.FAILED) {
       send({ type: 'ERROR', error: outlineJob.errorMessage || 'Outline generation failed' });
     }
-  }, [outlineJob, state.value, send]);
+  }, [outlineJob, state.value, send, getOutlineHook]);
 
   // Handle outline approval
   const handleApproveOutline = useCallback(async () => {
