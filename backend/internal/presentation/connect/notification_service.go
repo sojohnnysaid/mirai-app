@@ -212,9 +212,9 @@ func (s *NotificationServiceServer) SubscribeNotifications(
 	}
 	defer cleanup()
 
-	// Heartbeat ticker to keep connection alive through Cloudflare (100s timeout)
-	// Send a keep-alive every 30 seconds
-	heartbeat := time.NewTicker(30 * time.Second)
+	// Heartbeat ticker to keep connection alive through Cloudflare/proxy timeouts
+	// Send a keep-alive every 15 seconds (proxy timeout is ~30s)
+	heartbeat := time.NewTicker(15 * time.Second)
 	defer heartbeat.Stop()
 
 	// Forward events to client stream
@@ -224,9 +224,9 @@ func (s *NotificationServiceServer) SubscribeNotifications(
 			// Client disconnected or context cancelled
 			return nil
 		case <-heartbeat.C:
-			// Send heartbeat (empty event with UNSPECIFIED type) to keep connection alive
+			// Send heartbeat to keep connection alive through proxy timeouts
 			resp := &v1.SubscribeNotificationsResponse{
-				EventType: v1.NotificationEventType_NOTIFICATION_EVENT_TYPE_UNSPECIFIED,
+				EventType: v1.NotificationEventType_NOTIFICATION_EVENT_TYPE_KEEPALIVE,
 			}
 			if err := stream.Send(resp); err != nil {
 				return err

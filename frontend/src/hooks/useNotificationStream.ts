@@ -27,8 +27,11 @@ export function useNotificationStream() {
 
   const handleEvent = useCallback(
     (eventType: NotificationEventType) => {
-      // Ignore heartbeat/keep-alive events (UNSPECIFIED type)
-      if (eventType === NotificationEventType.UNSPECIFIED) {
+      // Ignore heartbeat/keep-alive events
+      if (
+        eventType === NotificationEventType.UNSPECIFIED ||
+        eventType === NotificationEventType.KEEPALIVE
+      ) {
         return;
       }
 

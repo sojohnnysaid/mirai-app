@@ -151,6 +151,7 @@ const (
 	NotificationEventType_NOTIFICATION_EVENT_TYPE_CREATED     NotificationEventType = 1 // New notification created
 	NotificationEventType_NOTIFICATION_EVENT_TYPE_READ        NotificationEventType = 2 // Notification marked as read
 	NotificationEventType_NOTIFICATION_EVENT_TYPE_DELETED     NotificationEventType = 3 // Notification deleted
+	NotificationEventType_NOTIFICATION_EVENT_TYPE_KEEPALIVE   NotificationEventType = 4 // Keepalive to prevent proxy timeout
 )
 
 // Enum value maps for NotificationEventType.
@@ -160,12 +161,14 @@ var (
 		1: "NOTIFICATION_EVENT_TYPE_CREATED",
 		2: "NOTIFICATION_EVENT_TYPE_READ",
 		3: "NOTIFICATION_EVENT_TYPE_DELETED",
+		4: "NOTIFICATION_EVENT_TYPE_KEEPALIVE",
 	}
 	NotificationEventType_value = map[string]int32{
 		"NOTIFICATION_EVENT_TYPE_UNSPECIFIED": 0,
 		"NOTIFICATION_EVENT_TYPE_CREATED":     1,
 		"NOTIFICATION_EVENT_TYPE_READ":        2,
 		"NOTIFICATION_EVENT_TYPE_DELETED":     3,
+		"NOTIFICATION_EVENT_TYPE_KEEPALIVE":   4,
 	}
 )
 
@@ -1004,12 +1007,13 @@ const file_mirai_v1_notification_proto_rawDesc = "" +
 	"!NOTIFICATION_PRIORITY_UNSPECIFIED\x10\x00\x12\x1d\n" +
 	"\x19NOTIFICATION_PRIORITY_LOW\x10\x01\x12 \n" +
 	"\x1cNOTIFICATION_PRIORITY_NORMAL\x10\x02\x12\x1e\n" +
-	"\x1aNOTIFICATION_PRIORITY_HIGH\x10\x03*\xac\x01\n" +
+	"\x1aNOTIFICATION_PRIORITY_HIGH\x10\x03*\xd3\x01\n" +
 	"\x15NotificationEventType\x12'\n" +
 	"#NOTIFICATION_EVENT_TYPE_UNSPECIFIED\x10\x00\x12#\n" +
 	"\x1fNOTIFICATION_EVENT_TYPE_CREATED\x10\x01\x12 \n" +
 	"\x1cNOTIFICATION_EVENT_TYPE_READ\x10\x02\x12#\n" +
-	"\x1fNOTIFICATION_EVENT_TYPE_DELETED\x10\x032\xb3\x04\n" +
+	"\x1fNOTIFICATION_EVENT_TYPE_DELETED\x10\x03\x12%\n" +
+	"!NOTIFICATION_EVENT_TYPE_KEEPALIVE\x10\x042\xb3\x04\n" +
 	"\x13NotificationService\x12\\\n" +
 	"\x11ListNotifications\x12\".mirai.v1.ListNotificationsRequest\x1a#.mirai.v1.ListNotificationsResponse\x12S\n" +
 	"\x0eGetUnreadCount\x12\x1f.mirai.v1.GetUnreadCountRequest\x1a .mirai.v1.GetUnreadCountResponse\x12G\n" +
