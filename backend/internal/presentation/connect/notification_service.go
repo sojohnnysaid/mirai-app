@@ -225,8 +225,10 @@ func (s *NotificationServiceServer) SubscribeNotifications(
 			return nil
 		case <-heartbeat.C:
 			// Send heartbeat to keep connection alive through proxy timeouts
+			// Use empty Notification struct (not nil) to prevent middleware panics
 			resp := &v1.SubscribeNotificationsResponse{
-				EventType: v1.NotificationEventType_NOTIFICATION_EVENT_TYPE_KEEPALIVE,
+				EventType:    v1.NotificationEventType_NOTIFICATION_EVENT_TYPE_KEEPALIVE,
+				Notification: &v1.Notification{},
 			}
 			if err := stream.Send(resp); err != nil {
 				return err
