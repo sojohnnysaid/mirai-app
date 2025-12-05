@@ -141,9 +141,92 @@ func (i *AuthInterceptor) WrapStreamingClient(next connect.StreamingClientFunc) 
 	return next // No streaming support needed for now
 }
 
-// WrapStreamingHandler implements connect.Interceptor.
+// WrapStreamingHandler implements connect.Interceptor for server streaming calls.
 func (i *AuthInterceptor) WrapStreamingHandler(next connect.StreamingHandlerFunc) connect.StreamingHandlerFunc {
-	return next // No streaming support needed for now
+	return func(ctx context.Context, conn connect.StreamingHandlerConn) error {
+		procedure := conn.Spec().Procedure
+
+		// Skip auth for public procedures
+		if i.publicProcedures[procedure] {
+			return next(ctx, conn)
+		}
+
+		// Parse cookies from request header
+		cookieHeader := conn.RequestHeader().Get("Cookie")
+		if cookieHeader == "" {
+			return connect.NewError(connect.CodeUnauthenticated, errUnauthenticated)
+		}
+
+		// Parse cookie header into []*http.Cookie
+		httpReq := &http.Request{Header: http.Header{"Cookie": []string{cookieHeader}}}
+		cookies := httpReq.Cookies()
+		if len(cookies) == 0 {
+			return connect.NewError(connect.CodeUnauthenticated, errUnauthenticated)
+		}
+
+		// Validate session with Kratos
+		session, err := i.identity.ValidateSession(ctx, cookies)
+		if err != nil {
+			i.logger.Debug("streaming session validation failed", "error", err)
+			return connect.NewError(connect.CodeUnauthenticated, errUnauthenticated)
+		}
+
+		if session == nil || !session.Active {
+			return connect.NewError(connect.CodeUnauthenticated, errUnauthenticated)
+		}
+
+		// Extract Kratos ID and email from session
+		kratosID := session.IdentityID.String()
+		email := session.Email
+
+		// Add auth info to context
+		ctx = context.WithValue(ctx, kratosIDKey{}, kratosID)
+		ctx = context.WithValue(ctx, emailKey{}, email)
+
+		// Look up user to get tenant ID for RLS
+		if i.userRepo != nil {
+			cacheKey := cache.GlobalCacheKeys.UserTenantMapping(kratosID)
+			var tenantID uuid.UUID
+			var found bool
+
+			// Try cache first
+			if i.cache != nil {
+				var mapping userTenantMapping
+				if entry, err := i.cache.Get(ctx, cacheKey, &mapping); err == nil && entry != nil {
+					if parsedID, err := uuid.Parse(mapping.TenantID); err == nil {
+						tenantID = parsedID
+						found = true
+					}
+				}
+			}
+
+			// Fall back to database if not cached
+			if !found {
+				adminCtx := tenant.WithSuperAdmin(ctx, true)
+				user, err := i.userRepo.GetByKratosID(adminCtx, session.IdentityID)
+				if err != nil {
+					i.logger.Debug("failed to lookup user for tenant context (streaming)", "error", err)
+				} else if user != nil && user.TenantID != nil {
+					tenantID = *user.TenantID
+					found = true
+
+					// Cache the mapping for 1 hour
+					if i.cache != nil {
+						mapping := userTenantMapping{TenantID: tenantID.String()}
+						if _, err := i.cache.Set(ctx, cacheKey, &mapping, "", time.Hour); err != nil {
+							i.logger.Debug("failed to cache user tenant mapping", "error", err)
+						}
+					}
+				}
+			}
+
+			if found {
+				ctx = tenant.WithTenantID(ctx, tenantID)
+			}
+		}
+
+		return next(ctx, conn)
+	}
 }
 
 // LoggingInterceptor provides request logging for Connect handlers.
