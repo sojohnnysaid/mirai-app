@@ -42,47 +42,9 @@ export function useNotificationStream() {
 
       switch (normalizedType) {
         case NotificationEventType.CREATED:
-          // Increment unread count optimistically
-          queryClient.setQueryData(
-            createConnectQueryKey({
-              schema: getUnreadCount,
-              cardinality: undefined,
-            }),
-            (old: { count?: number } | undefined) => ({
-              count: (old?.count ?? 0) + 1,
-            })
-          );
-          // Invalidate list so it refetches when panel opens
-          queryClient.invalidateQueries({
-            queryKey: createConnectQueryKey({
-              schema: listNotifications,
-              cardinality: undefined,
-            }),
-          });
-          break;
-
         case NotificationEventType.READ:
-          // Decrement unread count
-          queryClient.setQueryData(
-            createConnectQueryKey({
-              schema: getUnreadCount,
-              cardinality: undefined,
-            }),
-            (old: { count?: number } | undefined) => ({
-              count: Math.max((old?.count ?? 1) - 1, 0),
-            })
-          );
-          // Invalidate list for UI update
-          queryClient.invalidateQueries({
-            queryKey: createConnectQueryKey({
-              schema: listNotifications,
-              cardinality: undefined,
-            }),
-          });
-          break;
-
         case NotificationEventType.DELETED:
-          // Invalidate both queries
+          // Invalidate both queries to trigger refetch with fresh data
           queryClient.invalidateQueries({
             queryKey: createConnectQueryKey({
               schema: listNotifications,
