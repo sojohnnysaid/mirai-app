@@ -26,16 +26,21 @@ export function useNotificationStream() {
   const isConnectedRef = useRef(false);
 
   const handleEvent = useCallback(
-    (eventType: NotificationEventType) => {
+    (eventType: NotificationEventType | string) => {
+      // Normalize event type - protojson may send as string or number
+      const normalizedType = typeof eventType === 'string'
+        ? NotificationEventType[eventType.replace('NOTIFICATION_EVENT_TYPE_', '') as keyof typeof NotificationEventType]
+        : eventType;
+
       // Ignore heartbeat/keep-alive events
       if (
-        eventType === NotificationEventType.UNSPECIFIED ||
-        eventType === NotificationEventType.KEEPALIVE
+        normalizedType === NotificationEventType.UNSPECIFIED ||
+        normalizedType === NotificationEventType.KEEPALIVE
       ) {
         return;
       }
 
-      switch (eventType) {
+      switch (normalizedType) {
         case NotificationEventType.CREATED:
           // Increment unread count optimistically
           queryClient.setQueryData(
