@@ -9,8 +9,12 @@ import (
 
 // TenantAISettingsRepository defines the interface for tenant AI settings data access.
 type TenantAISettingsRepository interface {
-	// Get retrieves AI settings for a tenant (creates default if not exists).
+	// Get retrieves AI settings for a tenant.
+	// Returns (nil, nil) if settings don't exist yet.
 	Get(ctx context.Context, tenantID uuid.UUID) (*entity.TenantAISettings, error)
+
+	// Create creates new AI settings for a tenant.
+	Create(ctx context.Context, settings *entity.TenantAISettings) error
 
 	// Update updates AI settings.
 	Update(ctx context.Context, settings *entity.TenantAISettings) error

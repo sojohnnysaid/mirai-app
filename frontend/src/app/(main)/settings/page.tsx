@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { User, Bell, Lock, Palette, Globe, CreditCard, Users, ChevronRight, Sparkles } from 'lucide-react';
+import { User, Bell, Lock, Palette, Globe, CreditCard, Users, ChevronRight, Sparkles, AlertCircle } from 'lucide-react';
 import BillingSettings from '@/components/settings/BillingSettings';
 import TeamSettings from '@/components/settings/TeamSettings';
 import { AISettingsPanel } from '@/components/settings/AISettingsPanel';
@@ -16,8 +16,8 @@ import {
 
 // Wrapper component that connects AISettingsPanel to hooks
 function AISettingsContainer() {
-  const { data: settings, isLoading: settingsLoading } = useGetAISettings();
-  const { data: usageStats, isLoading: usageLoading } = useGetUsageStats();
+  const { data: settings, isLoading: settingsLoading, error: settingsError } = useGetAISettings();
+  const { data: usageStats, isLoading: usageLoading, error: usageError } = useGetUsageStats();
   const setApiKey = useSetAPIKey();
   const testApiKey = useTestAPIKey();
   const removeApiKey = useRemoveAPIKey();
@@ -37,6 +37,22 @@ function AISettingsContainer() {
   const handleRemoveApiKey = async () => {
     await removeApiKey.mutate();
   };
+
+  // Show error state if either settings or usage stats failed to load
+  if (settingsError || usageError) {
+    return (
+      <div>
+        <h2 className="text-xl lg:text-2xl font-bold text-gray-900 mb-4 lg:mb-6">
+          AI Settings
+        </h2>
+        <div className="text-center py-8">
+          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Failed to load AI settings</h3>
+          <p className="text-gray-600">Please try again later or contact support if the issue persists.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <AISettingsPanel

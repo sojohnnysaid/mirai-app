@@ -62,6 +62,14 @@ func (s *TenantSettingsService) GetAISettings(ctx context.Context, kratosID uuid
 		return nil, domainerrors.ErrInternal.WithCause(err)
 	}
 
+	// Return default settings if none exist yet
+	if settings == nil {
+		settings = &entity.TenantAISettings{
+			TenantID: *user.TenantID,
+			Provider: valueobject.AIProviderGemini,
+		}
+	}
+
 	return &GetAISettingsResult{Settings: settings}, nil
 }
 
@@ -90,21 +98,35 @@ func (s *TenantSettingsService) SetAPIKey(ctx context.Context, kratosID uuid.UUI
 		return domainerrors.ErrInternal.WithCause(err)
 	}
 
-	// Get existing settings or create new
+	// Get existing settings
 	settings, err := s.settingsRepo.Get(ctx, *user.TenantID)
 	if err != nil {
 		log.Error("failed to get AI settings", "error", err)
 		return domainerrors.ErrInternal.WithCause(err)
 	}
 
-	// Update settings
-	settings.Provider = provider
-	settings.EncryptedAPIKey = encryptedKey
-	settings.UpdatedByUserID = &user.ID
+	if settings == nil {
+		// Create new settings
+		settings = &entity.TenantAISettings{
+			TenantID:        *user.TenantID,
+			Provider:        provider,
+			EncryptedAPIKey: encryptedKey,
+			UpdatedByUserID: &user.ID,
+		}
+		if err := s.settingsRepo.Create(ctx, settings); err != nil {
+			log.Error("failed to create AI settings", "error", err)
+			return domainerrors.ErrInternal.WithCause(err)
+		}
+	} else {
+		// Update existing settings
+		settings.Provider = provider
+		settings.EncryptedAPIKey = encryptedKey
+		settings.UpdatedByUserID = &user.ID
 
-	if err := s.settingsRepo.Update(ctx, settings); err != nil {
-		log.Error("failed to update AI settings", "error", err)
-		return domainerrors.ErrInternal.WithCause(err)
+		if err := s.settingsRepo.Update(ctx, settings); err != nil {
+			log.Error("failed to update AI settings", "error", err)
+			return domainerrors.ErrInternal.WithCause(err)
+		}
 	}
 
 	log.Info("API key configured successfully")
@@ -132,6 +154,12 @@ func (s *TenantSettingsService) RemoveAPIKey(ctx context.Context, kratosID uuid.
 	if err != nil {
 		log.Error("failed to get AI settings", "error", err)
 		return domainerrors.ErrInternal.WithCause(err)
+	}
+
+	// If no settings exist, there's nothing to remove
+	if settings == nil {
+		log.Info("no API key to remove (settings don't exist)")
+		return nil
 	}
 
 	settings.EncryptedAPIKey = nil
@@ -176,7 +204,7 @@ func (s *TenantSettingsService) TestAPIKey(ctx context.Context, kratosID uuid.UU
 		if err != nil {
 			return nil, domainerrors.ErrInternal.WithCause(err)
 		}
-		if settings.EncryptedAPIKey == nil {
+		if settings == nil || settings.EncryptedAPIKey == nil {
 			return &TestAPIKeyResult{Valid: false, Message: "No API key configured"}, nil
 		}
 		keyToTest, err = s.encryptor.DecryptString(settings.EncryptedAPIKey)
@@ -221,6 +249,15 @@ func (s *TenantSettingsService) GetUsageStats(ctx context.Context, kratosID uuid
 		return nil, domainerrors.ErrInternal.WithCause(err)
 	}
 
+	// Return default stats if no settings exist yet
+	if settings == nil {
+		return &GetUsageStatsResult{
+			TotalTokensUsed:   0,
+			MonthlyTokenLimit: nil,
+			Provider:          valueobject.AIProviderGemini,
+		}, nil
+	}
+
 	return &GetUsageStatsResult{
 		TotalTokensUsed:   settings.TotalTokensUsed,
 		MonthlyTokenLimit: settings.MonthlyTokenLimit,
@@ -235,7 +272,7 @@ func (s *TenantSettingsService) GetDecryptedAPIKey(ctx context.Context, tenantID
 		return "", domainerrors.ErrInternal.WithCause(err)
 	}
 
-	if settings.EncryptedAPIKey == nil {
+	if settings == nil || settings.EncryptedAPIKey == nil {
 		return "", domainerrors.ErrAIKeyNotConfigured
 	}
 
