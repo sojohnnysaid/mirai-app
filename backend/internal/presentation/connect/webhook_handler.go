@@ -9,6 +9,7 @@ import (
 	"github.com/sogos/mirai-backend/internal/application/service"
 	"github.com/sogos/mirai-backend/internal/domain/repository"
 	domainservice "github.com/sogos/mirai-backend/internal/domain/service"
+	"github.com/sogos/mirai-backend/internal/domain/tenant"
 	"github.com/sogos/mirai-backend/internal/domain/valueobject"
 	"github.com/sogos/mirai-backend/internal/infrastructure/worker"
 	"github.com/stripe/stripe-go/v76"
@@ -62,7 +63,9 @@ func (h *WebhookHandler) HandleStripeWebhook(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	ctx := r.Context()
+	// Use superadmin context for webhook operations (no user session available)
+	// This allows access to pending_registrations and other tables during provisioning
+	ctx := tenant.WithSuperAdmin(r.Context(), true)
 
 	switch event.Type {
 	case "checkout.session.completed":

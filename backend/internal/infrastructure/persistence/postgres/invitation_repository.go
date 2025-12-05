@@ -24,127 +24,141 @@ func NewInvitationRepository(db *sql.DB) repository.InvitationRepository {
 
 // Create creates a new invitation.
 func (r *InvitationRepository) Create(ctx context.Context, inv *entity.Invitation) error {
-	query := `
-		INSERT INTO invitations (tenant_id, company_id, email, role, status, token, invited_by_user_id, expires_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-		RETURNING id, created_at, updated_at
-	`
-	return r.db.QueryRowContext(ctx, query,
-		inv.TenantID,
-		inv.CompanyID,
-		inv.Email,
-		inv.Role.String(),
-		inv.Status.String(),
-		inv.Token,
-		inv.InvitedByUserID,
-		inv.ExpiresAt,
-	).Scan(&inv.ID, &inv.CreatedAt, &inv.UpdatedAt)
+	return RLSExec(ctx, r.db, func(tx *sql.Tx) error {
+		query := `
+			INSERT INTO invitations (tenant_id, company_id, email, role, status, token, invited_by_user_id, expires_at)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+			RETURNING id, created_at, updated_at
+		`
+		return tx.QueryRowContext(ctx, query,
+			inv.TenantID,
+			inv.CompanyID,
+			inv.Email,
+			inv.Role.String(),
+			inv.Status.String(),
+			inv.Token,
+			inv.InvitedByUserID,
+			inv.ExpiresAt,
+		).Scan(&inv.ID, &inv.CreatedAt, &inv.UpdatedAt)
+	})
 }
 
 // GetByID retrieves an invitation by its ID.
 func (r *InvitationRepository) GetByID(ctx context.Context, id uuid.UUID) (*entity.Invitation, error) {
-	query := `
-		SELECT id, tenant_id, company_id, email, role, status, token, invited_by_user_id,
-		       accepted_by_user_id, expires_at, created_at, updated_at
-		FROM invitations
-		WHERE id = $1
-	`
-	return r.scanInvitation(r.db.QueryRowContext(ctx, query, id))
+	return RLSQuery(ctx, r.db, func(tx *sql.Tx) (*entity.Invitation, error) {
+		query := `
+			SELECT id, tenant_id, company_id, email, role, status, token, invited_by_user_id,
+			       accepted_by_user_id, expires_at, created_at, updated_at
+			FROM invitations
+			WHERE id = $1
+		`
+		return scanInvitationRow(tx.QueryRowContext(ctx, query, id))
+	})
 }
 
 // GetByToken retrieves an invitation by its token.
 func (r *InvitationRepository) GetByToken(ctx context.Context, token string) (*entity.Invitation, error) {
-	query := `
-		SELECT id, tenant_id, company_id, email, role, status, token, invited_by_user_id,
-		       accepted_by_user_id, expires_at, created_at, updated_at
-		FROM invitations
-		WHERE token = $1
-	`
-	return r.scanInvitation(r.db.QueryRowContext(ctx, query, token))
+	return RLSQuery(ctx, r.db, func(tx *sql.Tx) (*entity.Invitation, error) {
+		query := `
+			SELECT id, tenant_id, company_id, email, role, status, token, invited_by_user_id,
+			       accepted_by_user_id, expires_at, created_at, updated_at
+			FROM invitations
+			WHERE token = $1
+		`
+		return scanInvitationRow(tx.QueryRowContext(ctx, query, token))
+	})
 }
 
 // GetByEmailAndCompanyID retrieves a pending invitation by email and company.
 func (r *InvitationRepository) GetByEmailAndCompanyID(ctx context.Context, email string, companyID uuid.UUID) (*entity.Invitation, error) {
-	query := `
-		SELECT id, tenant_id, company_id, email, role, status, token, invited_by_user_id,
-		       accepted_by_user_id, expires_at, created_at, updated_at
-		FROM invitations
-		WHERE email = $1 AND company_id = $2 AND status = 'pending' AND expires_at > NOW()
-		LIMIT 1
-	`
-	return r.scanInvitation(r.db.QueryRowContext(ctx, query, email, companyID))
+	return RLSQuery(ctx, r.db, func(tx *sql.Tx) (*entity.Invitation, error) {
+		query := `
+			SELECT id, tenant_id, company_id, email, role, status, token, invited_by_user_id,
+			       accepted_by_user_id, expires_at, created_at, updated_at
+			FROM invitations
+			WHERE email = $1 AND company_id = $2 AND status = 'pending' AND expires_at > NOW()
+			LIMIT 1
+		`
+		return scanInvitationRow(tx.QueryRowContext(ctx, query, email, companyID))
+	})
 }
 
 // ListByCompanyID retrieves all invitations for a company with optional status filters.
 func (r *InvitationRepository) ListByCompanyID(ctx context.Context, companyID uuid.UUID, statusFilters ...valueobject.InvitationStatus) ([]*entity.Invitation, error) {
-	query := `
-		SELECT id, tenant_id, company_id, email, role, status, token, invited_by_user_id,
-		       accepted_by_user_id, expires_at, created_at, updated_at
-		FROM invitations
-		WHERE company_id = $1
-	`
-	args := []interface{}{companyID}
+	return RLSQuery(ctx, r.db, func(tx *sql.Tx) ([]*entity.Invitation, error) {
+		query := `
+			SELECT id, tenant_id, company_id, email, role, status, token, invited_by_user_id,
+			       accepted_by_user_id, expires_at, created_at, updated_at
+			FROM invitations
+			WHERE company_id = $1
+		`
+		args := []interface{}{companyID}
 
-	if len(statusFilters) > 0 {
-		placeholders := make([]string, len(statusFilters))
-		for i, status := range statusFilters {
-			placeholders[i] = fmt.Sprintf("$%d", i+2)
-			args = append(args, status.String())
+		if len(statusFilters) > 0 {
+			placeholders := make([]string, len(statusFilters))
+			for i, status := range statusFilters {
+				placeholders[i] = fmt.Sprintf("$%d", i+2)
+				args = append(args, status.String())
+			}
+			query += " AND status IN (" + strings.Join(placeholders, ",") + ")"
 		}
-		query += " AND status IN (" + strings.Join(placeholders, ",") + ")"
-	}
 
-	query += " ORDER BY created_at DESC"
+		query += " ORDER BY created_at DESC"
 
-	rows, err := r.db.QueryContext(ctx, query, args...)
-	if err != nil {
-		return nil, fmt.Errorf("failed to list invitations: %w", err)
-	}
-	defer rows.Close()
-
-	var invitations []*entity.Invitation
-	for rows.Next() {
-		inv, err := r.scanInvitationFromRows(rows)
+		rows, err := tx.QueryContext(ctx, query, args...)
 		if err != nil {
-			return nil, fmt.Errorf("failed to scan invitation: %w", err)
+			return nil, fmt.Errorf("failed to list invitations: %w", err)
 		}
-		invitations = append(invitations, inv)
-	}
-	return invitations, rows.Err()
+		defer rows.Close()
+
+		var invitations []*entity.Invitation
+		for rows.Next() {
+			inv, err := scanInvitationRows(rows)
+			if err != nil {
+				return nil, fmt.Errorf("failed to scan invitation: %w", err)
+			}
+			invitations = append(invitations, inv)
+		}
+		return invitations, rows.Err()
+	})
 }
 
 // Update updates an invitation.
 func (r *InvitationRepository) Update(ctx context.Context, inv *entity.Invitation) error {
-	query := `
-		UPDATE invitations
-		SET status = $1, accepted_by_user_id = $2, updated_at = NOW()
-		WHERE id = $3
-		RETURNING updated_at
-	`
-	return r.db.QueryRowContext(ctx, query,
-		inv.Status.String(),
-		inv.AcceptedByUserID,
-		inv.ID,
-	).Scan(&inv.UpdatedAt)
+	return RLSExec(ctx, r.db, func(tx *sql.Tx) error {
+		query := `
+			UPDATE invitations
+			SET status = $1, accepted_by_user_id = $2, updated_at = NOW()
+			WHERE id = $3
+			RETURNING updated_at
+		`
+		return tx.QueryRowContext(ctx, query,
+			inv.Status.String(),
+			inv.AcceptedByUserID,
+			inv.ID,
+		).Scan(&inv.UpdatedAt)
+	})
 }
 
 // CountPendingByCompanyID counts pending invitations for a company.
 func (r *InvitationRepository) CountPendingByCompanyID(ctx context.Context, companyID uuid.UUID) (int, error) {
-	query := `
-		SELECT COUNT(*)
-		FROM invitations
-		WHERE company_id = $1 AND status = 'pending' AND expires_at > NOW()
-	`
-	var count int
-	err := r.db.QueryRowContext(ctx, query, companyID).Scan(&count)
-	if err != nil {
-		return 0, fmt.Errorf("failed to count pending invitations: %w", err)
-	}
-	return count, nil
+	return RLSQuery(ctx, r.db, func(tx *sql.Tx) (int, error) {
+		query := `
+			SELECT COUNT(*)
+			FROM invitations
+			WHERE company_id = $1 AND status = 'pending' AND expires_at > NOW()
+		`
+		var count int
+		err := tx.QueryRowContext(ctx, query, companyID).Scan(&count)
+		if err != nil {
+			return 0, fmt.Errorf("failed to count pending invitations: %w", err)
+		}
+		return count, nil
+	})
 }
 
-// scanInvitation scans a single invitation from a query row.
-func (r *InvitationRepository) scanInvitation(row *sql.Row) (*entity.Invitation, error) {
+// scanInvitationRow scans a single invitation from a query row.
+func scanInvitationRow(row *sql.Row) (*entity.Invitation, error) {
 	inv := &entity.Invitation{}
 	var roleStr, statusStr string
 
@@ -174,8 +188,8 @@ func (r *InvitationRepository) scanInvitation(row *sql.Row) (*entity.Invitation,
 	return inv, nil
 }
 
-// scanInvitationFromRows scans a single invitation from a rows iterator.
-func (r *InvitationRepository) scanInvitationFromRows(rows *sql.Rows) (*entity.Invitation, error) {
+// scanInvitationRows scans a single invitation from a rows iterator.
+func scanInvitationRows(rows *sql.Rows) (*entity.Invitation, error) {
 	inv := &entity.Invitation{}
 	var roleStr, statusStr string
 

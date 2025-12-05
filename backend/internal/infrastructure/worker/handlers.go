@@ -9,6 +9,7 @@ import (
 
 	appservice "github.com/sogos/mirai-backend/internal/application/service"
 	domainservice "github.com/sogos/mirai-backend/internal/domain/service"
+	"github.com/sogos/mirai-backend/internal/domain/tenant"
 	"github.com/sogos/mirai-backend/internal/domain/worker"
 )
 
@@ -56,8 +57,11 @@ func (h *Handlers) HandleStripeProvision(ctx context.Context, t *asynq.Task) err
 	)
 	log.Info("processing stripe provision task")
 
+	// Use superadmin context for provisioning (worker has no user session)
+	adminCtx := tenant.WithSuperAdmin(ctx, true)
+
 	// Call the provisioning service to process this specific registration
-	err := h.provisioningService.ProvisionByCheckoutSession(ctx, payload.CheckoutSessionID)
+	err := h.provisioningService.ProvisionByCheckoutSession(adminCtx, payload.CheckoutSessionID)
 	if err != nil {
 		log.Error("failed to provision account", "error", err)
 		return err // Will be retried based on task configuration
@@ -73,8 +77,11 @@ func (h *Handlers) HandleStripeReconcile(ctx context.Context, t *asynq.Task) err
 	log := h.logger.With("task", worker.TypeStripeReconcile)
 	log.Info("processing stripe reconciliation task")
 
+	// Use superadmin context for reconciliation (worker has no user session)
+	adminCtx := tenant.WithSuperAdmin(ctx, true)
+
 	// Find stuck registrations and get critical ones for alerting
-	result, err := h.provisioningService.ReconcileStuckProvisioning(ctx)
+	result, err := h.provisioningService.ReconcileStuckProvisioning(adminCtx)
 	if err != nil {
 		log.Error("failed to reconcile stuck provisioning", "error", err)
 		return err
