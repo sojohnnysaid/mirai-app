@@ -9,6 +9,9 @@ import (
 	"syscall"
 	"time"
 
+	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
+
 	// Infrastructure
 	"github.com/sogos/mirai-backend/internal/infrastructure/cache"
 	"github.com/sogos/mirai-backend/internal/infrastructure/config"
@@ -306,10 +309,17 @@ func main() {
 	// Wrap with CORS middleware
 	handler := connectserver.CORSMiddleware(cfg.AllowedOrigin, mux)
 
+	// Optionally wrap with h2c for HTTP/2 cleartext (local dev with Envoy)
+	var finalHandler http.Handler = handler
+	if cfg.EnableH2C {
+		finalHandler = h2c.NewHandler(handler, &http2.Server{})
+		logger.Info("h2c enabled for HTTP/2 cleartext connections")
+	}
+
 	// Create HTTP server
 	srv := &http.Server{
 		Addr:         ":" + cfg.Port,
-		Handler:      handler,
+		Handler:      finalHandler,
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 0, // Disabled for streaming support (SubscribeNotifications)
 		IdleTimeout:  60 * time.Second,

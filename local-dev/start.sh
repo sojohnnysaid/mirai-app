@@ -224,6 +224,7 @@ cd "$PROJECT_ROOT/backend"
 
 # Run backend with its own environment (not exported to shell)
 PORT=8080 \
+ENABLE_H2C="true" \
 DATABASE_URL="postgres://mirai:mirailocal@localhost:5432/mirai?sslmode=disable" \
 KRATOS_URL="http://localhost:4433" \
 KRATOS_ADMIN_URL="http://localhost:4434" \

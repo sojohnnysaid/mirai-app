@@ -9,7 +9,8 @@ import (
 // Config holds application configuration.
 type Config struct {
 	// Server
-	Port string
+	Port      string
+	EnableH2C bool // Enable HTTP/2 cleartext for local dev (Envoy upstream)
 
 	// Database
 	DatabaseURL string
@@ -70,6 +71,7 @@ func Load() (*Config, error) {
 
 	return &Config{
 		Port:                 getEnv("PORT", "8080"),
+		EnableH2C:            getEnv("ENABLE_H2C", "false") == "true",
 		DatabaseURL:          databaseURL,
 		KratosURL:            getEnv("KRATOS_URL", "http://kratos-public.kratos.svc.cluster.local"),
 		KratosAdminURL:       getEnv("KRATOS_ADMIN_URL", "http://kratos-admin.kratos.svc.cluster.local"),
