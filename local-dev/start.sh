@@ -257,9 +257,13 @@ echo -e "  Backend PID: $BACKEND_PID"
 sleep 2
 
 # Build and start frontend in production mode (avoids HMR stream interruptions)
-echo -e "${BLUE}Building Next.js frontend...${NC}"
 cd "$PROJECT_ROOT/frontend"
-npm run build
+if [ "$REBUILD" = true ]; then
+    echo -e "${BLUE}Building Next.js frontend...${NC}"
+    npm run build
+else
+    echo -e "${YELLOW}Skipping frontend build (use --rebuild to rebuild)${NC}"
+fi
 
 echo -e "${BLUE}Starting Next.js frontend (production mode)...${NC}"
 PORT=3000 npm run start &
@@ -301,7 +305,7 @@ echo -e "    User: ${YELLOW}${MINIO_ACCESS_KEY:-minioadmin}${NC} | Pass: ${YELLO
 echo ""
 echo -e "  Press ${YELLOW}Ctrl+C${NC} to stop all services"
 echo ""
-echo -e "  ${YELLOW}Tip:${NC} Use ${BLUE}./start.sh --rebuild${NC} to rebuild Docker images"
+echo -e "  ${YELLOW}Tip:${NC} Use ${BLUE}./start.sh --rebuild${NC} to rebuild Docker images and frontend"
 echo -e "  ${YELLOW}Note:${NC} First visit to https://localhost:8443 will show a certificate warning."
 echo -e "        Accept the self-signed certificate to enable HTTP/2 streaming."
 echo ""
